@@ -1,4 +1,4 @@
-# Refined Project Plan: "AegisAI Media Intelligence Platform"
+# Refined Project Plan: "AegisAI Media Intelligence Platform" based on points 1-7 from 'OpenPoints.xlsx'
 
 ##  Detailed Architecture & Services
 We will split the monolith into highly cohesive, loosely coupled services.

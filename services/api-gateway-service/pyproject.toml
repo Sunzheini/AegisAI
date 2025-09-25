@@ -1,5 +1,5 @@
 [project]
-name = "aegisai"
+name = "api-gateway-service"
 version = "0.1.0"
 description = ""
 authors = [
@@ -8,9 +8,7 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "fastapi[standard] (>=0.117.1,<0.118.0)",
-    "uvicorn[standard] (>=0.37.0,<0.38.0)",
-    "pydantic (>=2.11.9,<3.0.0)"
+    "fastapi (>=0.117.1,<0.118.0)"
 ]
 
 

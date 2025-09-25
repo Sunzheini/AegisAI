@@ -7,3 +7,16 @@ insights, summaries, and content-aware transformations.
 ToDo: 
 1. take code from `fast_api_playground`
 2. continue with step1 from the plan in deepseek: https://chat.deepseek.com/a/chat/s/f54d7f95-b931-4034-8e70-3a3e39971af7
+
+## Structure
+AegisAI/
+├── services/                       # Microservices (core of your project)
+│   ├── api-gateway-service/
+│   └── another-service/
+├── common/                         # Shared elements
+├── docker-compose.yml              # Local development
+├── pyproject.toml                  # Root-level for dev tools
+├── poetry.lock
+├── README.md
+├── WORK_PLAN.md
+└── .gitignore

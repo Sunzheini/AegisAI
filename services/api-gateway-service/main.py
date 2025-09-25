@@ -8,7 +8,6 @@ app.include_router(auth.router)
 app.include_router(users.router)
 
 
-# ToDo: fix error not showing
-@app.get("/healthy")
+@app.get("/health")
 async def health_check():
     return {"status": "ok"}

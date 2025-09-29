@@ -1,4 +1,6 @@
-# Refined Project Plan: "AegisAI Media Intelligence Platform" based on points 1-7 from 'OpenPoints.xlsx'
+I am developing a python app and have the following plan:
+
+`# Refined Project Plan: "AegisAI Media Intelligence Platform" based on points 1-7 from 'OpenPoints.xlsx'
 
 ##  Detailed Architecture & Services
 We will split the monolith into highly cohesive, loosely coupled services.
@@ -79,71 +81,6 @@ These are the "muscle" that carry out the tasks defined by the LangGraph orchest
    - Prometheus & Grafana: Application metrics (e.g., langgraph_steps_completed, image_processing_duration_seconds, ai_model_latency_seconds) are scraped from the services and displayed on a dashboard.
    - AWS CloudWatch: Infrastructure logs and metrics (SQS queue depth, ECS CPU utilization, API Gateway 4xx/5xx errors).
    - Distributed Tracing: Implemented with AWS X-Ray to trace a request from the API through all queues and services, providing a visual workflow map.
+`.
 
-
-# ---------------------------------------------------------------------------------------
-# Reworked incl local
-# ---------------------------------------------------------------------------------------
-1. API Gateway & Ingestion Service (FastAPI)
-Purpose: Public-facing REST API for all interactions
-
-Component	    Local Development	            AWS Production	                Migration Complexity
-API Server	    FastAPI local server (uvicorn)	AWS API Gateway + ECS Fargate	Medium
-Authentication	Simple JWT/Local Auth	        AWS Cognito + OAuth2	        High
-Rate Limiting	FastAPI middleware	            API Gateway usage plans	        Low
-File Upload	    Multipart form data	            API Gateway binary media	    Low
-
-
-2. Workflow Orchestrator (LangGraph)
-Purpose: The brain of the operation - stateful workflow management
-
-Component	        Local Development	        AWS Production	            Migration Complexity
-Orchestration	    LangGraph local runtime	    ECS Fargate + LangGraph	    Low
-State Persistence	SQLite/Redis	            DynamoDB	                Medium
-Task Coordination	Redis Pub/Sub	            SQS + Callback Queues	    High
-
-
-3. Specialized Worker Services
-3.1 Validation Worker
-Component	    Local Development	    AWS Production	            Migration Complexity
-Queue Consumer	Redis RQ/Celery worker	ECS Fargate + SQS consumer	Medium
-File Access	    Local filesystem	    S3 SDK	                    Low
-Output	        Redis results	        SQS callbacks	            Medium
-
-3.2 Media Processing Worker
-Component	    Local Development	        AWS Production	            Migration Complexity
-CPU Processing	ProcessPoolExecutor local	ECS Fargate + Auto-scaling	Low
-FFmpeg/Pillow	Local installation	        Docker container	        Low
-File I/O	    Local filesystem	        S3 SDK	                    Low
-
-3.3 AI Inference Worker (LangChain)
-Component	        Local Development	        AWS Production	        Migration Complexity
-AI Models	        Local Ollama/OpenAI API	    OpenAI/Anthropic APIs	Low
-LangChain	        Local chains	            Same implementation	    None
-Queue Processing	Redis RQ	                SQS	                    Medium
-
-
-4. Data Storage & Sync Layer
-4.1 File Storage
-Component	        Local Development	                    AWS Production	        Migration Complexity
-Raw Files	        Local filesystem /storage/raw	        S3 Raw Bucket	        Low
-Processed Files	    Local filesystem /storage/processed	    S3 Processed Bucket	    Low
-Transcoded Files	Local filesystem /storage/transcoded	S3 Transcoded Bucket	Low
-CDN	                Nginx local server	                    CloudFront + OAI	    High
-
-4.2 Metadata & Job Store
-Component	    Local Development	AWS Production	    Migration Complexity
-Primary Store	SQLite/PostgreSQL	DynamoDB	        Medium
-Cache	        Redis	            ElastiCache Redis	Low
-Job State	    PostgreSQL table	DynamoDB streams	High
-
-
-
-
-
-
-
-
-
-
-
+Keep the plan in context from now on for our conversation. I made a monorepo with different packages in pycharm for the different microservices, each with its own venv. I am starting with the first microservice which is `API Gateway & Ingestion Service` and I want clarifications from your side before I write code: what does this mean: `Publishes a JOB_CREATED event to the Command Queue`? and this: `AWS Cognito (or Auth0) via OAuth2 flows` and this `Rate Limiting: Implemented at the API Gateway level`?

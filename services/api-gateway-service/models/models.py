@@ -11,6 +11,7 @@ class User(BaseModel):
     age: int = Field(ge=0, le=120, description="User's age between 0 and 120")
     city: str = Field(min_length=1, max_length=100, description="City name")
     email: Optional[str] = Field(default=None, description="Valid email address if provided")
+    password_hash: Optional[str] = Field(default=None, description="Hashed password")
 
     # Example data for documentation on swagger UI
     model_config = {
@@ -20,6 +21,7 @@ class User(BaseModel):
                 "age": 30,
                 "city": "New York",
                 "email": "eee",
+                "password_hash": "hashed_password_here"
             }
         }
     }

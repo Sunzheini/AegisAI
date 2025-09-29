@@ -15,7 +15,7 @@ class ViewsManager:
 
     def register_views(self):
         #GET list
-        # http://127.0.0.1:8000/list
+        # http://127.0.0.1:8000/users/list
         @self.router.get("/list", status_code=H.HTTP_200_OK)   # status code if successful
         async def list_users(current_user = Depends(self.get_current_user)):     # only authenticated users can see the list
             if current_user is None:
@@ -24,7 +24,7 @@ class ViewsManager:
             return self.db.users_db
 
         # GET one with path parameter
-        # http://127.0.0.1:8000/id/2
+        # http://127.0.0.1:8000/users/id/2
         @self.router.get("/id/{user_id}", status_code=H.HTTP_200_OK)
         async def get_user(user_id: int = Path(gt=0)):  # validation on path parameter
             for user in self.db.users_db:
@@ -33,7 +33,7 @@ class ViewsManager:
             raise HTTPException(status_code=404, detail="User not found with path parameter")
 
         # GET one with query parameter
-        # http://127.0.0.1:8000/list/city?city=Boston
+        # http://127.0.0.1:8000/users/list/city?city=Boston
         @self.router.get("/list/", status_code=H.HTTP_200_OK)
         async def get_users_by_city(city: str = Query(min_length=1, max_length=100)):  # validation on query parameter
             users_in_city = [user for user in self.db.users_db if user.city.lower() == city.lower()]
@@ -42,7 +42,7 @@ class ViewsManager:
             return users_in_city
 
         # POST
-        # http://127.0.0.1:8000/create
+        # http://127.0.0.1:8000/users/create
         # request body (application/json)
         # {"name": "Alice3", "age": 30, "city": "New York", "email": "alice@example.com"}
         # {"name": "Alice4", "age": 30, "city": "New York", "email": "alice@example.com"}
@@ -62,7 +62,7 @@ class ViewsManager:
             return new_user
 
         # PUT
-        # http://127.0.0.1:8000/edit/1
+        # http://127.0.0.1:8000/users/edit/1
         # request body (application/json)
         # {"name": "Alice2", "age": 30, "city": "New York", "email": "alice@example.com"}
         @self.router.put("/edit/{user_id}", status_code=H.HTTP_204_NO_CONTENT)
@@ -78,7 +78,7 @@ class ViewsManager:
             raise HTTPException(status_code=404, detail="User not found with path parameter")
 
         # DELETE
-        # http://127.0.0.1:8000/delete/3
+        # http://127.0.0.1:8000/users/delete/3
         @self.router.delete("/delete/{user_id}", status_code=H.HTTP_204_NO_CONTENT)
         async def delete_user(user_id: int = Path(gt=0)):
             for user in self.db.users_db:

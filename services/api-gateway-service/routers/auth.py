@@ -1,7 +1,6 @@
 import os
 from datetime import timedelta, datetime, timezone
 from typing import Dict, Any, Optional
-from enum import Enum
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
@@ -10,27 +9,35 @@ from jose import jwt, JWTError
 from models.temp_db import DataBaseManager
 
 
+"""
+THe flow is as follows:
+1. User sends a POST request to /auth/login with username and password.
+2. The server verifies the credentials and, if valid, generates a JWT token.
+3. The server responds with the JWT token.
+4. For protected routes, the client (frontend) includes the JWT token in the 
+Authorization header of subsequent requests in the format "Bearer <token>".
+5. When a request is made to a protected route, the server extracts the token
+from the Authorization header and verifies it (uses the get_current_user dependency).
+6. If the token is valid, the server processes the request; otherwise, it
+responds with an appropriate error (e.g., 401 Unauthorized).
+"""
+
+
 router = APIRouter(
     prefix='/auth',
     tags=['auth'],
 )
 
-
-# Configuration environment-based
-class AuthEnvironment(str, Enum):
-    LOCAL = "local"
-    COGNITO = "cognito"
-    HYBRID = "hybrid"
-
-
-AUTH_ENVIRONMENT = os.getenv("AUTH_ENVIRONMENT", "local")
-SECRET_KEY = os.getenv("SECRET_KEY", None)
+# ✅ Get secret key from environment variables (secure)
+SECRET_KEY = os.getenv("SECRET_KEY", "fallback-secret-for-development-only")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")  # for token authentication
 
 
-async def get_current_user(token: str = Depends(oauth2_scheme)):
+async def get_current_user(
+        token: str = Depends(oauth2_scheme      # automatically extracts the token from the request
+    )):
     """
     Dependency to get the current authenticated user from the JWT token
     """
@@ -57,7 +64,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 
 
 @router.post("/login")
-async def authenticate_user(form_data: OAuth2PasswordRequestForm = Depends()):
+async def authenticate_user_and_return_token(form_data: OAuth2PasswordRequestForm = Depends()):
     """
     Authenticate user and return JWT token
 
@@ -67,6 +74,7 @@ async def authenticate_user(form_data: OAuth2PasswordRequestForm = Depends()):
     """
     db = DataBaseManager()
 
+    # user must be fetched from the database
     user = db.get_user_by_username(form_data.username)
 
     if not user:
@@ -107,7 +115,7 @@ def create_access_token(username: str, expires_delta: Optional[timedelta] = None
     if expires_delta:
         expires = datetime.now(timezone.utc) + expires_delta
     else:
-        expires = datetime.now(timezone.utc) + timedelta(minutes=15)
+        expires = datetime.now(timezone.utc) + timedelta(minutes=60)
 
     to_encode.update({"exp": expires})
 
@@ -115,10 +123,11 @@ def create_access_token(username: str, expires_delta: Optional[timedelta] = None
     return encoded_jwt
 
 
+# not used currently, but could be useful for debugging or token validation
 @router.get("/verify-token")
 async def verify_token(token: str):
     """
-    Verify if a JWT token is valid, which login receives
+    Verify if a JWT token is valid, e.g. eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9, which is received by login
     """
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])

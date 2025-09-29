@@ -126,7 +126,7 @@ def create_access_token(username: str, expires_delta: Optional[timedelta] = None
     return encoded_jwt
 
 
-# Utility endpoint to create hashed passwords (for initial user setup)
+# Utility endpoint to create hashed passwords (for initial user setup only)
 @router.post("/hash-password")
 async def hash_password(password: str):
     """

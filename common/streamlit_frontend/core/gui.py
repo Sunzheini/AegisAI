@@ -52,3 +52,4 @@ class StreamlitFrontend:
             st.success("Button1 task complete!")
             st.balloons()
             st.session_state['button_1_task_complete'] = False  # Reset
+

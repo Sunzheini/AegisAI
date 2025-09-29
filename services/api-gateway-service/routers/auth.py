@@ -1,6 +1,7 @@
 import os
 from datetime import timedelta, datetime, timezone
 from typing import Dict, Any, Optional
+from enum import Enum
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
@@ -14,7 +15,15 @@ router = APIRouter(
     tags=['auth'],
 )
 
-# ✅ Get secret key from environment variables (secure)
+
+# Configuration environment-based
+class AuthEnvironment(str, Enum):
+    LOCAL = "local"
+    COGNITO = "cognito"
+    HYBRID = "hybrid"
+
+
+AUTH_ENVIRONMENT = os.getenv("AUTH_ENVIRONMENT", "local")
 SECRET_KEY = os.getenv("SECRET_KEY", None)
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30

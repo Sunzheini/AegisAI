@@ -6,7 +6,7 @@ from routers.rate_limit import InMemoryRateLimiter
 
 app = FastAPI(title="api-gateway-microservice", version="1.0.0")
 
-# Local rate limiting middleware (60 req/min per identity by default)
+# Local-only rate limiting middleware (fixed window). Bypassed during tests via app.state.testing.
 app.add_middleware(InMemoryRateLimiter, requests_per_minute=60)
 
 app.include_router(auth.router)

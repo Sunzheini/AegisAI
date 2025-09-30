@@ -1,59 +1,17 @@
 import pytest
-from fastapi.testclient import TestClient
 
-from main import app
 from models.temp_db import DataBaseManager
 from models.models import User
 from routers.security import get_password_hash
 
 
 # --------------------------------------------------------------------------------------
-# Fixtures
+# Fixtures specific to this module
 # --------------------------------------------------------------------------------------
-@pytest.fixture
-def client():
-    return TestClient(app)
-
-
-@pytest.fixture
-def database():
-    # Reset the database and reload initial data
-    DataBaseManager._initialized = False
-    db = DataBaseManager()
-    return db.users_db
-
-
 @pytest.fixture
 def sample_user_data(database):
     new_user_data = {'name': 'Alice36', 'age': 33, 'city': 'New York', 'email': 'alice33@example.com'}
     return new_user_data
-
-
-@pytest.fixture
-def auth_token(client, database):
-    # Reset DB and add a known user for testing with proper password
-    database.clear()
-
-    # Add test user with hashed password
-    test_user = User(
-        id=1,
-        name="testuser",
-        age=30,
-        city="Boston",
-        email="test@example.com",
-        password_hash=get_password_hash("testpass123")
-    )
-    database.append(test_user)
-
-    login_data = {"username": "testuser", "password": "testpass123"}
-    response = client.post("/auth/login", data=login_data)
-    assert response.status_code == 200, f"Login failed: {response.json()}"
-    return response.json()["access_token"]
-
-
-@pytest.fixture
-def auth_headers(auth_token):
-    return {"Authorization": f"Bearer {auth_token}"}
 
 
 # --------------------------------------------------------------------------------------
@@ -137,7 +95,10 @@ def test_edit_user(client, auth_headers):
     user_id = db.users_db[0].id
     update_data = {"name": "Bob2", "age": 41, "city": "Chicago", "email": "bob2@example.com"}
     response = client.put(f"/users/edit/{user_id}", json=update_data, headers=auth_headers)
-    assert response.status_code == 204
+    assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == user_id
+    assert data["name"] == "Bob2"
     # Check update in DB
     user = next(u for u in db.users_db if u.id == user_id)
     assert user.name == "Bob2"
@@ -156,7 +117,9 @@ def test_delete_user(client, auth_headers):
     db.users_db.append(user_to_delete)
 
     response = client.delete(f"/users/delete/{user_to_delete.id}", headers=auth_headers)
-    assert response.status_code == 204
+    assert response.status_code == 200
+    data = response.json()
+    assert data == {"deleted": True, "id": user_to_delete.id}
     assert all(u.id != user_to_delete.id for u in db.users_db)
 
 

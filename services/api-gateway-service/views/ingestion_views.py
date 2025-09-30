@@ -1,3 +1,12 @@
+"""
+Ingestion Views: Handles media upload, job tracking, and asset retrieval endpoints.
+
+Endpoints:
+  - POST /v1/upload: Upload media, create job, start processing
+  - GET  /v1/jobs/{job_id}: Get job status
+  - GET  /v1/assets/{asset_id}: Get asset metadata
+"""
+
 import os
 import uuid
 import asyncio
@@ -9,37 +18,33 @@ from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Path, R
 from starlette import status as H
 
 from routers.security import auth_required
+from support.constants import ALLOWED_CONTENT_TYPES_SET, MAX_UPLOAD_BYTES_SIZE
 
 
-STORAGE_ROOT = os.path.abspath(os.path.join(os.getcwd(), "storage"))
-RAW_DIR = os.path.join(STORAGE_ROOT, "raw")
-PROCESSED_DIR = os.path.join(STORAGE_ROOT, "processed")
-TRANSCODED_DIR = os.path.join(STORAGE_ROOT, "transcoded")
+STORAGE_ROOT = os.getenv("STORAGE_ROOT", os.path.abspath(os.path.join(os.getcwd(), "storage")))
+RAW_DIR = os.getenv("RAW_DIR", os.path.join(STORAGE_ROOT, "raw"))
+PROCESSED_DIR = os.getenv("PROCESSED_DIR", os.path.join(STORAGE_ROOT, "processed"))
+TRANSCODED_DIR = os.getenv("TRANSCODED_DIR", os.path.join(STORAGE_ROOT, "transcoded"))
+
+ALLOWED_CONTENT_TYPES = ALLOWED_CONTENT_TYPES_SET
+MAX_UPLOAD_BYTES = MAX_UPLOAD_BYTES_SIZE  # 50 MB
 
 
-ALLOWED_CONTENT_TYPES = {
-    "image/png",
-    "image/jpeg",
-    "image/webp",
-    "video/mp4",
-    "application/pdf",
-}
-MAX_UPLOAD_BYTES = 50 * 1024 * 1024  # 50 MB
-
-
-def _ensure_dirs():
+def _ensure_dirs() -> None:
+    """Create storage directories if they do not exist."""
     os.makedirs(RAW_DIR, exist_ok=True)
     os.makedirs(PROCESSED_DIR, exist_ok=True)
     os.makedirs(TRANSCODED_DIR, exist_ok=True)
 
 
 def _sanitize_filename(name: str) -> str:
+    """Sanitize filename to be filesystem-safe."""
     keep = [c if c.isalnum() or c in (".", "-", "_") else "_" for c in name]
     return "".join(keep) or "file"
 
 
 def _copy_file_sync(src_path: str, dst_path: str, chunk_size: int = 1024 * 1024) -> None:
-    """Copy a file using blocking I/O; intended to be called in a threadpool."""
+    """Copy a file using blocking I/O; intended for threadpool use."""
     with open(src_path, "rb") as rf, open(dst_path, "wb") as wf:
         while True:
             chunk = rf.read(chunk_size)
@@ -48,15 +53,15 @@ def _copy_file_sync(src_path: str, dst_path: str, chunk_size: int = 1024 * 1024)
             wf.write(chunk)
 
 
-async def _process_job(job_id: str):
-    # Simulate validation and processing, then create an asset entry
+async def _process_job(job_id: str) -> None:
+    """Process a job: validate, copy file, create asset metadata."""
     job = IngestionViewsManager.jobs_store.get(job_id)
     if not job:
         return
     job["status"] = "in_progress"
     job["updated_at"] = datetime.utcnow().isoformat()
 
-    # Simulate some processing delay
+    # Simulate processing delay
     await asyncio.sleep(0.2)
 
     src_path = job.get("file_path")
@@ -66,13 +71,11 @@ async def _process_job(job_id: str):
         job["updated_at"] = datetime.utcnow().isoformat()
         return
 
-    # For local processing, just "promote" the file to processed
     asset_id = str(uuid.uuid4())
     dst_filename = f"{asset_id}_{os.path.basename(src_path)}"
     dst_path = os.path.join(PROCESSED_DIR, dst_filename)
 
     try:
-        # Offload blocking copy to threadpool to avoid blocking the event loop
         await asyncio.to_thread(_copy_file_sync, src_path, dst_path)
     except Exception as e:
         job["status"] = "failed"
@@ -80,7 +83,6 @@ async def _process_job(job_id: str):
         job["updated_at"] = datetime.utcnow().isoformat()
         return
 
-    # Create asset metadata
     asset = {
         "asset_id": asset_id,
         "source_job_id": job_id,
@@ -92,7 +94,6 @@ async def _process_job(job_id: str):
     }
     IngestionViewsManager.assets_store[asset_id] = asset
 
-    # Update job status
     job["status"] = "completed"
     job["asset_id"] = asset_id
     job["updated_at"] = datetime.utcnow().isoformat()
@@ -102,10 +103,10 @@ class IngestionViewsManager:
     """
     Registers versioned ingestion endpoints under /v1 on the provided router.
 
-    Endpoints (local implementation):
-      - POST /v1/upload -> streams to local storage, creates job, returns 202 {job_id}
-      - GET  /v1/jobs/{job_id} -> 200 with job status or 404
-      - GET  /v1/assets/{asset_id} -> 200 with asset metadata or 404
+    Endpoints:
+      - POST /v1/upload: Upload media, create job, start processing
+      - GET  /v1/jobs/{job_id}: Get job status
+      - GET  /v1/assets/{asset_id}: Get asset metadata
     """
 
     # In-memory stores (class-level so they persist for the app lifetime)
@@ -119,16 +120,28 @@ class IngestionViewsManager:
         _ensure_dirs()
         self.register_views()
 
-    def register_views(self):
+    def register_views(self) -> None:
         # POST @ http://127.0.0.1:8000/v1/upload
-        @self.router.post("/upload", status_code=H.HTTP_202_ACCEPTED, summary="Upload media (v1)")
+        @self.router.post(
+            "/upload",
+            status_code=H.HTTP_202_ACCEPTED,
+            summary="Upload media (v1)"
+        )
         @auth_required
-        async def upload_media(request: Request, file: UploadFile = File(...), current_user=Depends(self.get_current_user)) -> Dict[str, Any]:
+        async def upload_media(
+            request: Request,
+            file: UploadFile = File(...),
+            current_user=Depends(self.get_current_user)
+        ) -> Dict[str, Any]:
             """
-            Accept a file upload, stream to local storage, and create a job. Returns 202 with a job_id.
+            Accept a file upload, stream to local storage, and create a job.
+            Returns 202 with a job_id.
             """
             if file.content_type not in ALLOWED_CONTENT_TYPES:
-                raise HTTPException(status_code=415, detail="Unsupported media type for local ingestion")
+                raise HTTPException(
+                    status_code=415,
+                    detail="Unsupported media type for local ingestion"
+                )
 
             # Create a new job id
             job_id = str(uuid.uuid4())
@@ -149,7 +162,10 @@ class IngestionViewsManager:
                             break
                         total += len(chunk)
                         if total > MAX_UPLOAD_BYTES:
-                            raise HTTPException(status_code=413, detail="Uploaded file too large for local limit")
+                            raise HTTPException(
+                                status_code=413,
+                                detail="Uploaded file too large for local limit"
+                            )
                         hasher.update(chunk)
                         # Offload blocking write to threadpool
                         await asyncio.to_thread(out.write, chunk)
@@ -172,7 +188,7 @@ class IngestionViewsManager:
             }
             IngestionViewsManager.jobs_store[job_id] = job_record
 
-            # Run processing: await in tests (deterministic), background otherwise for concurrency
+            # Run processing: await in tests, background otherwise
             if getattr(getattr(request.app, "state", None), "testing", False):
                 await _process_job(job_id)
             else:
@@ -181,18 +197,34 @@ class IngestionViewsManager:
             return {"job_id": job_id, "status": "accepted"}
 
         # GET @ http://127.0.0.1:8000/v1/jobs/{job_id}
-        @self.router.get("/jobs/{job_id}", status_code=H.HTTP_200_OK, summary="Get job status (v1)")
+        @self.router.get(
+            "/jobs/{job_id}",
+            status_code=H.HTTP_200_OK,
+            summary="Get job status (v1)"
+        )
         @auth_required
-        async def get_job_status(job_id: str = Path(..., min_length=1), current_user=Depends(self.get_current_user)) -> Dict[str, Any]:
+        async def get_job_status(
+            job_id: str = Path(..., min_length=1),
+            current_user=Depends(self.get_current_user)
+        ) -> Dict[str, Any]:
+            """Return job status or 404 if not found."""
             job = IngestionViewsManager.jobs_store.get(job_id)
             if not job:
                 raise HTTPException(status_code=404, detail="Job not found")
             return job
 
         # GET @ http://127.0.0.1:8000/v1/assets/{asset_id}
-        @self.router.get("/assets/{asset_id}", status_code=H.HTTP_200_OK, summary="Get asset metadata (v1)")
+        @self.router.get(
+            "/assets/{asset_id}",
+            status_code=H.HTTP_200_OK,
+            summary="Get asset metadata (v1)"
+        )
         @auth_required
-        async def get_asset(asset_id: str = Path(..., min_length=1), current_user=Depends(self.get_current_user)) -> Dict[str, Any]:
+        async def get_asset(
+            asset_id: str = Path(..., min_length=1),
+            current_user=Depends(self.get_current_user)
+        ) -> Dict[str, Any]:
+            """Return asset metadata or 404 if not found."""
             asset = IngestionViewsManager.assets_store.get(asset_id)
             if not asset:
                 raise HTTPException(status_code=404, detail="Asset not found")

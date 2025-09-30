@@ -1,11 +1,12 @@
-from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Path
-from starlette import status as H
-from typing import Dict, Any
-import uuid
 import os
+import uuid
 import asyncio
 import hashlib
+from typing import Dict, Any
 from datetime import datetime
+
+from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Path, Request
+from starlette import status as H
 
 from routers.security import auth_required
 
@@ -14,6 +15,7 @@ STORAGE_ROOT = os.path.abspath(os.path.join(os.getcwd(), "storage"))
 RAW_DIR = os.path.join(STORAGE_ROOT, "raw")
 PROCESSED_DIR = os.path.join(STORAGE_ROOT, "processed")
 TRANSCODED_DIR = os.path.join(STORAGE_ROOT, "transcoded")
+
 
 ALLOWED_CONTENT_TYPES = {
     "image/png",
@@ -34,6 +36,16 @@ def _ensure_dirs():
 def _sanitize_filename(name: str) -> str:
     keep = [c if c.isalnum() or c in (".", "-", "_") else "_" for c in name]
     return "".join(keep) or "file"
+
+
+def _copy_file_sync(src_path: str, dst_path: str, chunk_size: int = 1024 * 1024) -> None:
+    """Copy a file using blocking I/O; intended to be called in a threadpool."""
+    with open(src_path, "rb") as rf, open(dst_path, "wb") as wf:
+        while True:
+            chunk = rf.read(chunk_size)
+            if not chunk:
+                break
+            wf.write(chunk)
 
 
 async def _process_job(job_id: str):
@@ -60,13 +72,8 @@ async def _process_job(job_id: str):
     dst_path = os.path.join(PROCESSED_DIR, dst_filename)
 
     try:
-        # Copy file in chunks to avoid large memory
-        with open(src_path, "rb") as rf, open(dst_path, "wb") as wf:
-            while True:
-                chunk = rf.read(1024 * 1024)
-                if not chunk:
-                    break
-                wf.write(chunk)
+        # Offload blocking copy to threadpool to avoid blocking the event loop
+        await asyncio.to_thread(_copy_file_sync, src_path, dst_path)
     except Exception as e:
         job["status"] = "failed"
         job["error"] = str(e)
@@ -116,7 +123,7 @@ class IngestionViewsManager:
         # POST @ http://127.0.0.1:8000/v1/upload
         @self.router.post("/upload", status_code=H.HTTP_202_ACCEPTED, summary="Upload media (v1)")
         @auth_required
-        async def upload_media(file: UploadFile = File(...), current_user=Depends(self.get_current_user)) -> Dict[str, Any]:
+        async def upload_media(request: Request, file: UploadFile = File(...), current_user=Depends(self.get_current_user)) -> Dict[str, Any]:
             """
             Accept a file upload, stream to local storage, and create a job. Returns 202 with a job_id.
             """
@@ -144,7 +151,8 @@ class IngestionViewsManager:
                         if total > MAX_UPLOAD_BYTES:
                             raise HTTPException(status_code=413, detail="Uploaded file too large for local limit")
                         hasher.update(chunk)
-                        out.write(chunk)
+                        # Offload blocking write to threadpool
+                        await asyncio.to_thread(out.write, chunk)
             finally:
                 await file.close()
 
@@ -164,8 +172,11 @@ class IngestionViewsManager:
             }
             IngestionViewsManager.jobs_store[job_id] = job_record
 
-            # For local tests, process immediately to ensure determinism
-            await _process_job(job_id)
+            # Run processing: await in tests (deterministic), background otherwise for concurrency
+            if getattr(getattr(request.app, "state", None), "testing", False):
+                await _process_job(job_id)
+            else:
+                asyncio.create_task(_process_job(job_id))
 
             return {"job_id": job_id, "status": "accepted"}
 

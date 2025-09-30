@@ -122,23 +122,29 @@ def test_concurrent_uploads_show_parallel_processing(client, auth_headers, monke
     """Test that multiple uploads are processed in parallel."""
     import views.ingestion_views as iv
 
-    original_process = iv._process_job
+    # Find the actual instance used by the app
+    # This assumes the FastAPI app exposes the manager as app.state.ingestion_manager
+    ingestion_manager = getattr(getattr(client.app, "state", None), "ingestion_manager", None)
+    assert ingestion_manager is not None, "IngestionViewsManager instance not found in app.state.ingestion_manager"
+
+    # Patch the class method so all instances use the instrumented version
+    original_process = IVM._process_job
     lock = threading.Lock()
     counters = {"current": 0, "max": 0}
 
-    async def instrumented_process(job_id: str):
+    async def instrumented_process(self, job_id: str):
         with lock:
             counters["current"] += 1
             counters["max"] = max(counters["max"], counters["current"])
         try:
             import asyncio
             await asyncio.sleep(0.3)
-            return await original_process(job_id)
+            return await original_process(self, job_id)
         finally:
             with lock:
                 counters["current"] -= 1
 
-    monkeypatch.setattr(iv, "_process_job", instrumented_process)
+    monkeypatch.setattr(IVM, "_process_job", instrumented_process)
 
     content = b"\x89PNG\r\n\x1a\n" + b"0" * 1024
     results: List[Tuple[int, dict]] = []

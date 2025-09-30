@@ -1,5 +1,7 @@
 import hashlib
 import secrets
+from functools import wraps
+from fastapi import HTTPException
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -27,3 +29,13 @@ def get_password_hash(password: str) -> str:
 
     # Return salt + hash for storage
     return salt + password_hash
+
+
+def auth_required(func):
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        current_user = kwargs.get('current_user')
+        if current_user is None:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        return await func(*args, **kwargs)
+    return wrapper

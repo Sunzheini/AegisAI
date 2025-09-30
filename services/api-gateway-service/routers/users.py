@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from models.temp_db import DataBaseManager
-from views.views import ViewsManager
+from views.users_views import UsersViewsManager
 from routers.auth import get_current_user
 
 
@@ -11,4 +11,4 @@ router = APIRouter(
 )
 
 db_manager = DataBaseManager()
-views_manager = ViewsManager(router, get_current_user)
+views_manager = UsersViewsManager(router, get_current_user)

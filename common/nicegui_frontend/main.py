@@ -35,65 +35,54 @@ class MainApp:
                     button.classes(remove='opacity-50 cursor-not-allowed')
 
     async def _base_request_handler(self, method_type: str, url: str, data=None, headers=None):
-        """Async base handler for requests"""
+        """Base async request handler"""
         self._spinner.set_visibility(True)
         self._disable_buttons(True)
 
         try:
             async with aiohttp.ClientSession() as session:
-                if method_type == 'get':
-                    async with session.get(url, headers=headers) as response:
-                        result_text = await response.text()
-                        self._service1_textarea1.set_value(
-                            f"Status: {response.status}\n{result_text}")  # ← response.status
+                # Prepare request
+                request_kwargs = {}
 
-                        if response.status == 200:
-                            try:
-                                response_data = await response.json()
-                                if url.endswith('/auth/login') and 'access_token' in response_data:
-                                    self._access_token = response_data['access_token']
-                                    ui.notify("Login successful! Token stored.")
-                            except:
-                                # If response is not JSON, just show the text
-                                pass
-
-                elif method_type == 'post':
+                # If POST then add data
+                if method_type == 'post':
+                    # Special handling for login endpoint
                     if url.endswith('/auth/login') and data:
-                        # Form data for login
-                        async with session.post(url, data=data) as response:
-                            result_text = await response.text()
-                            self._service1_textarea1.set_value(
-                                f"Status: {response.status}\n{result_text}")  # ← response.status
+                        request_kwargs['data'] = data
 
-                            if response.status == 200:
-                                try:
-                                    response_data = await response.json()
-                                    if 'access_token' in response_data:
-                                        self._access_token = response_data['access_token']
-                                        ui.notify("Login successful! Token stored.")
-                                except:
-                                    pass
+                    # Add auth header for non-login requests
                     else:
-                        # JSON data for other endpoints
-                        async with session.post(url, json=data, headers=headers) as response:
-                            result_text = await response.text()
-                            self._service1_textarea1.set_value(
-                                f"Status: {response.status}\n{result_text}")  # ← response.status
+                        if self._access_token:
+                            if headers is None:
+                                headers = {}
+                            headers['Authorization'] = f'Bearer {self._access_token}'
+                        request_kwargs['json'] = data
 
-                            if response.status == 200:
-                                try:
-                                    response_data = await response.json()
-                                    self._service1_textarea1.set_value(json.dumps(response_data, indent=4))
-                                except:
-                                    # If response is not JSON, keep the text response
-                                    pass
+                # Add headers if provided
+                if headers:
+                    request_kwargs['headers'] = headers
 
-                else:
-                    ui.notify(f"Unsupported method type: {method_type}")
+                # Make request
+                async with getattr(session, method_type)(url, **request_kwargs) as response:
+                    # Process response
+                    try:
+                        response_data = await response.json()
+                        display_content = json.dumps(response_data, indent=4)
+
+                        # Handle token storage
+                        if response.status == 200 and url.endswith('/auth/login') and 'access_token' in response_data:
+                            self._access_token = response_data['access_token']
+                            ui.notify("Login successful! Token stored.")
+
+                    except (aiohttp.ContentTypeError, json.JSONDecodeError):
+                        display_content = await response.text()
+
+                    self._service1_textarea1.set_value(f"Status: {response.status}\n{display_content}")
 
         except Exception as e:
             ui.notify(f"Error during execution: {str(e)}")
             self._service1_textarea1.set_value(f"Error: {str(e)}")
+
         finally:
             self._spinner.set_visibility(False)
             self._disable_buttons(False)

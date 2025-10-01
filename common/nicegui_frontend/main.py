@@ -15,6 +15,8 @@ class MainApp:
         # service1
         self._service1_label = None
         self._service1_button1 = None
+        self._service1_input1 = None
+        self._service1_input2 = None
         self._service1_button2 = None
         self._service1_button3 = None
         self._service1_textarea1 = None
@@ -154,13 +156,16 @@ class MainApp:
                 self.service1_label = ui.label('1. Api Gateway Service').classes('w-1/2 p-4 text-center text-xl font-bold border border-white')
 
                 # Fixed: Remove lambda or add parentheses
-                self.service1_button1 = ui.button('Health Check', on_click=self.click_button1).classes(
+                self.service1_button1 = ui.button('Health Check', on_click=self._click_button1).classes(
                     'w-1/2 h-12 bg-blue-500 text-white rounded-lg shadow-md')
 
-                self.service1_button2 = ui.button('Button 2', on_click=lambda: self.click(2)).classes(
+                self._service1_input1 = ui.input(label="Username").classes('border border-white w-full')
+                self._service1_input2 = ui.input(label="Password").classes('border border-white w-full')
+
+                self.service1_button2 = ui.button('Login and store token', on_click=self._click_button2).classes(
                     'w-1/2 h-12 bg-blue-500 text-white rounded-lg shadow-md')
 
-                self.service1_button3 = ui.button('Button 3', on_click=lambda: self.click(3)).classes(
+                self.service1_button3 = ui.button('Button 3', on_click=self._click_button3).classes(
                     'w-1/2 h-12 bg-blue-500 text-white rounded-lg shadow-md')
 
                 self.service1_textarea1 = ui.textarea(label="Response").classes('border border-white w-full h-40')
@@ -168,9 +173,32 @@ class MainApp:
     # endregion -------------------------------------------------------------------------------------------------------
 
     # region service1 event handlers ----------------------------------------------------------------------------------
-    async def click_button1(self):
+    async def _click_button1(self):
         """Health check button handler"""
         await self._base_request_handler('get', 'http://127.0.0.1:8000/health')
+
+    async def _click_button2(self):
+        """Login button handler"""
+        username = self._service1_input1.value
+        password = self._service1_input2.value
+
+        if not username or not password:
+            ui.notify("Please enter both username and password.")
+            return
+
+        data = {'username': username.strip(), 'password': password.strip()}
+
+        # For OAuth2 login, we send as form data (not JSON)
+        await self._base_request_handler('post', 'http://127.0.0.1:8000/auth/login', data=data)
+
+    async def _click_button3(self):
+        """Protected list endpoint button handler"""
+        if not self._access_token:
+            ui.notify("Please login first to obtain an access token.")
+            return
+
+        headers = {"Authorization": f"Bearer {self._access_token}"}
+        await self._base_request_handler('get', 'http://127.0.0.1:8000/users/list', headers=headers)
 
     async def click(self, nr):
         """Generic button handler with simulated delay"""

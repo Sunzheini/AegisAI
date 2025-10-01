@@ -8,7 +8,7 @@ class MainApp:
 
     def create_app(self):
         # Header
-        (ui.label('Button Dashboard App').classes('text-2xl font-bold text-center w-full mt-4'))
+        (ui.label('1. Api Gateway Service').classes('text-2xl font-bold text-center w-full mt-4'))
 
         # Status display area
         with ui.card().classes('w-full p-4 bg-blue-50'):

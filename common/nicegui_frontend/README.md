@@ -166,15 +166,21 @@ ui.json({...})                                       <pre>{...}</pre>           
 .classes('text-center')           text-align: center;                           Center align (common)
 .classes('text-right')            text-align: right;                            Right align
 
-### Flexbox
+### Flexbox (align-items is vertical, justify-content is horizontal)
 .classes('flex')                  display: flex;                                Display flex
 .classes('flex-col')              flex-direction: column;                       Flex column
 .classes('flex-row')              flex-direction: row;                          Flex row (default)
+.classes('items-start')           align-items: flex-start;                      Vertical start (default)
+.classes('items-end')             align-items: flex-end;                        Vertical end
 .classes('items-center')          align-items: center;                          Vertical center
-.classes('items-start')           align-items: flex-start;                      Vertical start
+.classes('items-baseline')        align-items: baseline;                        Baseline alignment
+.classes('items-stretch')         align-items: stretch; (default)               Height stretch (default)
+.classes('justify-start')         justify-content: flex-start;                  Horizontal start
+.classes('justify-end')           justify-content: flex-end;                    Horizontal end
 .classes('justify-center')        justify-content: center;                      Horizontal center
 .classes('justify-between')       justify-content: space-between;               Space between
 .classes('justify-around')        justify-content: space-around;                Space around
+.classes('justify-evenly')        justify-content: space-evenly;                Even spacing
 
 ### Grid
 .classes('grid')                  display: grid;                                Display grid

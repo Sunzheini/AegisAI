@@ -1,83 +1,156 @@
+import asyncio
+import json
+import aiohttp          # async HTTP client instead of requests!
 from nicegui import ui
-
 from support.reset_css_for_nicegui import reset_css
 
 
 class MainApp:
-    """
-    An example of a complete NiceGUI application with custom CSS reset and structured layout. Used for AegisAI
-    microservices showcase.
-    """
     def __init__(self):
         # general
         self._title = "AegisAI Microservices Showcase"
         self._spinner = None
+        self._access_token = None
 
-        # app1
-        self._app1_label = None
-        self._app1_button1 = None
-        self._app1_button2 = None
-        self._app1_button3 = None
-        self._app1_textarea1 = None
+        # service1
+        self._service1_label = None
+        self._service1_button1 = None
+        self._service1_button2 = None
+        self._service1_button3 = None
+        self._service1_textarea1 = None
 
-        self.create_app1()
+        self.create_app()
 
-    # region getters and setters for app1 -----------------------------------------------------------------------------
-    @property
-    def app1_label(self):
-        return self._app1_label
+    # region general methods ------------------------------------------------------------------------------------------
+    def _disable_buttons(self, disable: bool):
+        """Enable or disable all buttons"""
+        for i in range(1, 4):
+            button = getattr(self, f'_service1_button{i}', None)
+            if button:
+                if disable:
+                    button.props('disable')
+                    button.classes('opacity-50 cursor-not-allowed')
+                else:
+                    button.props(remove='disable')
+                    button.classes(remove='opacity-50 cursor-not-allowed')
 
-    @app1_label.setter
-    def app1_label(self, value):
-        if self._app1_label is None:
-            self._app1_label = value
+    async def _base_request_handler(self, method_type: str, url: str, data=None, headers=None):
+        """Async base handler for requests"""
+        self._spinner.set_visibility(True)
+        self._disable_buttons(True)
 
-    @property
-    def app1_button1(self):
-        return self._app1_button1
+        try:
+            async with aiohttp.ClientSession() as session:
+                if method_type == 'get':
+                    async with session.get(url, headers=headers) as response:
+                        result_text = await response.text()
+                        self._service1_textarea1.set_value(
+                            f"Status: {response.status}\n{result_text}")  # ← response.status
 
-    @app1_button1.setter
-    def app1_button1(self, value):
-        if self._app1_button1 is None:
-            self._app1_button1 = value
+                        if response.status == 200:
+                            try:
+                                response_data = await response.json()
+                                if url.endswith('/auth/login') and 'access_token' in response_data:
+                                    self._access_token = response_data['access_token']
+                                    ui.notify("Login successful! Token stored.")
+                            except:
+                                # If response is not JSON, just show the text
+                                pass
 
-    @property
-    def app1_button2(self):
-        return self._app1_button2
+                elif method_type == 'post':
+                    if url.endswith('/auth/login') and data:
+                        # Form data for login
+                        async with session.post(url, data=data) as response:
+                            result_text = await response.text()
+                            self._service1_textarea1.set_value(
+                                f"Status: {response.status}\n{result_text}")  # ← response.status
 
-    @app1_button2.setter
-    def app1_button2(self, value):
-        if self._app1_button2 is None:
-            self._app1_button2 = value
+                            if response.status == 200:
+                                try:
+                                    response_data = await response.json()
+                                    if 'access_token' in response_data:
+                                        self._access_token = response_data['access_token']
+                                        ui.notify("Login successful! Token stored.")
+                                except:
+                                    pass
+                    else:
+                        # JSON data for other endpoints
+                        async with session.post(url, json=data, headers=headers) as response:
+                            result_text = await response.text()
+                            self._service1_textarea1.set_value(
+                                f"Status: {response.status}\n{result_text}")  # ← response.status
 
-    @property
-    def app1_button3(self):
-        return self._app1_button3
+                            if response.status == 200:
+                                try:
+                                    response_data = await response.json()
+                                    self._service1_textarea1.set_value(json.dumps(response_data, indent=4))
+                                except:
+                                    # If response is not JSON, keep the text response
+                                    pass
 
-    @app1_button3.setter
-    def app1_button3(self, value):
-        if self._app1_button3 is None:
-            self._app1_button3 = value
+                else:
+                    ui.notify(f"Unsupported method type: {method_type}")
 
-    @property
-    def app1_textarea1(self):
-        return self._app1_textarea1
-
-    @app1_textarea1.setter
-    def app1_textarea1(self, value):
-        if self._app1_textarea1 is None:
-            self._app1_textarea1 = value
+        except Exception as e:
+            ui.notify(f"Error during execution: {str(e)}")
+            self._service1_textarea1.set_value(f"Error: {str(e)}")
+        finally:
+            self._spinner.set_visibility(False)
+            self._disable_buttons(False)
 
     # endregion -------------------------------------------------------------------------------------------------------
 
-    # region app1 -----------------------------------------------------------------------------------------------------
-    def create_app1(self) -> None:
-        """
-        Create the NiceGUI application with a complete CSS reset and structured layout.
-        This function sets up the main UI components and their styles.
-        :return: None
-        """
-        # Complete CSS Reset
+    # region getters and setters for service1 -------------------------------------------------------------------------
+    @property
+    def service1_label(self):
+        return self._service1_label
+
+    @service1_label.setter
+    def service1_label(self, value):
+        if self._service1_label is None:
+            self._service1_label = value
+
+    @property
+    def service1_button1(self):
+        return self._service1_button1
+
+    @service1_button1.setter
+    def service1_button1(self, value):
+        if self._service1_button1 is None:
+            self._service1_button1 = value
+
+    @property
+    def service1_button2(self):
+        return self._service1_button2
+
+    @service1_button2.setter
+    def service1_button2(self, value):
+        if self._service1_button2 is None:
+            self._service1_button2 = value
+
+    @property
+    def service1_button3(self):
+        return self._service1_button3
+
+    @service1_button3.setter
+    def service1_button3(self, value):
+        if self._service1_button3 is None:
+            self._service1_button3 = value
+
+    @property
+    def service1_textarea1(self):
+        return self._service1_textarea1
+
+    @service1_textarea1.setter
+    def service1_textarea1(self, value):
+        if self._service1_textarea1 is None:
+            self._service1_textarea1 = value
+
+    # endregion -------------------------------------------------------------------------------------------------------
+
+    # region app ------------------------------------------------------------------------------------------------------
+    def create_app(self) -> None:
+        """Create the NiceGUI application"""
         ui.add_head_html(reset_css)
 
         # Create spinner first (initially hidden)
@@ -88,51 +161,38 @@ class MainApp:
         with ui.column().classes('w-screen h-screen bg-gray-300 justify-start gap-0 relative'):
             ui.label(self._title).classes('w-full p-4 text-center text-2xl font-bold border border-white')
 
-            with ui.column().classes('w-[calc(100%-2rem)] mx-auto p-4 gap-4 '                       # size
-                                     'bg-gray-400 border-2 border-white rounded-lg shadow-lg '      # style
-                                     'overflow-auto items-start'):                                  # children
-                self.app1_label = ui.label('1. Api Gateway Service').classes('w-1/2 p-4 text-center text-xl font-bold border border-white')
+            with ui.column().classes('w-[calc(100%-2rem)] mx-auto p-4 gap-4 bg-gray-400 border-2 border-white rounded-lg shadow-lg overflow-auto items-start'):
+                self.service1_label = ui.label('1. Api Gateway Service').classes('w-1/2 p-4 text-center text-xl font-bold border border-white')
 
-                self.app1_button1 = ui.button('button 1', on_click=lambda: self.click(1)).classes(
+                # Fixed: Remove lambda or add parentheses
+                self.service1_button1 = ui.button('Health Check', on_click=self.click_button1).classes(
                     'w-1/2 h-12 bg-blue-500 text-white rounded-lg shadow-md')
 
-                self.app1_button2 = ui.button('button 2', on_click=lambda: self.click(2)).classes(
+                self.service1_button2 = ui.button('Button 2', on_click=lambda: self.click(2)).classes(
                     'w-1/2 h-12 bg-blue-500 text-white rounded-lg shadow-md')
 
-                self.app1_button3 = ui.button('button 3', on_click=lambda: self.click(3)).classes(
+                self.service1_button3 = ui.button('Button 3', on_click=lambda: self.click(3)).classes(
                     'w-1/2 h-12 bg-blue-500 text-white rounded-lg shadow-md')
 
-                self.app1_textarea1 = ui.textarea(label="Multi-line").classes('border border-white')
+                self.service1_textarea1 = ui.textarea(label="Response").classes('border border-white w-full h-40')
 
     # endregion -------------------------------------------------------------------------------------------------------
 
-    # region general methods ------------------------------------------------------------------------------------------
-    def _disable_buttons(self, disable: bool):
-        """Enable or disable all buttons"""
-        for i in range(1, 4):
-            button = getattr(self, f'app1_button{i}', None)
-            if button:
-                if disable:
-                    button.props('disable')
-                    button.classes('opacity-50 cursor-not-allowed')
-                else:
-                    button.props(remove='disable')
-                    button.classes(remove='opacity-50 cursor-not-allowed')
+    # region service1 event handlers ----------------------------------------------------------------------------------
+    async def click_button1(self):
+        """Health check button handler"""
+        await self._base_request_handler('get', 'http://127.0.0.1:8000/health')
 
-    # endregion -------------------------------------------------------------------------------------------------------
-
-    # region app1 event handlers --------------------------------------------------------------------------------------
-    def click(self, nr):
+    async def click(self, nr):
+        """Generic button handler with simulated delay"""
         self._spinner.set_visibility(True)
         self._disable_buttons(True)
 
-        def finish_operation():
-            self._spinner.set_visibility(False)
-            self._disable_buttons(False)
-            self.app1_textarea1.set_value(f'button {nr} pressed')
+        await asyncio.sleep(2.0)  # Non-blocking async sleep
 
-        # 2-second non-blocking timer
-        ui.timer(2.0, finish_operation, once=True)
+        self.service1_textarea1.set_value(f'button {nr} pressed')
+        self._spinner.set_visibility(False)
+        self._disable_buttons(False)
 
     # endregion -------------------------------------------------------------------------------------------------------
 

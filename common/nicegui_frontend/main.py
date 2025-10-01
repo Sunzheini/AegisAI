@@ -165,7 +165,7 @@ class MainApp:
                 self.service1_button2 = ui.button('Login and store token', on_click=self._click_button2).classes(
                     'w-1/2 h-12 bg-blue-500 text-white rounded-lg shadow-md')
 
-                self.service1_button3 = ui.button('Button 3', on_click=self._click_button3).classes(
+                self.service1_button3 = ui.button('Protected list endpoint', on_click=self._click_button3).classes(
                     'w-1/2 h-12 bg-blue-500 text-white rounded-lg shadow-md')
 
                 self.service1_textarea1 = ui.textarea(label="Response").classes('border border-white w-full h-40')

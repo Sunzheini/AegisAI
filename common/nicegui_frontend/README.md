@@ -3,6 +3,19 @@
 
 ## Common elements
 
+### Layout containers
+ui.row()                                             <div style="display: flex;">                           Horizontal flex container
+ui.column()                                          <div style="display: flex; flex-direction: column;">   Vertical flex container
+ui.grid(columns=3)                                   <div style="display: grid; grid-template-columns: repeat(3, 1fr);">    CSS Grid container
+ui.card()       # good to be in a column / row       <div class="card">                                     Card with shadow/border
+ui.expansion("Title")                                <details><summary>Title</summary>                      Expandable section
+
+### Navigation & Structure
+ui.tabs()                                            <div class="tabs"><nav>...</nav><div class="content">...</div></div>   Tab navigation
+ui.stepper()                                         Multi-step form markup                                 Step-by-step form
+ui.scroll_area()                                     <div style="overflow: auto;">                          Scrollable container
+ui.splitter()                                        Resizable split panes                                  Panel divider
+
 ### Input Elements
 ui.button("Click me", on_click=handler)	             <button onclick="handler()">Click me</button>	        Interactive button
 ui.input(label="Text input", placeholder="123")	     <input type="text" placeholder="123">	                Single-line text input
@@ -30,19 +43,6 @@ ui.linear_progress(value=0.5)                        <progress value="0.5" max="
 ui.circular_progress(value=75)                       SVG circle animation                                   Circular progress
 ui.separator()                                       <hr>                                                   Horizontal divider
 ui.badge("New", color="red")                         <span class="badge red">New</span>                     Status badge
-
-### Layout containers
-ui.row()                                             <div style="display: flex;">                           Horizontal flex container
-ui.column()                                          <div style="display: flex; flex-direction: column;">   Vertical flex container
-ui.grid(columns=3)                                   <div style="display: grid; grid-template-columns: repeat(3, 1fr);">    CSS Grid container
-ui.card()                                            <div class="card">                                     Card with shadow/border
-ui.expansion("Title")                                <details><summary>Title</summary>                      Expandable section
-
-### Navigation & Structure
-ui.tabs()                                            <div class="tabs"><nav>...</nav><div class="content">...</div></div>   Tab navigation
-ui.stepper()                                         Multi-step form markup                                 Step-by-step form
-ui.scroll_area()                                     <div style="overflow: auto;">                          Scrollable container
-ui.splitter()                                        Resizable split panes                                  Panel divider
 
 ### Data Display
 ui.table(columns=['Name', 'Age'], rows=[...])        <table><tr><th>Name</th><th>Age</th></tr>...</table>   Data table
@@ -141,6 +141,12 @@ ui.json({...})                                       <pre>{...}</pre>           
 .classes('rounded-lg')            border-radius: 0.5rem;                        Large border radius
 .classes('rounded-full')          border-radius: 9999px;                        Full rounded (circles)
 
+### Shadows
+.classes('shadow')                box-shadow: 0 1px 3px 0 #0000001a, 0 1px 2px 0 #0000000f;             Small shadow
+.classes('shadow-md')             box-shadow: 0 4px 6px -1px #0000001a, 0 2px 4px -1px #0000000f;       Medium shadow
+.classes('shadow-lg')             box-shadow: 0 10px 15px -3px #0000001a, 0 4px 6px -2px #0000000f;     Large shadow
+.classes('shadow-none')           box-shadow: none;                                                     No shadow
+
 ### Text size
 .classes('text-sm')               font-size: 0.875rem; line-height: 1.25rem;    Small text
 .classes('text-base')             font-size: 1rem; line-height: 1.5rem;         Base text (default)
@@ -176,12 +182,6 @@ ui.json({...})                                       <pre>{...}</pre>           
 .classes('grid-cols-3')           grid-template-columns: repeat(3, minmax(0, 1fr));     3 columns
 .classes('grid-cols-4')           grid-template-columns: repeat(4, minmax(0, 1fr));     4 columns
 
-### Shadows
-.classes('shadow')                box-shadow: 0 1px 3px 0 #0000001a, 0 1px 2px 0 #0000000f;             Small shadow
-.classes('shadow-md')             box-shadow: 0 4px 6px -1px #0000001a, 0 2px 4px -1px #0000000f;       Medium shadow
-.classes('shadow-lg')             box-shadow: 0 10px 15px -3px #0000001a, 0 4px 6px -2px #0000000f;     Large shadow
-.classes('shadow-none')           box-shadow: none;                                                     No shadow
-
 ### Hover Effects
 .classes('hover:bg-blue-600')     (on hover) background-color: #2563eb;                                             Darker blue on hover
 .classes('hover:shadow-lg')       (on hover) box-shadow: 0 10px 15px -3px #0000001a, 0 4px 6px -2px #0000000f;      Larger shadow on hover
@@ -209,6 +209,15 @@ Primary button
 .classes('px-3 py-1 bg-gray-200 text-gray-800 rounded')                  
 padding-left: 0.75rem; padding-right: 0.75rem; padding-top: 0.25rem; padding-bottom: 0.25rem; background-color: #e5e7eb; color: #1f2937; border-radius: 0.25rem;                               
 Secondary button
+
+with ui.button('Options', icon='menu'):
+    with ui.menu():  # This creates the dropdown
+        ui.menu_item('Edit')
+        ui.menu_item('Delete')
+        ui.separator()
+        ui.menu_item('Settings')
+
+ui.button('Options', icon='menu' on_click=lambda: click(number, default_text)).classes('px-3 py-1 bg-gray-200 text-gray-800 rounded hover:bg-gray-300')
 
 ### COMMON COMBINATIONS: Inputs
 .classes('p-2 border rounded w-full')           

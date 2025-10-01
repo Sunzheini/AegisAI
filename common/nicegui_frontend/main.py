@@ -9,7 +9,11 @@ class MainApp:
     microservices showcase.
     """
     def __init__(self):
-        # App1
+        # general
+        self._title = "AegisAI Microservices Showcase"
+        self._spinner = None
+
+        # app1
         self._app1_label = None
         self._app1_button1 = None
         self._app1_button2 = None
@@ -76,9 +80,13 @@ class MainApp:
         # Complete CSS Reset
         ui.add_head_html(reset_css)
 
+        # Create spinner first (initially hidden)
+        self._spinner = ui.spinner(size='lg', color='white').classes('absolute inset-0 m-auto z-50')
+        self._spinner.set_visibility(False)
+
         # UI Layout
-        with ui.column().classes('w-screen h-screen bg-gray-300 justify-start gap-0'):
-            ui.label('AegisAI Microservices Showcase').classes('w-full p-4 text-center text-2xl font-bold border border-white')
+        with ui.column().classes('w-screen h-screen bg-gray-300 justify-start gap-0 relative'):
+            ui.label(self._title).classes('w-full p-4 text-center text-2xl font-bold border border-white')
 
             with ui.column().classes('w-[calc(100%-2rem)] mx-auto p-4 gap-4 '                       # size
                                      'bg-gray-400 border-2 border-white rounded-lg shadow-lg '      # style
@@ -98,9 +106,33 @@ class MainApp:
 
     # endregion -------------------------------------------------------------------------------------------------------
 
+    # region general methods ------------------------------------------------------------------------------------------
+    def _disable_buttons(self, disable: bool):
+        """Enable or disable all buttons"""
+        for i in range(1, 4):
+            button = getattr(self, f'app1_button{i}', None)
+            if button:
+                if disable:
+                    button.props('disable')
+                    button.classes('opacity-50 cursor-not-allowed')
+                else:
+                    button.props(remove='disable')
+                    button.classes(remove='opacity-50 cursor-not-allowed')
+
+    # endregion -------------------------------------------------------------------------------------------------------
+
     # region app1 event handlers --------------------------------------------------------------------------------------
     def click(self, nr):
-        self.app1_textarea1.set_value(f'button {nr} pressed')
+        self._spinner.set_visibility(True)
+        self._disable_buttons(True)
+
+        def finish_operation():
+            self._spinner.set_visibility(False)
+            self._disable_buttons(False)
+            self.app1_textarea1.set_value(f'button {nr} pressed')
+
+        # 2-second non-blocking timer
+        ui.timer(2.0, finish_operation, once=True)
 
     # endregion -------------------------------------------------------------------------------------------------------
 

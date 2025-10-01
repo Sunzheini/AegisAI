@@ -16,7 +16,6 @@ class StreamlitFrontend:
                     st.text(f"Status Code: {result.status_code}")
                     if result.status_code == 200:
                         response_data = result.json()
-                        st.text(json.dumps(response_data, indent=4))
                         # Store token if this is a login response
                         if url.endswith('/auth/login') and 'access_token' in response_data:
                             st.session_state['access_token'] = response_data['access_token']

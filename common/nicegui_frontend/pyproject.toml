@@ -1,0 +1,17 @@
+[project]
+name = "nicegui-frontend"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Sunzheini",email = "daniel_zorov@abv.bg"}
+]
+readme = "README.md"
+requires-python = ">=3.11,<4.0"
+dependencies = [
+    "nicegui (>=2.24.2,<3.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

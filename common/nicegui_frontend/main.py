@@ -12,15 +12,6 @@ class MainApp:
         self._spinner = None
         self._access_token = None
 
-        # service1
-        self._service1_label = None
-        self._service1_button1 = None
-        self._service1_input1 = None
-        self._service1_input2 = None
-        self._service1_button2 = None
-        self._service1_button3 = None
-        self._service1_textarea1 = None
-
         self.create_app()
 
     # region general methods ------------------------------------------------------------------------------------------
@@ -79,63 +70,15 @@ class MainApp:
                     except (aiohttp.ContentTypeError, json.JSONDecodeError):
                         display_content = await response.text()
 
-                    self._service1_textarea1.set_value(f"Status: {response.status}\n{display_content}")
+                    self.service1_textarea1.set_value(f"Status: {response.status}\n{display_content}")
 
         except Exception as e:
             ui.notify(f"Error during execution: {str(e)}")
-            self._service1_textarea1.set_value(f"Error: {str(e)}")
+            self.service1_textarea1.set_value(f"Error: {str(e)}")
 
         finally:
             self._spinner.set_visibility(False)
             self._disable_buttons(False)
-
-    # endregion -------------------------------------------------------------------------------------------------------
-
-    # region getters and setters for service1 -------------------------------------------------------------------------
-    @property
-    def service1_label(self):
-        return self._service1_label
-
-    @service1_label.setter
-    def service1_label(self, value):
-        if self._service1_label is None:
-            self._service1_label = value
-
-    @property
-    def service1_button1(self):
-        return self._service1_button1
-
-    @service1_button1.setter
-    def service1_button1(self, value):
-        if self._service1_button1 is None:
-            self._service1_button1 = value
-
-    @property
-    def service1_button2(self):
-        return self._service1_button2
-
-    @service1_button2.setter
-    def service1_button2(self, value):
-        if self._service1_button2 is None:
-            self._service1_button2 = value
-
-    @property
-    def service1_button3(self):
-        return self._service1_button3
-
-    @service1_button3.setter
-    def service1_button3(self, value):
-        if self._service1_button3 is None:
-            self._service1_button3 = value
-
-    @property
-    def service1_textarea1(self):
-        return self._service1_textarea1
-
-    @service1_textarea1.setter
-    def service1_textarea1(self, value):
-        if self._service1_textarea1 is None:
-            self._service1_textarea1 = value
 
     # endregion -------------------------------------------------------------------------------------------------------
 
@@ -148,31 +91,66 @@ class MainApp:
         self._spinner = ui.spinner(size='lg', color='white').classes('absolute inset-0 m-auto z-50')
         self._spinner.set_visibility(False)
 
-        # General
-        with ui.column().classes('w-screen h-screen bg-gray-300 justify-start gap-0 relative'):
+        # Overall Container
+        with ui.column().classes('w-screen h-screen gap-0 '
+                                 'bg-gray-300 '
+                                 'justify-start relative'):
+
+            # Title
             ui.label(self._title).classes('w-full p-4 text-center text-2xl font-bold border border-white')
 
-            # Service 1: API Gateway
+            # Service 1: API Gateway Container
             with ui.column().classes(
-                    'w-[calc(100%-40%)] mx-auto p-4 gap-4 '
+                    'w-2/5 mx-auto p-4 gap-4 '
                     'bg-gray-400 border-2 border-white rounded-lg shadow-lg '
                     'overflow-auto items-start'):
 
-                self.service1_label = ui.label('1. Api Gateway Service').classes('w-1/2 p-4 text-center text-xl font-bold border border-white')
+                # Service 1 Label
+                self.service1_label = ui.label('1. Api Gateway Service').classes(
+                    'w-full p-4 '
+                    'text-center text-xl font-bold border border-white')
 
-                self.service1_button1 = ui.button('Health Check', on_click=self._click_button1).classes(
-                    'w-1/2 h-12 bg-blue-500 text-white rounded-lg shadow-md')
+                # Service 1 Button Group1 Container
+                with ui.row().classes(
+                        'w-full gap-4 '
+                        'border border-white '
+                        'items-center justify-evenly'):
 
-                self._service1_input1 = ui.input(label="Username").classes('border border-white w-full')
-                self._service1_input2 = ui.input(label="Password").classes('border border-white w-full')
+                    # Service 1 Button1 - Health Check
+                    self.service1_button1 = ui.button('Health Check', on_click=self._click_button1).classes(
+                        'w-2/5 h-8 '
+                        'bg-blue-500 text-white rounded-lg shadow-md')
 
-                self.service1_button2 = ui.button('Login and store token', on_click=self._click_button2).classes(
-                    'w-1/2 h-12 bg-blue-500 text-white rounded-lg shadow-md')
+                    # Service 1 Button2 - Empty
+                    self.service1_button2 = ui.button('Empty', on_click=None).classes(
+                        'w-2/5 h-8 '
+                        'bg-blue-500 text-white rounded-lg shadow-md '
+                        'disabled')
 
-                self.service1_button3 = ui.button('Protected list endpoint', on_click=self._click_button3).classes(
-                    'w-1/2 h-12 bg-blue-500 text-white rounded-lg shadow-md')
+                # Service 1 Input - Username
+                self._service1_input1 = ui.input(label="Username").classes(
+                    'w-full h-16 '
+                    'border border-white')
 
-                self.service1_textarea1 = ui.textarea(label="Response").classes('border border-white w-full h-40')
+                # Service 1 Input - Password
+                self._service1_input2 = ui.input(label="Password").classes(
+                    'w-full h-16 '
+                    'border border-white')
+
+                # Service 1 Button2 - Login and store token
+                self.service1_button3 = ui.button('Login and store token', on_click=self._click_button2).classes(
+                    'w-1/2 h-12 '
+                    'bg-blue-500 text-white rounded-lg shadow-md')
+
+                # Service 1 Button3 - Protected list endpoint
+                self.service1_button4 = ui.button('Protected list endpoint', on_click=self._click_button3).classes(
+                    'w-1/2 h-12 '
+                    'bg-blue-500 text-white rounded-lg shadow-md')
+
+                # Service 1 Textarea - Response display
+                self.service1_textarea1 = ui.textarea(label="Response").classes(
+                    'w-full h-40 '
+                    'border border-white')
 
     # endregion -------------------------------------------------------------------------------------------------------
 

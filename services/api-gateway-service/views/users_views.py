@@ -71,7 +71,8 @@ class UsersViewsManager:
             :param current_user: the currently authenticated user (used in the decorator)
             :return: the created user with assigned id
             """
-            latest_id: int = len(self.db.users_db)
+            list_of_ids = [user.id for user in self.db.users_db]
+            latest_id = max(list_of_ids) if list_of_ids else 0
 
             new_user = User(
                 id=latest_id + 1,

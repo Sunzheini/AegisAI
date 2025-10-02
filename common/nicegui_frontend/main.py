@@ -286,6 +286,13 @@ class MainApp:
         headers = {"Authorization": f"Bearer {self._access_token}"}
         await self._base_request_handler('post', 'http://127.0.0.1:8000/users/create', data=data, headers=headers)
 
+        # Clear form fields after user creation
+        self.user_form_name.set_value("")
+        self.user_form_age.set_value("")
+        self.user_form_city.set_value("")
+        self.user_form_email.set_value("")
+        self.user_form_password.set_value("")
+
     async def _edit_user(self):
         """Edit user by ID from form"""
         if not self._access_token:

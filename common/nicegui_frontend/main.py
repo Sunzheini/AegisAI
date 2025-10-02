@@ -148,14 +148,18 @@ class MainApp:
         self._spinner = ui.spinner(size='lg', color='white').classes('absolute inset-0 m-auto z-50')
         self._spinner.set_visibility(False)
 
-        # UI Layout
+        # General
         with ui.column().classes('w-screen h-screen bg-gray-300 justify-start gap-0 relative'):
             ui.label(self._title).classes('w-full p-4 text-center text-2xl font-bold border border-white')
 
-            with ui.column().classes('w-[calc(100%-2rem)] mx-auto p-4 gap-4 bg-gray-400 border-2 border-white rounded-lg shadow-lg overflow-auto items-start'):
+            # Service 1: API Gateway
+            with ui.column().classes(
+                    'w-[calc(100%-40%)] mx-auto p-4 gap-4 '
+                    'bg-gray-400 border-2 border-white rounded-lg shadow-lg '
+                    'overflow-auto items-start'):
+
                 self.service1_label = ui.label('1. Api Gateway Service').classes('w-1/2 p-4 text-center text-xl font-bold border border-white')
 
-                # Fixed: Remove lambda or add parentheses
                 self.service1_button1 = ui.button('Health Check', on_click=self._click_button1).classes(
                     'w-1/2 h-12 bg-blue-500 text-white rounded-lg shadow-md')
 

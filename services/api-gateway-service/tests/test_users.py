@@ -10,7 +10,13 @@ from routers.security import get_password_hash
 # --------------------------------------------------------------------------------------
 @pytest.fixture
 def sample_user_data(database):
-    new_user_data = {'name': 'Alice36', 'age': 33, 'city': 'New York', 'email': 'alice33@example.com'}
+    new_user_data = {
+        'name': 'Alice36',
+        'age': 33,
+        'city': 'New York',
+        'email': 'alice33@example.com',
+        'password': 'testpassword123'  # Added password for user creation
+    }
     return new_user_data
 
 

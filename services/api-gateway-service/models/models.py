@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field
 from typing import Optional
 
 
@@ -6,6 +6,7 @@ from fastapi import Form
 
 
 class User(BaseModel):
+    """User model representing a user in the system."""
     id: Optional[int] = Field(default=None, ge=1, description="Auto-generated positive integer ID")
     name: str = Field(min_length=1, max_length=100, description="User's full name")
     age: int = Field(ge=0, le=120, description="User's age between 0 and 120")
@@ -46,6 +47,7 @@ class User(BaseModel):
 
 
 class UserCreate(BaseModel):
+    """User creation model for input validation when creating a new user."""
     name: str = Field(min_length=1, max_length=100, description="User's full name")
     age: int = Field(ge=0, le=120, description="User's age between 0 and 120")
     city: str = Field(min_length=1, max_length=100, description="City name")
@@ -54,6 +56,7 @@ class UserCreate(BaseModel):
 
 
 class UserUpdate(BaseModel):
+    """User update model for input validation when updating an existing user."""
     name: str = Field(min_length=1, max_length=100, description="User's full name")
     age: int = Field(ge=0, le=120, description="User's age between 0 and 120")
     city: str = Field(min_length=1, max_length=100, description="City name")

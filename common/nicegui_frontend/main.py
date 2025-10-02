@@ -127,12 +127,12 @@ class MainApp:
                         'bg-blue-500 text-white rounded-lg shadow-md')
                     self.service1_button2.disable()
 
-                # Service 1 Input - Username
+                # Service 1 Input 1 - Username
                 self._service1_input1 = ui.input(label="Username").classes(
                     'w-full h-16 '
                     'border border-white')
 
-                # Service 1 Input - Password
+                # Service 1 Input 2 - Password
                 self._service1_input2 = ui.input(label="Password").classes(
                     'w-full h-16 '
                     'border border-white')
@@ -169,6 +169,24 @@ class MainApp:
                         'w-2/5 h-8 '
                         'bg-blue-500 text-white rounded-lg shadow-md')
                     self.service1_button6.disable()
+
+                # Service 1 Combo Group1 Container
+                with ui.row().classes(
+                        'w-full gap-4 '
+                        'border border-white '
+                        'items-center justify-start'):
+
+                    # Service 1 Input 3 - ID
+                    self._service1_input3 = ui.input(label="ID").classes(
+                        'w-w-2/5 h-16')
+
+                    # Service 1 Button7 - GET user by ID
+                    self.service1_button7 = ui.button('Get User by ID', on_click=self._get_user_by_id).classes(
+                        'w-2/5 h-8 ml-[355px] '
+                        'bg-blue-500 text-white rounded-lg shadow-md')
+
+                # Service 1 Form Group1 Container
+
 
                 # Service 1 Textarea - Response display
                 self.service1_textarea1 = ui.textarea(label="Response").classes(
@@ -220,6 +238,20 @@ class MainApp:
 
         headers = {"Authorization": f"Bearer {self._access_token}"}
         await self._base_request_handler('get', 'http://127.0.0.1:8000/users/list', headers=headers)
+
+    async def _get_user_by_id(self):
+        """Get user by ID button handler"""
+        if not self._access_token:
+            ui.notify("Please login first to obtain an access token.")
+            return
+
+        user_id = self._service1_input3.value
+        if not user_id:
+            ui.notify("Please enter a user ID.")
+            return
+
+        headers = {"Authorization": f"Bearer {self._access_token}"}
+        await self._base_request_handler('get', f'http://127.0.0.1:8000/users/id/{user_id.strip()}', headers=headers)
 
     # endregion -------------------------------------------------------------------------------------------------------
 

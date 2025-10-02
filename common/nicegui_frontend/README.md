@@ -103,6 +103,7 @@ ui.json({...})                                       <pre>{...}</pre>           
 .classes('my-4')                  margin-top: 1rem; margin-bottom: 1rem;        16px top/bottom margin
 .classes('mt-2')                  margin-top: 0.5rem;                           8px top margin
 .classes('mb-4')                  margin-bottom: 1rem;                          16px bottom margin
+.classes('ml-[355px]')            margin-left: 355px;                           355px left margin (arbitrary value)
 
 ### Gap
 .classes('gap-2')                 gap: 0.5rem;                                  8px gap (small)

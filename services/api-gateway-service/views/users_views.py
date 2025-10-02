@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Path, Query, Depends
 from starlette import status as H
 
-from models.models import User, UserCreate
+from models.models import User, UserCreate, UserUpdate
 from models.temp_db import DataBaseManager
 from routers.security import auth_required, get_password_hash
 
@@ -89,13 +89,13 @@ class UsersViewsManager:
         # PUT @ http://127.0.0.1:8000/users/edit/1
         @self.router.put("/edit/{user_id}", status_code=H.HTTP_200_OK)
         @auth_required
-        async def edit_user(user_id: int, updated_item: User, current_user = Depends(self.get_current_user)) -> User:
+        async def edit_user(user_id: int, updated_item: UserUpdate, current_user = Depends(self.get_current_user)) -> User:
             """
             Edit user with given id.
             request body (application/json)
-            {"name": "Alice2", "age": 30, "city": "New York", "email": "alice@example.com"}
+            {"name": "Alice2", "age": 30, "city": "New York", "email": "alice@example.com", "password": "newpassword123"}
             :param user_id: the user id to update
-            :param updated_item: the updated user data
+            :param updated_item: the updated user data (UserUpdate model)
             :param current_user: the currently authenticated user (used in the decorator)
             :return: the updated user (200 OK)
             """
@@ -105,6 +105,8 @@ class UsersViewsManager:
                     user.age = updated_item.age
                     user.city = updated_item.city
                     user.email = updated_item.email
+                    if updated_item.password:
+                        user.password_hash = get_password_hash(updated_item.password)
                     return user
 
             raise HTTPException(status_code=404, detail="User not found with path parameter")

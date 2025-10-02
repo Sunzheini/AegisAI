@@ -51,6 +51,14 @@ class MainApp:
                             headers['Authorization'] = f'Bearer {self._access_token}'
                         request_kwargs['json'] = data
 
+                # Put request handling
+                elif method_type == 'put':
+                    if self._access_token:
+                        if headers is None:
+                            headers = {}
+                        headers['Authorization'] = f'Bearer {self._access_token}'
+                    request_kwargs['json'] = data
+
                 # Add headers if provided
                 if headers:
                     request_kwargs['headers'] = headers
@@ -276,9 +284,13 @@ class MainApp:
             ui.notify("Please login first to obtain an access token.")
             return
 
+        if not self.user_form_name.value or not self.user_form_age.value or not self.user_form_city.value or not self.user_form_password.value:
+            ui.notify("Please fill in all required fields: Name, Age, City, Password.")
+            return
+
         data = {
             "name": self.user_form_name.value,
-            "age": int(self.user_form_age.value) if self.user_form_age.value else None,
+            "age": int(self.user_form_age.value),
             "city": self.user_form_city.value,
             "email": self.user_form_email.value,
             "password": self.user_form_password.value,
@@ -304,12 +316,17 @@ class MainApp:
             ui.notify("Please enter a user ID in the ID field above.")
             return
 
+        # Validate required fields
+        if not self.user_form_name.value or not self.user_form_age.value or not self.user_form_city.value:
+            ui.notify("Please fill in all required fields: Name, Age, City.")
+            return
+
         data = {
             "name": self.user_form_name.value,
-            "age": int(self.user_form_age.value) if self.user_form_age.value else None,
+            "age": int(self.user_form_age.value),
             "city": self.user_form_city.value,
             "email": self.user_form_email.value,
-            "password_hash": self.user_form_password.value,
+            "password": self.user_form_password.value or None,  # Optional for edit
         }
         headers = {"Authorization": f"Bearer {self._access_token}"}
         await self._base_request_handler('put', f'http://127.0.0.1:8000/users/edit/{user_id}', data=data, headers=headers)

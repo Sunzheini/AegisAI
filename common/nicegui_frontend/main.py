@@ -101,7 +101,7 @@ class MainApp:
 
             # Service 1: API Gateway Container
             with ui.column().classes(
-                    'w-2/5 mx-auto p-4 gap-4 '
+                    'w-2/5 h-4/5 mx-auto p-4 gap-4 '
                     'bg-gray-400 border-2 border-white rounded-lg shadow-lg '
                     'overflow-auto items-start'):
 
@@ -117,15 +117,15 @@ class MainApp:
                         'items-center justify-evenly'):
 
                     # Service 1 Button1 - Health Check
-                    self.service1_button1 = ui.button('Health Check', on_click=self._click_button1).classes(
+                    self.service1_button1 = ui.button('Health Check', on_click=self._health_check).classes(
                         'w-2/5 h-8 '
                         'bg-blue-500 text-white rounded-lg shadow-md')
 
                     # Service 1 Button2 - Empty
                     self.service1_button2 = ui.button('Empty', on_click=None).classes(
                         'w-2/5 h-8 '
-                        'bg-blue-500 text-white rounded-lg shadow-md '
-                        'disabled')
+                        'bg-blue-500 text-white rounded-lg shadow-md')
+                    self.service1_button2.disable()
 
                 # Service 1 Input - Username
                 self._service1_input1 = ui.input(label="Username").classes(
@@ -137,29 +137,53 @@ class MainApp:
                     'w-full h-16 '
                     'border border-white')
 
-                # Service 1 Button2 - Login and store token
-                self.service1_button3 = ui.button('Login and store token', on_click=self._click_button2).classes(
-                    'w-1/2 h-12 '
-                    'bg-blue-500 text-white rounded-lg shadow-md')
+                # Service 1 Button Group2 Container
+                with ui.row().classes(
+                        'w-full gap-4 '
+                        'border border-white '
+                        'items-center justify-evenly'):
 
-                # Service 1 Button3 - Protected list endpoint
-                self.service1_button4 = ui.button('Protected list endpoint', on_click=self._click_button3).classes(
-                    'w-1/2 h-12 '
-                    'bg-blue-500 text-white rounded-lg shadow-md')
+                    # Service 1 Button3 - Login and store token
+                    self.service1_button3 = ui.button('Login and Store Token', on_click=self._login_and_store_token).classes(
+                        'w-2/5 h-8 '
+                        'bg-blue-500 text-white rounded-lg shadow-md')
+
+                    # Service 1 Button4 - Logout and delete token on client side
+                    self.service1_button4 = ui.button('Logout and Delete Token', on_click=self._logout_and_delete_token).classes(
+                        'w-2/5 h-8 '
+                        'bg-blue-500 text-white rounded-lg shadow-md')
+
+                # Service 1 Button Group3 Container
+                with ui.row().classes(
+                        'w-full gap-4 '
+                        'border border-white '
+                        'items-center justify-evenly'):
+
+                    # Service 1 Button5 - GET users list
+                    self.service1_button5 = ui.button('Get users list', on_click=self._get_users_list).classes(
+                        'w-2/5 h-8 '
+                        'bg-blue-500 text-white rounded-lg shadow-md')
+
+                    # Service 1 Button6 - Empty
+                    self.service1_button6 = ui.button('Empty', on_click=None).classes(
+                        'w-2/5 h-8 '
+                        'bg-blue-500 text-white rounded-lg shadow-md')
+                    self.service1_button6.disable()
 
                 # Service 1 Textarea - Response display
                 self.service1_textarea1 = ui.textarea(label="Response").classes(
-                    'w-full h-40 '
+                    'w-full h-auto '
                     'border border-white')
+                self.service1_textarea1.props('readonly')
 
     # endregion -------------------------------------------------------------------------------------------------------
 
     # region service1 event handlers ----------------------------------------------------------------------------------
-    async def _click_button1(self):
+    async def _health_check(self):
         """Health check button handler"""
         await self._base_request_handler('get', 'http://127.0.0.1:8000/health')
 
-    async def _click_button2(self):
+    async def _login_and_store_token(self):
         """Login button handler"""
         username = self._service1_input1.value
         password = self._service1_input2.value
@@ -173,25 +197,29 @@ class MainApp:
         # For OAuth2 login, we send as form data (not JSON)
         await self._base_request_handler('post', 'http://127.0.0.1:8000/auth/login', data=data)
 
-    async def _click_button3(self):
-        """Protected list endpoint button handler"""
+    async def _logout_and_delete_token(self):
+        """Logout button handler"""
+
+        if not self._access_token:
+            ui.notify("No token found. Please login first.")
+            self.service1_textarea1.set_value("No token found. Please login first.")
+            return
+
+        headers = {"Authorization": f"Bearer {self._access_token}"}
+        await self._base_request_handler('post', 'http://127.0.0.1:8000/auth/logout', headers=headers)
+
+        self._access_token = None
+        ui.notify("Logged out and token deleted.")
+        self.service1_textarea1.set_value("Logged out. Token deleted.")
+
+    async def _get_users_list(self):
+        """Get users list button handler"""
         if not self._access_token:
             ui.notify("Please login first to obtain an access token.")
             return
 
         headers = {"Authorization": f"Bearer {self._access_token}"}
         await self._base_request_handler('get', 'http://127.0.0.1:8000/users/list', headers=headers)
-
-    async def click(self, nr):
-        """Generic button handler with simulated delay"""
-        self._spinner.set_visibility(True)
-        self._disable_buttons(True)
-
-        await asyncio.sleep(2.0)  # Non-blocking async sleep
-
-        self.service1_textarea1.set_value(f'button {nr} pressed')
-        self._spinner.set_visibility(False)
-        self._disable_buttons(False)
 
     # endregion -------------------------------------------------------------------------------------------------------
 

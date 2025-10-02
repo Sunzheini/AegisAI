@@ -33,5 +33,6 @@ class User(BaseModel):
         age: int = Form(..., ge=0, le=120, description="User's age between 0 and 120"),
         city: str = Form(..., min_length=1, max_length=100, description="City name"),
         email: Optional[str] = Form(None, description="Valid email address if provided"),
+        password: str = Form(..., min_length=8, description="User's password"),
     ) -> "User":
         return cls(name=name, age=age, city=city, email=email)

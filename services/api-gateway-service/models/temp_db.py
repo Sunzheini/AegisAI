@@ -33,18 +33,3 @@ class DataBaseManager:
             if user.name == username:
                 return user
         return None
-
-    def create_user_with_password(self, user_data: dict):
-        latest_id = len(self.users_db) + 1
-
-        new_user = User(
-            id=latest_id,
-            name=user_data["name"],
-            age=user_data["age"],
-            city=user_data["city"],
-            email=user_data["email"],
-            password_hash=user_data["password_hash"]
-        )
-
-        self.users_db.append(new_user)
-        return new_user

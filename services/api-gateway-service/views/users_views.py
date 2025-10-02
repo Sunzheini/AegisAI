@@ -3,7 +3,7 @@ from starlette import status as H
 
 from models.models import User
 from models.temp_db import DataBaseManager
-from routers.security import auth_required
+from routers.security import auth_required, get_password_hash
 
 
 class UsersViewsManager:
@@ -79,7 +79,8 @@ class UsersViewsManager:
                 name=new_item.name,
                 age=new_item.age,
                 city=new_item.city,
-                email=new_item.email
+                email=new_item.email,
+                password_hash=get_password_hash(new_item.password)
             )
 
             self.db.users_db.append(new_user)

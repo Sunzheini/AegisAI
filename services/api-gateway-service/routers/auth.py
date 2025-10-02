@@ -136,48 +136,6 @@ async def hash_password(password: str):
     return {"hashed_password": get_password_hash(password)}
 
 
-@router.post("/register", status_code=status.HTTP_201_CREATED)
-async def register_user(
-        name: str,
-        email: str,
-        password: str,
-        age: int,
-        city: str
-):
-    """
-    Register a new user with hashed password
-    """
-    db = DataBaseManager()
-
-    # Check if user already exists
-    existing_user = db.get_user_by_username(name)
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already exists"
-        )
-
-    # Create new user with hashed password
-    hashed_password = get_password_hash(password)
-
-    # This assumes you can create users with a password_hash field
-    new_user = {
-        "name": name,
-        "email": email,
-        "age": age,
-        "city": city,
-        "password_hash": hashed_password
-    }
-
-    created_user = db.create_user_with_password(new_user)
-
-    return {
-        "message": "User created successfully",
-        "username": name,
-        "email": email
-    }
-
-
 # not used currently, but could be useful for debugging or token validation
 @router.get("/verify-token")
 async def verify_token(token: str):
@@ -198,3 +156,11 @@ async def verify_token(token: str):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token",
         )
+
+
+@router.post("/logout")
+async def logout():
+    """
+    Logout endpoint for client-side logout. Instructs the client to delete the JWT token.
+    """
+    return {"message": "Successfully logged out. Please delete the token on the client side."}

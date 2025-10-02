@@ -101,7 +101,7 @@ class MainApp:
 
             # Service 1: API Gateway Container
             with ui.column().classes(
-                    'w-2/5 h-4/5 mx-auto p-4 gap-4 '
+                    'w-2/5 h-auto mx-auto p-4 gap-4 '
                     'bg-gray-400 border-2 border-white rounded-lg shadow-lg '
                     'overflow-auto items-start'):
 
@@ -186,7 +186,24 @@ class MainApp:
                         'bg-blue-500 text-white rounded-lg shadow-md')
 
                 # Service 1 Form Group1 Container
+                with ui.column().classes('w-full p-4 gap-4 '
+                                         'border border-white rounded-lg bg-gray-200'):
+                    self.user_form_name = ui.input(label="Name").classes('w-full')
+                    self.user_form_age = ui.input(label="Age").props('type=number').classes('w-full')
+                    self.user_form_city = ui.input(label="City").classes('w-full')
+                    self.user_form_email = ui.input(label="Email").classes('w-full')
+                    self.user_form_password = ui.input(label="Password", password=True).classes('w-full')
 
+                    with ui.row().classes('w-full gap-4 justify-evenly'):
+                        ui.button('Create User', on_click=self._create_user).classes(
+                            'w-1/4 '
+                            'bg-green-500 text-white rounded-lg')
+                        ui.button('Edit User', on_click=self._edit_user).classes(
+                            'w-1/4 '
+                            'bg-yellow-500 text-white rounded-lg')
+                        ui.button('Delete User', on_click=self._delete_user).classes(
+                            'w-1/4 '
+                            'bg-red-500 text-white rounded-lg')
 
                 # Service 1 Textarea - Response display
                 self.service1_textarea1 = ui.textarea(label="Response").classes(
@@ -253,8 +270,59 @@ class MainApp:
         headers = {"Authorization": f"Bearer {self._access_token}"}
         await self._base_request_handler('get', f'http://127.0.0.1:8000/users/id/{user_id.strip()}', headers=headers)
 
-    # endregion -------------------------------------------------------------------------------------------------------
+    async def _create_user(self):
+        """Create user from form"""
+        if not self._access_token:
+            ui.notify("Please login first to obtain an access token.")
+            return
 
+        data = {
+            "name": self.user_form_name.value,
+            "age": int(self.user_form_age.value) if self.user_form_age.value else None,
+            "city": self.user_form_city.value,
+            "email": self.user_form_email.value,
+            "password": self.user_form_password.value,
+        }
+        headers = {"Authorization": f"Bearer {self._access_token}"}
+        await self._base_request_handler('post', 'http://127.0.0.1:8000/users/create', data=data, headers=headers)
+
+    async def _edit_user(self):
+        """Edit user by ID from form"""
+        if not self._access_token:
+            ui.notify("Please login first to obtain an access token.")
+            return
+
+        user_id = self._service1_input3.value
+        if not user_id:
+            ui.notify("Please enter a user ID in the ID field above.")
+            return
+
+        data = {
+            "name": self.user_form_name.value,
+            "age": int(self.user_form_age.value) if self.user_form_age.value else None,
+            "city": self.user_form_city.value,
+            "email": self.user_form_email.value,
+            "password_hash": self.user_form_password.value,
+        }
+        headers = {"Authorization": f"Bearer {self._access_token}"}
+        await self._base_request_handler('put', f'http://127.0.0.1:8000/users/edit/{user_id}', data=data, headers=headers)
+
+    async def _delete_user(self):
+        """Delete user by ID from form"""
+        if not self._access_token:
+            ui.notify("Please login first to obtain an access token.")
+            return
+
+        user_id = self._service1_input3.value
+        if not user_id:
+            ui.notify("Please enter a user ID in the ID field above.")
+            return
+
+        headers = {"Authorization": f"Bearer {self._access_token}"}
+        await self._base_request_handler('delete', f'http://127.0.0.1:8000/users/delete/{user_id}', headers=headers)
+
+
+    # endregion -------------------------------------------------------------------------------------------------------
 
 if __name__ in {"__main__", "__mp_main__"}:
     dashboard = MainApp()

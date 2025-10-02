@@ -43,3 +43,11 @@ class User(BaseModel):
             email=email,
             password_hash=password
         )
+
+
+class UserCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=100, description="User's full name")
+    age: int = Field(ge=0, le=120, description="User's age between 0 and 120")
+    city: str = Field(min_length=1, max_length=100, description="City name")
+    email: Optional[str] = Field(default=None, description="Valid email address if provided")
+    password: str = Field(min_length=8, description="User's password")

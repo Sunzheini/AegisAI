@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Path, Query, Depends
 from starlette import status as H
 
-from models.models import User
+from models.models import User, UserCreate
 from models.temp_db import DataBaseManager
 from routers.security import auth_required, get_password_hash
 
@@ -62,13 +62,12 @@ class UsersViewsManager:
         # POST @ http://127.0.0.1:8000/users/create
         @self.router.post("/create", status_code=H.HTTP_201_CREATED)
         @auth_required
-        async def create_user(new_item: User, current_user = Depends(self.get_current_user)) -> User:
+        async def create_user(new_item: UserCreate, current_user = Depends(self.get_current_user)) -> User:
             """
             Create a new user.
             request body (application/json)
-            {"name": "Alice3", "age": 30, "city": "New York", "email": "alice@example.com"}
-            {"name": "Alice4", "age": 30, "city": "New York", "email": "alice@example.com"}
-            :param new_item: the new user data as a User model
+            {"name": "Alice3", "age": 30, "city": "New York", "email": "alice@example.com", "password": "password123"}
+            :param new_item: the new user data as a UserCreate model
             :param current_user: the currently authenticated user (used in the decorator)
             :return: the created user with assigned id
             """

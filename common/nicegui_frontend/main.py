@@ -1,6 +1,8 @@
 import asyncio
 import json
 import aiohttp          # async HTTP client instead of requests!
+import aiofiles
+import os
 from nicegui import ui
 from support.reset_css_for_nicegui import reset_css
 
@@ -218,6 +220,17 @@ class MainApp:
                             'w-1/4 '
                             'bg-red-500 text-white rounded-lg')
 
+                # File Upload Section
+                with ui.column().classes('w-full h-auto p-4 gap-4 '
+                                         'border border-white rounded-lg bg-gray-200'):
+                    self.uploaded_file_info = None
+                    self.uploaded_file = ui.upload(
+                        label="Select file to upload",
+                        auto_upload=True,  # Upload immediately when file is selected
+                        multiple=False,
+                        on_upload=self._on_file_selected
+                    )
+
                 # Service 1 Textarea - Response display
                 self.service1_textarea1 = ui.textarea(label="Response").classes(
                     'w-full h-auto '
@@ -358,6 +371,47 @@ class MainApp:
         headers = {"Authorization": f"Bearer {self._access_token}"}
         await self._base_request_handler('delete', f'http://127.0.0.1:8000/users/delete/{user_id}', headers=headers)
 
+    async def _on_file_selected(self, file_info):
+        """Handle file selection and upload"""
+        self.uploaded_file_info = file_info
+
+        # Get file size from file-like object
+        file_obj = file_info.content
+        file_obj.seek(0, 2)  # move to end
+        file_size = file_obj.tell()
+        file_obj.seek(0)     # reset to start
+
+        ui.notify(f"File selected: {file_info.name} ({file_size} bytes)")
+
+        if not self._access_token:
+            ui.notify("Please login first to obtain an access token.")
+            return
+
+        file_bytes = file_obj.read()
+        file_name = file_info.name
+        content_type = getattr(file_info, 'type', 'application/octet-stream')
+
+        headers = {
+            "Authorization": f"Bearer {self._access_token}"
+        }
+
+        data = aiohttp.FormData()
+        data.add_field('file', file_bytes, filename=file_name, content_type=content_type)
+
+        self._spinner.set_visibility(True)
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    'http://127.0.0.1:8000/v1/upload',
+                    data=data,
+                    headers=headers
+                ) as response:
+                    resp_json = await response.json()
+                    self.service1_textarea1.set_value(f"Status: {response.status}\n{json.dumps(resp_json, indent=4)}")
+        except Exception as e:
+            ui.notify(f"Upload failed: {str(e)}")
+        finally:
+            self._spinner.set_visibility(False)
 
     # endregion -------------------------------------------------------------------------------------------------------
 

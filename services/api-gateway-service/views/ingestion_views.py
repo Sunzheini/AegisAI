@@ -155,7 +155,7 @@ class IngestionViewsManager:
             if file.content_type not in ALLOWED_CONTENT_TYPES:
                 raise HTTPException(
                     status_code=415,
-                    detail="Unsupported media type for upload"
+                    detail="Supported content types: " + ", ".join(ALLOWED_CONTENT_TYPES)
                 )
 
             # Create a new job id

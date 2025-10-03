@@ -11,6 +11,7 @@ class MainApp:
         self._title = "AegisAI Microservices Showcase"
         self._spinner = None
         self._access_token = None
+        self._form_is_visible = False
 
         self.create_app()
 
@@ -193,16 +194,20 @@ class MainApp:
                         'w-2/5 h-8 ml-[355px] '
                         'bg-blue-500 text-white rounded-lg shadow-md')
 
+                # Toggle to show form below
+                self.form_switch = ui.switch("Toggle form")
+                self.form_switch.on('click', lambda e: self._toggle_form())
+
                 # Service 1 Form Group1 Container
-                with ui.column().classes('w-full p-4 gap-4 '
-                                         'border border-white rounded-lg bg-gray-200'):
+                with ui.column().classes('w-full h-auto p-4 gap-4 '
+                                         'border border-white rounded-lg bg-gray-200 hidden') as self.user_form_container:
                     self.user_form_name = ui.input(label="Name").classes('w-full')
                     self.user_form_age = ui.input(label="Age").props('type=number').classes('w-full')
                     self.user_form_city = ui.input(label="City").classes('w-full')
                     self.user_form_email = ui.input(label="Email").classes('w-full')
                     self.user_form_password = ui.input(label="Password", password=True).classes('w-full')
 
-                    with ui.row().classes('w-full gap-4 justify-evenly'):
+                    with ui.row().classes('w-full mt-4 gap-4 justify-evenly'):
                         ui.button('Create User', on_click=self._create_user).classes(
                             'w-1/4 '
                             'bg-green-500 text-white rounded-lg')
@@ -277,6 +282,14 @@ class MainApp:
 
         headers = {"Authorization": f"Bearer {self._access_token}"}
         await self._base_request_handler('get', f'http://127.0.0.1:8000/users/id/{user_id.strip()}', headers=headers)
+
+    def _toggle_form(self):
+        """Toggle form visibility"""
+        self._form_is_visible = not self._form_is_visible
+        if self._form_is_visible:
+            self.user_form_container.classes('block').classes(remove='hidden')
+        else:
+            self.user_form_container.classes('hidden').classes(remove='block')
 
     async def _create_user(self):
         """Create user from form"""

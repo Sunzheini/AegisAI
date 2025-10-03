@@ -229,7 +229,7 @@ class MainApp:
                         auto_upload=True,  # Upload immediately when file is selected
                         multiple=False,
                         on_upload=self._on_file_selected
-                    )
+                    ).classes('w-full')
 
                 # Service 1 Textarea - Response display
                 self.service1_textarea1 = ui.textarea(label="Response").classes(

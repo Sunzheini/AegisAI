@@ -87,6 +87,16 @@ class IngestionViewsManager:
         :param job_id: The ID of the job to process
         :return: None
         """
+
+        # ToDo:
+        """
+        change current flow 
+        `Upload → Store file → Copy to processed dir → Mark job complete` 
+        to 
+        `Upload → Store file → LangGraph Workflow → Multiple processing steps → Mark job complete`
+        after implementing the Workflow Orchestrator
+        """
+
         job = self.job_asset_store.get_job(job_id)
         if not job:
             return

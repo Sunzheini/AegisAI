@@ -6,6 +6,7 @@ from typing import Dict, Any
 from datetime import datetime
 
 import requests
+import logging
 from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Path, Request
 from starlette import status as H
@@ -30,6 +31,9 @@ MAX_UPLOAD_BYTES = MAX_UPLOAD_BYTES_SIZE  # 50 MB
 # ToDo: Instantiate abstractions for local usage, change to AWS later
 file_storage = LocalFileStorage(RAW_DIR)
 job_asset_store = InMemoryJobAssetStore()
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("ingestion")
 
 
 class IngestionViewsManager:
@@ -79,6 +83,7 @@ class IngestionViewsManager:
                 wf.write(chunk)
 
     async def _process_job(self, job_id: str) -> None:
+        logger.info(f"Processing job: {job_id}")
         """
         Takes a pending job, copies the uploaded file to the processed directory, creates asset
         metadata, and updates the job status accordingly. It handles errors gracefully and ensures all operations
@@ -116,6 +121,7 @@ class IngestionViewsManager:
         await asyncio.sleep(0.2)
 
         src_path = job.get("file_path")
+        logger.info(f"Processing file from: {src_path}")
         if not src_path or not os.path.exists(src_path):
             self.job_asset_store.update_job(job_id, {"status": "failed", "error": "File not found", "updated_at": datetime.utcnow().isoformat()})
             return
@@ -123,6 +129,7 @@ class IngestionViewsManager:
         asset_id = str(uuid.uuid4())
         dst_filename = f"{asset_id}_{os.path.basename(src_path)}"
         dst_path = os.path.join(PROCESSED_DIR, dst_filename)
+        logger.info(f"Copying file to processed: {dst_path}")
 
         # Ensure processed directory exists before copying
         os.makedirs(PROCESSED_DIR, exist_ok=True)
@@ -142,10 +149,11 @@ class IngestionViewsManager:
         }
         self.job_asset_store.create_asset(asset)
         self.job_asset_store.update_job(job_id, {"status": "completed", "asset_id": asset_id, "updated_at": datetime.utcnow().isoformat()})
+        logger.info(f"Job {job_id} completed, asset at: {dst_path}")
 
     @staticmethod
     async def _stream_file_to_disk(file, destination_path):
-        # Use abstraction for saving file
+        logger.info(f"Streaming upload to: {destination_path}")
         total_size_in_bytes = 0
         hasher = hashlib.sha256()
         with open(destination_path, "wb") as out:
@@ -155,6 +163,7 @@ class IngestionViewsManager:
                     break
                 total_size_in_bytes += len(chunk)
                 if total_size_in_bytes > MAX_UPLOAD_BYTES:
+                    logger.error(f"File too large: {total_size_in_bytes} bytes")
                     raise HTTPException(
                         status_code=413,
                         detail="Uploaded file is larger than the maximum allowed size"
@@ -162,9 +171,14 @@ class IngestionViewsManager:
                 hasher.update(chunk)
                 await asyncio.to_thread(out.write, chunk)
         await file.close()
+        logger.info(f"Finished streaming upload to: {destination_path}, size: {total_size_in_bytes}")
         return total_size_in_bytes, hasher
 
     def register_views(self) -> None:
+        logger.info(f"STORAGE_ROOT: {STORAGE_ROOT}")
+        logger.info(f"RAW_DIR: {RAW_DIR}")
+        logger.info(f"PROCESSED_DIR: {PROCESSED_DIR}")
+        logger.info(f"TRANSCODED_DIR: {TRANSCODED_DIR}")
         # POST @ http://127.0.0.1:8000/v1/upload
         @self.router.post("/upload", status_code=H.HTTP_202_ACCEPTED, summary="Upload media (v1)")
         @auth_required

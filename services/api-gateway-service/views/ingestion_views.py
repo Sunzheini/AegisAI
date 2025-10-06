@@ -5,6 +5,8 @@ import hashlib
 from typing import Dict, Any
 from datetime import datetime
 
+import requests
+from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Path, Request
 from starlette import status as H
 
@@ -12,8 +14,10 @@ from routers.security import auth_required
 from support.constants import ALLOWED_CONTENT_TYPES_SET, MAX_UPLOAD_BYTES_SIZE
 from support.support_functions import sanitize_filename
 from support.storage_abstraction import LocalFileStorage, InMemoryJobAssetStore
+from contracts.job_schemas import IngestionJobRequest
 
 
+load_dotenv()
 STORAGE_ROOT = os.getenv("STORAGE_ROOT", os.path.abspath(os.path.join(os.getcwd(), "storage")))
 RAW_DIR = os.getenv("RAW_DIR", os.path.join(STORAGE_ROOT, "raw"))
 PROCESSED_DIR = os.getenv("PROCESSED_DIR", os.path.join(STORAGE_ROOT, "processed"))
@@ -31,6 +35,12 @@ job_asset_store = InMemoryJobAssetStore()
 class IngestionViewsManager:
     """
     Registers versioned ingestion endpoints under /v1 on the provided router.
+
+    This class supports two modes:
+    - Local mode: jobs are processed directly by the API gateway (default).
+    - Orchestrator mode: jobs are submitted to an external workflow orchestrator service for processing.
+
+    The mode is controlled by the USE_ORCHESTRATOR environment variable.
 
     Endpoints:
       - POST /v1/upload: Upload media, create job, start processing
@@ -160,26 +170,28 @@ class IngestionViewsManager:
         @auth_required
         async def upload_media(request: Request, file: UploadFile = File(...), current_user=Depends(self.get_current_user)) -> Dict[str, Any]:
             """
-            1. Accept a file upload, 2. stream to local storage, 3. and create a job. 4. Returns 202 with a job_id.
+            Uploads a file and creates an ingestion job.
+
+            - In local mode, the job is processed by this service.
+            - In orchestrator mode, the job is submitted to an external orchestrator service.
             """
+            import os  # Ensure we get the latest env vars
+            USE_ORCHESTRATOR = os.getenv("USE_ORCHESTRATOR", "false").lower() == "true"
+            ORCHESTRATOR_URL = os.getenv("ORCHESTRATOR_URL", "http://localhost:9000/jobs")
+
             if file.content_type not in ALLOWED_CONTENT_TYPES:
                 raise HTTPException(
                     status_code=415,
                     detail="Supported content types: " + ", ".join(ALLOWED_CONTENT_TYPES)
                 )
 
-            # Create a new job id
             job_id = str(uuid.uuid4())
-
-            # Build destination path
             safe_name = sanitize_filename(file.filename or "upload.bin")
             raw_filename = f"{job_id}_{safe_name}"
             destination_path = os.path.join(RAW_DIR, raw_filename)
 
-            # Stream file to disk and compute checksum
             total_size_in_bytes, hasher = await self._stream_file_to_disk(file, destination_path)
 
-            # Record job
             job_record = {
                 "job_id": job_id,
                 "filename": file.filename,
@@ -195,13 +207,36 @@ class IngestionViewsManager:
             }
             self.job_asset_store.create_job(job_record)
 
-            # Run processing: await in tests, background otherwise
-            if getattr(getattr(request.app, "state", None), "testing", False):
-                await self._process_job(job_id)
-            else:
-                asyncio.create_task(self._process_job(job_id))   # You cannot call asyncio.run inside an already running event loop
+            # -------------------------------------------------------------------------------------------------
+            # Option 1: Send job to orchestrator if configured
+            if USE_ORCHESTRATOR:
+                try:
+                    job_payload = IngestionJobRequest(
+                        job_id=job_id,
+                        file_path=destination_path,
+                        content_type=file.content_type,
+                        checksum_sha256=hasher.hexdigest(),
+                        submitted_by=getattr(current_user, "name", None),
+                    ).model_dump()
+                    resp = requests.post(
+                        ORCHESTRATOR_URL,
+                        json=job_payload,
+                        timeout=5
+                    )
+                    resp.raise_for_status()
+                except Exception as e:
+                    self.job_asset_store.update_job(job_id, {"status": "failed", "error": str(e), "updated_at": datetime.utcnow().isoformat()})
+                    raise HTTPException(status_code=502, detail=f"Failed to submit job to orchestrator: {e}")
+                return {"job_id": job_id, "status": "submitted_to_orchestrator"}
 
-            return {"job_id": job_id, "status": "accepted"}
+            # -------------------------------------------------------------------------------------------------
+            # Option 2: Local processing: await in tests, background otherwise
+            else:
+                if getattr(getattr(request.app, "state", None), "testing", False):
+                    await self._process_job(job_id)
+                else:
+                    asyncio.create_task(self._process_job(job_id))
+                return {"job_id": job_id, "status": "accepted"}
 
         # GET @ http://127.0.0.1:8000/v1/jobs/{job_id}
         @self.router.get("/jobs/{job_id}", status_code=H.HTTP_200_OK, summary="Get job status (v1)")

@@ -5,6 +5,8 @@ import uuid
 import threading
 from typing import List, Tuple
 import pytest
+import requests
+from unittest.mock import patch
 
 from views.ingestion_views import IngestionViewsManager as IVM
 
@@ -30,6 +32,16 @@ def clean_ingestion_state(tmp_path):
     _cleanup_storage()
     yield
     _cleanup_storage()
+
+
+@pytest.fixture
+def orchestrator_env(monkeypatch):
+    """Set environment variables for orchestrator mode."""
+    monkeypatch.setenv("USE_ORCHESTRATOR", "true")
+    monkeypatch.setenv("ORCHESTRATOR_URL", "http://testserver/orchestrator/jobs")
+    yield
+    monkeypatch.delenv("USE_ORCHESTRATOR", raising=False)
+    monkeypatch.delenv("ORCHESTRATOR_URL", raising=False)
 
 
 def test_upload_and_processing_success(client, auth_headers):
@@ -179,3 +191,42 @@ def test_concurrent_uploads_show_parallel_processing(client, auth_headers, monke
 
     assert counters["max"] >= 2, f"Observed max concurrency: {counters['max']}"
     assert elapsed < 1.4, f"Took too long, likely serialized: {elapsed:.3f}s"
+
+
+def test_upload_submits_to_orchestrator(client, auth_headers, orchestrator_env):
+    """Test that upload submits job to orchestrator and returns correct status."""
+    content = b"\x89PNG\r\n\x1a\n" + b"0" * 128
+    files = {"file": ("tiny.png", io.BytesIO(content), "image/png")}
+    job_id_holder = {}
+
+    def fake_post(url, json, timeout):
+        assert url.endswith("/orchestrator/jobs")
+        assert json["file_path"].endswith("tiny.png")
+        job_id_holder["job_id"] = json["job_id"]
+        class Resp:
+            def raise_for_status(self):
+                pass
+        return Resp()
+
+    with patch("requests.post", side_effect=fake_post):
+        response = client.post("/v1/upload", files=files, headers=auth_headers)
+        assert response.status_code == 202, response.text
+        body = response.json()
+        assert body["status"] == "submitted_to_orchestrator"
+        assert "job_id" in body
+        assert body["job_id"] == job_id_holder["job_id"]
+
+
+def test_upload_orchestrator_error(client, auth_headers, orchestrator_env):
+    """Test upload returns error if orchestrator is unavailable."""
+    content = b"\x89PNG\r\n\x1a\n" + b"0" * 128
+    files = {"file": ("tiny.png", io.BytesIO(content), "image/png")}
+
+    def fake_post(url, json, timeout):
+        raise requests.ConnectionError("orchestrator down")
+
+    with patch("requests.post", side_effect=fake_post):
+        response = client.post("/v1/upload", files=files, headers=auth_headers)
+        assert response.status_code == 502
+        assert "Failed to submit job to orchestrator" in response.text
+

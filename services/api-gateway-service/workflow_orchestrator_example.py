@@ -61,6 +61,7 @@ async def get_job_status(job_id: str):
         raise HTTPException(status_code=404, detail="Job not found")
     return job
 
+# ToDo: In a real orchestrator, this would trigger actual processing steps.
 async def simulate_processing(job_id: str):
     """
     Simulates job processing by updating job status after a delay.

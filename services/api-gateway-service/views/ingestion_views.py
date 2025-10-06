@@ -241,6 +241,8 @@ class IngestionViewsManager:
                 except Exception as e:
                     self.job_asset_store.update_job(job_id, {"status": "failed", "error": str(e), "updated_at": datetime.utcnow().isoformat()})
                     raise HTTPException(status_code=502, detail=f"Failed to submit job to orchestrator: {e}")
+
+
                 return {"job_id": job_id, "status": "submitted_to_orchestrator"}
 
             # -------------------------------------------------------------------------------------------------

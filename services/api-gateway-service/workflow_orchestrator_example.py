@@ -35,6 +35,7 @@ async def submit_job(job: IngestionJobRequest, request: Request):
     """
     if job.job_id in jobs:
         raise HTTPException(status_code=409, detail="Job already exists")
+
     jobs[job.job_id] = {
         "job_id": job.job_id,
         "file_path": job.file_path,
@@ -45,6 +46,7 @@ async def submit_job(job: IngestionJobRequest, request: Request):
         "created_at": datetime.utcnow().isoformat(),
         "updated_at": datetime.utcnow().isoformat(),
     }
+
     # Simulate async orchestration (e.g., start workflow in background)
     asyncio.create_task(simulate_processing(job.job_id))
     return {"job_id": job.job_id, "status": "queued"}

@@ -30,6 +30,27 @@ class MainApp:
                     button.props(remove='disable')
                     button.classes(remove='opacity-50 cursor-not-allowed')
 
+    async def _poll_job_status(self, job_id):
+        """Poll the job status endpoint until job is completed or failed."""
+        url = f'http://127.0.0.1:9000/jobs/{job_id}'    # polling the orchestrator
+        headers = {"Authorization": f"Bearer {self._access_token}"}
+        while True:
+            await asyncio.sleep(2)  # Poll every 2 seconds
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(url, headers=headers) as response:
+                        resp_json = await response.json()
+                        status = resp_json.get("status")
+                        self.service1_textarea1.set_value(
+                            f"Polling job {job_id}...\nStatus: {response.status}\n{json.dumps(resp_json, indent=4)}"
+                        )
+                        if status in ("completed", "failed"):
+                            ui.notify(f"Job {job_id} {status}!")
+                            break
+            except Exception as e:
+                ui.notify(f"Polling failed: {str(e)}")
+                break
+
     async def _base_request_handler(self, method_type: str, url: str, data=None, headers=None):
         """Base async request handler"""
         self._spinner.set_visibility(True)
@@ -408,6 +429,12 @@ class MainApp:
                 ) as response:
                     resp_json = await response.json()
                     self.service1_textarea1.set_value(f"Status: {response.status}\n{json.dumps(resp_json, indent=4)}")
+
+                    # Start polling if job_id is present
+                    job_id = resp_json.get("job_id")
+                    if job_id:
+                        asyncio.create_task(self._poll_job_status(job_id))
+
         except Exception as e:
             ui.notify(f"Upload failed: {str(e)}")
         finally:

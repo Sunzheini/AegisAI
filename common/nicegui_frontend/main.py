@@ -32,6 +32,7 @@ class MainApp:
 
     async def _poll_job_status(self, job_id):
         """Poll the job status endpoint until job is completed or failed."""
+        # url = f'http://127.0.0.1:8000/v1/jobs/{job_id}'   # the service itself, not implemented
         url = f'http://127.0.0.1:9000/jobs/{job_id}'    # polling the orchestrator
         headers = {"Authorization": f"Bearer {self._access_token}"}
         while True:

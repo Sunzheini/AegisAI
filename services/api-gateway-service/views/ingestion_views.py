@@ -237,6 +237,20 @@ class IngestionViewsManager:
                         json=job_payload,
                         timeout=5
                     )
+
+
+                    # ToDo: continue
+                    """
+                    REDIS_URL = "redis://redis:6379/2"  # use
+                    langgraph - read about it
+                    continue with chat here and in deepseek
+                    finish orchestrator service
+                    move file to the new project
+                    """
+
+
+
+
                     resp.raise_for_status()
                 except Exception as e:
                     self.job_asset_store.update_job(job_id, {"status": "failed", "error": str(e), "updated_at": datetime.utcnow().isoformat()})

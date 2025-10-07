@@ -16,6 +16,25 @@ Future AWS migration:
     - Replace simulated workers with Lambda/Step Functions
 """
 
+
+# ToDo: continue
+"""
+Impelement Redis using the new chat here
+
+When you move test_workflow_orchestrator.py 
+to a new project, you do not need to change anything in your current project for it to continue working. The existing 
+API Gateway and ingestion tests (test_ingestion.py and others) will remain valid and functional. However, in the new project:
+    You must ensure that the new project includes the orchestrator service code (workflow_orchestrator_example.py) and the shared job schema models (contracts/job_schemas.py).
+    You may need to update import paths in test_workflow_orchestrator.py to match the new project structure (e.g., how you import the orchestrator app and job schemas).
+    If you change the orchestrator API or job schema in the new project, you should update the tests there accordingly.
+
+If you want to move to real workers, you can refactor each worker method to send jobs to 
+external services (e.g., via HTTP, message queue, or cloud). The orchestrator is now modular 
+and ready for further extension or migration.
+"""
+
+
+
 from fastapi import FastAPI, HTTPException, status, Request
 from contracts.job_schemas import IngestionJobRequest, IngestionJobStatusResponse
 from typing import Dict, Any

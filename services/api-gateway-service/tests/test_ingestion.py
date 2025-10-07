@@ -3,7 +3,6 @@ import os
 import time
 import uuid
 import threading
-from typing import List, Tuple
 import pytest
 import requests
 from unittest.mock import patch

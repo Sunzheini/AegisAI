@@ -238,19 +238,6 @@ class IngestionViewsManager:
                         timeout=5
                     )
 
-
-                    # ToDo: continue
-                    """
-                    finish orchestrator service
-                    
-                    move file to the new project
-                    
-                    If you want to move to real workers, you can refactor each worker method to send jobs to 
-                    external services (e.g., via HTTP, message queue, or cloud). The orchestrator is now modular 
-                    and ready for further extension or migration.
-                    """
-
-
                     resp.raise_for_status()
                 except Exception as e:
                     self.job_asset_store.update_job(job_id, {"status": "failed", "error": str(e), "updated_at": datetime.utcnow().isoformat()})

@@ -3,10 +3,9 @@ Tests for Workflow Orchestrator Service
 ---------------------------------------
 Covers job submission, status polling, error handling, and response model validation.
 """
-import pytest
 from fastapi.testclient import TestClient
 from workflow_orchestrator_example import app
-from contracts.job_schemas import IngestionJobRequest, IngestionJobStatusResponse
+from contracts.job_schemas import IngestionJobStatusResponse
 import uuid
 
 client = TestClient(app)

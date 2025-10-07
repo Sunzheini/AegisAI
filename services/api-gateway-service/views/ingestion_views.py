@@ -260,7 +260,7 @@ class IngestionViewsManager:
                 return {"job_id": job_id, "status": "submitted_to_orchestrator"}
 
             # -------------------------------------------------------------------------------------------------
-            # Option 2: Local processing: await in tests, background otherwise
+            # Option 2: Local processing: await in tests, concurrent otherwise
             else:
                 if getattr(getattr(request.app, "state", None), "testing", False):
                     await self._process_job(job_id)

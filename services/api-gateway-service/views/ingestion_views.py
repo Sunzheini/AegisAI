@@ -241,14 +241,14 @@ class IngestionViewsManager:
 
                     # ToDo: continue
                     """
-                    REDIS_URL = "redis://redis:6379/2"  # use
-                    langgraph - read about it
-                    continue with chat here and in deepseek
                     finish orchestrator service
+                    
                     move file to the new project
+                    
+                    If you want to move to real workers, you can refactor each worker method to send jobs to 
+                    external services (e.g., via HTTP, message queue, or cloud). The orchestrator is now modular 
+                    and ready for further extension or migration.
                     """
-
-
 
 
                     resp.raise_for_status()

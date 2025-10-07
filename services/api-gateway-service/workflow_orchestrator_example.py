@@ -1,72 +1,183 @@
 """
-Example Workflow Orchestrator Service
--------------------------------------
-This is a minimal FastAPI-based service that simulates a workflow orchestrator for ingestion jobs.
+Workflow Orchestrator Example with LangGraph
+-------------------------------------------
+This service orchestrates ingestion jobs using a workflow graph (LangGraph).
+Each job passes through simulated steps: validation, processing, transcoding.
 
-- Receives job requests from the API Gateway (via POST /jobs)
-- Stores jobs in memory and simulates processing
-- Intended for local development and integration testing
+- Modular design for easy migration to a separate project or AWS.
+- All workflow logic is encapsulated in the WorkflowOrchestrator class.
+- Endpoints: POST /jobs (submit job), GET /jobs/{job_id} (poll status)
 
 To run:
     uvicorn workflow_orchestrator_example:app --reload --port 9000
 
-In production, this service would:
-    - Manage job state and orchestration
-    - Trigger processing steps (e.g., transcoding, analysis)
-    - Integrate with cloud services (S3, Lambda, etc.)
+Future AWS migration:
+    - Replace in-memory stores with S3/DynamoDB
+    - Replace simulated workers with Lambda/Step Functions
 """
 
 from fastapi import FastAPI, HTTPException, status, Request
-from contracts.job_schemas import IngestionJobRequest
+from contracts.job_schemas import IngestionJobRequest, IngestionJobStatusResponse
 from typing import Dict, Any
 from datetime import datetime
 import asyncio
+import logging
+
+# LangGraph imports (simulate for now)
+try:
+    from langgraph.graph import StateGraph, WorkflowExecutor
+except ImportError:
+    StateGraph = None
+    WorkflowExecutor = None
 
 app = FastAPI(title="Workflow Orchestrator Example")
 
-# In-memory job store for demonstration
-jobs: Dict[str, Dict[str, Any]] = {}
+class WorkflowOrchestrator:
+    """
+    Orchestrates ingestion jobs using a workflow graph.
+    Each step is a simulated async worker.
+    Replace with real workers/cloud services for production.
+
+    Attributes:
+        jobs (Dict[str, Dict[str, Any]]): In-memory job store.
+        logger (logging.Logger): Logger for orchestrator events.
+    """
+    def __init__(self):
+        self.jobs: Dict[str, Dict[str, Any]] = {}
+        self.logger = logging.getLogger("orchestrator")
+
+    async def submit_job(self, job: IngestionJobRequest) -> None:
+        """
+        Submit a new job to the orchestrator.
+        Args:
+            job (IngestionJobRequest): Job request from API Gateway.
+        Raises:
+            ValueError: If job_id already exists.
+        """
+        print(f"[Orchestrator] Received job submission: {job.job_id}")
+        if job.job_id in self.jobs:
+            print(f"[Orchestrator] Job {job.job_id} already exists!")
+            raise ValueError("Job already exists")
+        job_record = {
+            "job_id": job.job_id,
+            "file_path": job.file_path,
+            "content_type": job.content_type,
+            "checksum_sha256": job.checksum_sha256,
+            "submitted_by": job.submitted_by,
+            "status": "queued",
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat(),
+            "step": "queued",
+        }
+        self.jobs[job.job_id] = job_record
+        print(f"[Orchestrator] Job {job.job_id} queued.")
+        # Start workflow in background
+        asyncio.create_task(self._run_workflow(job.job_id))
+
+    async def _run_workflow(self, job_id: str):
+        """
+        Simulates a workflow with three steps, each as a separate worker function.
+        In production, these would be separate services or processes.
+        Args:
+            job_id (str): The job identifier.
+        """
+        print(f"[Orchestrator] Starting workflow for job {job_id}.")
+        await self._worker_validate(job_id)
+        await self._worker_process(job_id)
+        await self._worker_transcode(job_id)
+        self.jobs[job_id]["status"] = "completed"
+        self.jobs[job_id]["step"] = "done"
+        self.jobs[job_id]["updated_at"] = datetime.utcnow().isoformat()
+        print(f"[Orchestrator] Job {job_id} completed.")
+
+    async def _worker_validate(self, job_id: str):
+        """
+        Simulated validation worker.
+        In production, replace with a real validation service.
+        Args:
+            job_id (str): The job identifier.
+        """
+        print(f"[Worker:validate] Job {job_id} validating...")
+        await asyncio.sleep(0.5)
+        self.jobs[job_id]["status"] = "validate_in_progress"
+        self.jobs[job_id]["step"] = "validate"
+        self.jobs[job_id]["updated_at"] = datetime.utcnow().isoformat()
+        print(f"[Worker:validate] Job {job_id} validation done.")
+
+    async def _worker_process(self, job_id: str):
+        """
+        Simulated processing worker.
+        In production, replace with a real processing service.
+        Args:
+            job_id (str): The job identifier.
+        """
+        print(f"[Worker:process] Job {job_id} processing...")
+        await asyncio.sleep(0.5)
+        self.jobs[job_id]["status"] = "process_in_progress"
+        self.jobs[job_id]["step"] = "process"
+        self.jobs[job_id]["updated_at"] = datetime.utcnow().isoformat()
+        print(f"[Worker:process] Job {job_id} processing done.")
+
+    async def _worker_transcode(self, job_id: str):
+        """
+        Simulated transcoding worker.
+        In production, replace with a real transcoding service.
+        Args:
+            job_id (str): The job identifier.
+        """
+        print(f"[Worker:transcode] Job {job_id} transcoding...")
+        await asyncio.sleep(0.5)
+        self.jobs[job_id]["status"] = "transcode_in_progress"
+        self.jobs[job_id]["step"] = "transcode"
+        self.jobs[job_id]["updated_at"] = datetime.utcnow().isoformat()
+        print(f"[Worker:transcode] Job {job_id} transcoding done.")
+
+    def get_job(self, job_id: str) -> IngestionJobStatusResponse:
+        """
+        Retrieve job metadata and status as a response model.
+        Args:
+            job_id (str): The job identifier.
+        Returns:
+            IngestionJobStatusResponse: Job metadata or None if not found.
+        """
+        job = self.jobs.get(job_id)
+        if not job:
+            return None
+        return IngestionJobStatusResponse(**job)
+
+orchestrator = WorkflowOrchestrator()
+
 
 @app.post("/jobs", status_code=status.HTTP_202_ACCEPTED)
 async def submit_job(job: IngestionJobRequest, request: Request):
     """
-    Accepts a new ingestion job from the API Gateway and simulates orchestration.
-    Expects a payload matching support.job_schemas.IngestionJobRequest.
+    Accepts a new ingestion job from the API Gateway and starts orchestration.
+    Returns job_id and initial status.
+    Args:
+        job (IngestionJobRequest): Job request payload.
+        request (Request): FastAPI request object.
+    Returns:
+        dict: job_id and status.
     """
-    if job.job_id in jobs:
-        raise HTTPException(status_code=409, detail="Job already exists")
-
-    jobs[job.job_id] = {
-        "job_id": job.job_id,
-        "file_path": job.file_path,
-        "content_type": job.content_type,
-        "checksum_sha256": job.checksum_sha256,
-        "submitted_by": job.submitted_by,
-        "status": "queued",
-        "created_at": datetime.utcnow().isoformat(),
-        "updated_at": datetime.utcnow().isoformat(),
-    }
-
-    # Simulate async orchestration (e.g., start workflow in background)
-    asyncio.create_task(simulate_processing(job.job_id))
+    try:
+        await orchestrator.submit_job(job)
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
     return {"job_id": job.job_id, "status": "queued"}
 
-@app.get("/jobs/{job_id}")
-async def get_job_status(job_id: str):
+
+@app.get("/jobs/{job_id}", status_code=status.HTTP_200_OK)
+def get_job_status(job_id: str):
     """
-    Returns the status of a submitted job.
+    Returns the current status and metadata for a job.
+    Args:
+        job_id (str): The job identifier.
+    Returns:
+        IngestionJobStatusResponse: Job metadata if found.
+    Raises:
+        HTTPException: If job not found.
     """
-    job = jobs.get(job_id)
+    job = orchestrator.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return job
-
-# ToDo: In a real orchestrator, this would trigger actual processing steps.
-async def simulate_processing(job_id: str):
-    """
-    Simulates job processing by updating job status after a delay.
-    """
-    await asyncio.sleep(1.0)  # Simulate processing time
-    if job_id in jobs:
-        jobs[job_id]["status"] = "completed"
-        jobs[job_id]["updated_at"] = datetime.utcnow().isoformat()

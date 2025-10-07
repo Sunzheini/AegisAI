@@ -18,3 +18,18 @@ class IngestionJobRequest(BaseModel):
     content_type: str
     checksum_sha256: str
     submitted_by: Optional[str] = None
+
+
+class IngestionJobStatusResponse(BaseModel):
+    """
+    Schema for job status responses from the Workflow Orchestrator to API Gateway or frontend.
+    """
+    job_id: str
+    status: str
+    step: str
+    created_at: str
+    updated_at: str
+    file_path: str
+    content_type: str
+    checksum_sha256: str
+    submitted_by: Optional[str] = None

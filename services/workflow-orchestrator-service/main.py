@@ -50,6 +50,7 @@ import redis.asyncio as aioredis
 from fastapi import FastAPI, HTTPException, status, Request
 
 from contracts.job_schemas import IngestionJobRequest, IngestionJobStatusResponse
+from routers.redis_router import router as redis_router
 
 
 REDIS_URL = os.getenv("TEST_REDIS_URL", "redis://localhost:6379/2")
@@ -81,6 +82,7 @@ async def lifespan(app):
 
 
 app = FastAPI(title="Workflow Orchestrator Example", lifespan=lifespan)
+app.include_router(redis_router)
 
 
 class WorkflowOrchestrator:

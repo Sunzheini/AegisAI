@@ -28,6 +28,8 @@ Migration Notes:
 
 # ToDo: continue
 """
+last chat in api-gateway-service
+
 Detailed Breakdown for Each Step
 1. Implement the LangGraph Workflow Graph and Node Functions
 What’s missing:

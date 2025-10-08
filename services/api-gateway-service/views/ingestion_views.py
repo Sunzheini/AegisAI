@@ -2,11 +2,13 @@ import os
 import uuid
 import asyncio
 import hashlib
+import json
 from typing import Dict, Any
 from datetime import datetime
 
 import requests
 import logging
+import redis.asyncio as aioredis
 from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Path, Request
 from starlette import status as H
@@ -26,6 +28,10 @@ TRANSCODED_DIR = os.getenv("TRANSCODED_DIR", os.path.join(STORAGE_ROOT, "transco
 
 ALLOWED_CONTENT_TYPES = ALLOWED_CONTENT_TYPES_SET
 MAX_UPLOAD_BYTES = MAX_UPLOAD_BYTES_SIZE  # 50 MB
+
+REDIS_URL = os.getenv("TEST_REDIS_URL", "redis://localhost:6379/2")
+USE_REDIS_PUBLISH = os.getenv("USE_REDIS_PUBLISH", "false").lower() == "true"
+redis = aioredis.from_url(REDIS_URL, decode_responses=True)
 
 
 # ToDo: Instantiate abstractions for local usage, change to AWS later
@@ -222,38 +228,60 @@ class IngestionViewsManager:
             self.job_asset_store.create_job(job_record)
 
             # -------------------------------------------------------------------------------------------------
-            # Option 1: Send job to orchestrator if configured
-            if USE_ORCHESTRATOR:
-                try:
-                    job_payload = IngestionJobRequest(
-                        job_id=job_id,
-                        file_path=destination_path,
-                        content_type=file.content_type,
-                        checksum_sha256=hasher.hexdigest(),
-                        submitted_by=getattr(current_user, "name", None),
-                    ).model_dump()
-                    resp = requests.post(
-                        ORCHESTRATOR_URL,
-                        json=job_payload,
-                        timeout=5
-                    )
+            # Mode 1: Event-driven architecture with Redis Pub/Sub
+            # -------------------------------------------------------------------------------------------------
+            if USE_REDIS_PUBLISH:
+                print(f"[upload_media] Publishing JOB_CREATED event for job_id: {job_id} to Redis")
 
-                    resp.raise_for_status()
-                except Exception as e:
-                    self.job_asset_store.update_job(job_id, {"status": "failed", "error": str(e), "updated_at": datetime.utcnow().isoformat()})
-                    raise HTTPException(status_code=502, detail=f"Failed to submit job to orchestrator: {e}")
+                # Publish JOB_CREATED event to Command Queue (Redis)
+                await redis.publish("command_queue", json.dumps({
+                    "event": "JOB_CREATED",
+                    "job_id": job_id,
+                    "filename": file.filename,
+                    "submitted_by": getattr(current_user, "name", None),
+                    "created_at": job_record["created_at"]
+                }))
+                
+                print(f"[upload_media] Published JOB_CREATED event for job_id: {job_id}")
 
-
-                return {"job_id": job_id, "status": "submitted_to_orchestrator"}
+                return {"job_id": job_id, "status": "published_to_redis"}
 
             # -------------------------------------------------------------------------------------------------
-            # Option 2: Local processing: await in tests, concurrent otherwise
+            # Mode 2: Direct submission to orchestrator or local processing
+            # -------------------------------------------------------------------------------------------------
             else:
-                if getattr(getattr(request.app, "state", None), "testing", False):
-                    await self._process_job(job_id)
+                print(f"[upload_media] Submitting job directly for job_id: {job_id}")
+
+                # Mode 2 Option 1: Send job to orchestrator if configured
+                if USE_ORCHESTRATOR:
+                    try:
+                        job_payload = IngestionJobRequest(
+                            job_id=job_id,
+                            file_path=destination_path,
+                            content_type=file.content_type,
+                            checksum_sha256=hasher.hexdigest(),
+                            submitted_by=getattr(current_user, "name", None),
+                        ).model_dump()
+                        resp = requests.post(
+                            ORCHESTRATOR_URL,
+                            json=job_payload,
+                            timeout=5
+                        )
+
+                        resp.raise_for_status()
+                    except Exception as e:
+                        self.job_asset_store.update_job(job_id, {"status": "failed", "error": str(e), "updated_at": datetime.utcnow().isoformat()})
+                        raise HTTPException(status_code=502, detail=f"Failed to submit job to orchestrator: {e}")
+
+                    return {"job_id": job_id, "status": "submitted_to_orchestrator"}
+
+                # Mode 2 Option 2: Local processing: await in tests, concurrent otherwise
                 else:
-                    asyncio.create_task(self._process_job(job_id))
-                return {"job_id": job_id, "status": "accepted"}
+                    if getattr(getattr(request.app, "state", None), "testing", False):
+                        await self._process_job(job_id)
+                    else:
+                        asyncio.create_task(self._process_job(job_id))
+                    return {"job_id": job_id, "status": "accepted"}
 
         # GET @ http://127.0.0.1:8000/v1/jobs/{job_id}
         @self.router.get("/jobs/{job_id}", status_code=H.HTTP_200_OK, summary="Get job status (v1)")

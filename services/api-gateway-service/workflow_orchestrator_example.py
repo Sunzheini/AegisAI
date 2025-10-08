@@ -32,15 +32,23 @@ If you want to move to real workers, you can refactor each worker method to send
 external services (e.g., via HTTP, message queue, or cloud). The orchestrator is now modular 
 and ready for further extension or migration.
 """
-
-
-
-from fastapi import FastAPI, HTTPException, status, Request
-from contracts.job_schemas import IngestionJobRequest, IngestionJobStatusResponse
+import os
+import json
 from typing import Dict, Any
 from datetime import datetime
 import asyncio
 import logging
+from contextlib import asynccontextmanager
+
+import redis.asyncio as aioredis
+from fastapi import FastAPI, HTTPException, status, Request
+
+from contracts.job_schemas import IngestionJobRequest, IngestionJobStatusResponse
+
+
+REDIS_URL = os.getenv("TEST_REDIS_URL", "redis://localhost:6379/2")
+redis = aioredis.from_url(REDIS_URL, decode_responses=True)
+
 
 # LangGraph imports (simulate for now)
 try:
@@ -49,7 +57,25 @@ except ImportError:
     StateGraph = None
     WorkflowExecutor = None
 
-app = FastAPI(title="Workflow Orchestrator Example")
+
+USE_REDIS_LISTENER = os.getenv("USE_REDIS_LISTENER", "true").lower() == "true"
+
+
+@asynccontextmanager
+async def lifespan(app):
+    if USE_REDIS_LISTENER:
+        print("[Orchestrator] Redis listener mode enabled. Starting Redis listener...")
+        task = asyncio.create_task(redis_listener())
+        yield
+        print("[Orchestrator] Shutting down Redis listener.")
+        task.cancel()
+    else:
+        print("[Orchestrator] Redis listener mode disabled. Only direct HTTP submission will be processed.")
+        yield
+
+
+app = FastAPI(title="Workflow Orchestrator Example", lifespan=lifespan)
+
 
 class WorkflowOrchestrator:
     """
@@ -164,23 +190,27 @@ class WorkflowOrchestrator:
             return None
         return IngestionJobStatusResponse(**job)
 
+
 orchestrator = WorkflowOrchestrator()
 
 
 @app.post("/jobs", status_code=status.HTTP_202_ACCEPTED)
 async def submit_job(job: IngestionJobRequest, request: Request):
     """
-    Accepts a new ingestion job from the API Gateway and starts orchestration.
-    Returns job_id and initial status.
+    Submit a new job to the orchestrator via HTTP POST.
     Args:
-        job (IngestionJobRequest): Job request payload.
+        job (IngestionJobRequest): Job request from API Gateway.
         request (Request): FastAPI request object.
     Returns:
-        dict: job_id and status.
+        dict: Job ID and status if accepted.
+    Raises:
+        HTTPException: If job_id already exists.
     """
+    print(f"[Orchestrator] Received direct job submission for job_id: {job.job_id}")
     try:
         await orchestrator.submit_job(job)
     except ValueError as e:
+        print(f"[Orchestrator] Duplicate job_id {job.job_id} received via HTTP. Skipping.")
         raise HTTPException(status_code=409, detail=str(e))
     return {"job_id": job.job_id, "status": "queued"}
 
@@ -200,3 +230,29 @@ def get_job_status(job_id: str):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return job
+
+
+# ----------------------------------------------------------------------------------------------
+# Redis listener to subscribe to command_queue and process JOB_CREATED events
+# ----------------------------------------------------------------------------------------------
+async def redis_listener():
+    pubsub = redis.pubsub()
+    await pubsub.subscribe("command_queue")
+    print("[Orchestrator] Listening for JOB_CREATED events on Redis...")
+    async for message in pubsub.listen():
+        if message["type"] == "message":
+            event = json.loads(message["data"])
+            if event.get("event") == "JOB_CREATED":
+                print(f"[Orchestrator] Received JOB_CREATED event for job_id: {event['job_id']}")
+                # Convert event dict to IngestionJobRequest
+                job = IngestionJobRequest(
+                    job_id=event["job_id"],
+                    file_path=event.get("filename", ""),
+                    content_type="unknown",  # Adjust if available
+                    checksum_sha256="unknown",  # Adjust if available
+                    submitted_by=event.get("submitted_by", ""),
+                )
+                try:
+                    await orchestrator.submit_job(job)
+                except ValueError:
+                    print(f"[Orchestrator] Duplicate job_id {event['job_id']} received from Redis. Skipping.")

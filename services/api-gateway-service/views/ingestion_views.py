@@ -233,17 +233,19 @@ class IngestionViewsManager:
             if USE_REDIS_PUBLISH:
                 print(f"[upload_media] Publishing JOB_CREATED event for job_id: {job_id} to Redis")
 
-                # Publish JOB_CREATED event to Command Queue (Redis)
+                job_request = IngestionJobRequest(
+                    job_id=job_id,
+                    file_path=file.filename,
+                    content_type=job_record.get("content_type", "unknown"),
+                    checksum_sha256=job_record.get("checksum_sha256", "unknown"),
+                    submitted_by=getattr(current_user, "name", None)
+                )
+
                 await redis.publish("command_queue", json.dumps({
                     "event": "JOB_CREATED",
-                    "job_id": job_id,
-                    "filename": file.filename,
-                    "submitted_by": getattr(current_user, "name", None),
-                    "created_at": job_record["created_at"]
+                    **job_request.model_dump()
                 }))
-                
                 print(f"[upload_media] Published JOB_CREATED event for job_id: {job_id}")
-
                 return {"job_id": job_id, "status": "published_to_redis"}
 
             # -------------------------------------------------------------------------------------------------

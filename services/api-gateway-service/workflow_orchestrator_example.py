@@ -244,14 +244,8 @@ async def redis_listener():
             event = json.loads(message["data"])
             if event.get("event") == "JOB_CREATED":
                 print(f"[Orchestrator] Received JOB_CREATED event for job_id: {event['job_id']}")
-                # Convert event dict to IngestionJobRequest
-                job = IngestionJobRequest(
-                    job_id=event["job_id"],
-                    file_path=event.get("filename", ""),
-                    content_type="unknown",  # Adjust if available
-                    checksum_sha256="unknown",  # Adjust if available
-                    submitted_by=event.get("submitted_by", ""),
-                )
+                # Use IngestionJobRequest to reconstruct job from event
+                job = IngestionJobRequest(**{k: v for k, v in event.items() if k != "event"})
                 try:
                     await orchestrator.submit_job(job)
                 except ValueError:

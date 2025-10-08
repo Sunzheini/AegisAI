@@ -28,12 +28,6 @@ Migration Notes:
 
 # ToDo: continue
 """
-I can now move workflow_orchestrator_example.py to another project.
-As long as I:
-Also move the shared contracts (e.g., contracts/job_schemas.py).
-Update import paths in your new project.
-Ensure both services use the same Redis instance and job schema.
-
 If I want to move to real workers, I can refactor each worker method to send jobs to 
 external services (e.g., via HTTP, message queue, or cloud). The orchestrator is now modular 
 and ready for further extension or migration.

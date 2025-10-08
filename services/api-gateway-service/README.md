@@ -10,7 +10,7 @@ poetry add "uvicorn[standard]"
 ```
 uvicorn main:app --reload
 
-or 
+or
 
 run with a new configuration in PyCharm (no hot reload but stable and you can stop it)
 script: D:/Study/Projects/PycharmProjects/fast_api_playground/.venv/Scripts/uvicorn.exe
@@ -33,7 +33,7 @@ Open Swagger UI: http://127.0.0.1:8000/docs
 
 
 ## `Depends` keyword
-The Depends keyword is one of the most powerful features in FastAPI. It's the dependency injection 
+The Depends keyword is one of the most powerful features in FastAPI. It's the dependency injection
 system that makes FastAPI so clean and modular.
 
 ```
@@ -51,3 +51,4 @@ What Happens:
     It calls my_dependency() function
     It passes the return value to your route function as value
     Your route uses the value
+

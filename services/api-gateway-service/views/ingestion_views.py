@@ -1,3 +1,21 @@
+"""
+Ingestion Views
+--------------
+Defines the IngestionViewsManager and endpoints for media upload, job status, and asset metadata.
+Supports both local and orchestrator modes, and event-driven job submission via Redis.
+
+Environment Variables:
+    - USE_ORCHESTRATOR: Enable external workflow orchestrator
+    - USE_REDIS_PUBLISH: Enable Redis event-driven job submission
+    - STORAGE_ROOT, RAW_DIR, PROCESSED_DIR, TRANSCODED_DIR: Storage paths
+    - TEST_REDIS_URL: Redis connection string for tests
+
+Endpoints:
+    - POST /v1/upload: Upload media, create job, start processing
+    - GET /v1/jobs/{job_id}: Get job status
+    - GET /v1/assets/{asset_id}: Get asset metadata
+"""
+
 import os
 import uuid
 import asyncio
@@ -46,19 +64,24 @@ class IngestionViewsManager:
     """
     Registers versioned ingestion endpoints under /v1 on the provided router.
 
-    This class supports two modes:
-    - Local mode: jobs are processed directly by the API gateway (default).
-    - Orchestrator mode: jobs are submitted to an external workflow orchestrator service for processing.
-
-    The mode is controlled by the USE_ORCHESTRATOR environment variable.
+    Modes:
+        - Local: Jobs processed by API Gateway
+        - Orchestrator: Jobs submitted to external workflow orchestrator
+        - Redis: Jobs published to Redis for event-driven orchestration
 
     Endpoints:
-      - POST /v1/upload: Upload media, create job, start processing
-      - GET  /v1/jobs/{job_id}: Get job status
-      - GET  /v1/assets/{asset_id}: Get asset metadata
+        - POST /v1/upload: Upload media, create job, start processing
+        - GET  /v1/jobs/{job_id}: Get job status
+        - GET  /v1/assets/{asset_id}: Get asset metadata
     """
-    # ToDo: move to persistent storage (database, cloud storage) in production
+
     # In-memory stores (class-level so they persist for the app lifetime)
+    """
+    jobs_store and assets_store are used for local metadata storage in the API Gateway & Ingestion Service.
+    They track uploaded jobs and assets, and are needed for endpoints like /v1/jobs/{job_id} and /v1/assets/{asset_id}.
+    The orchestrator only needs the job metadata sent via the event (Redis), not the full local store.
+    """
+    # ToDo: If I later migrate to a cloud database or shared storage, refactor these to use a persistent backend (e.g., PostgreSQL, DynamoDB).
     jobs_store: Dict[str, Dict[str, Any]] = {}      # job_id -> job_record, stores the ingestion jobs
     assets_store: Dict[str, Dict[str, Any]] = {}    # asset_id -> asset_record, stores the processed assets
 
@@ -107,15 +130,6 @@ class IngestionViewsManager:
 
         :param job_id: The ID of the job to process
         :return: None
-        """
-
-        # ToDo:
-        """
-        change current flow 
-        `Upload → Store file → Copy to processed dir → Mark job complete` 
-        to 
-        `Upload → Store file → LangGraph Workflow → Multiple processing steps → Mark job complete`
-        after implementing the Workflow Orchestrator
         """
 
         job = self.job_asset_store.get_job(job_id)
@@ -181,6 +195,13 @@ class IngestionViewsManager:
         return total_size_in_bytes, hasher
 
     def register_views(self) -> None:
+        """
+        Register ingestion endpoints on the router.
+        Endpoints:
+            - POST /v1/upload: Upload media and create job
+            - GET /v1/jobs/{job_id}: Get job status
+            - GET /v1/assets/{asset_id}: Get asset metadata
+        """
         logger.info(f"STORAGE_ROOT: {STORAGE_ROOT}")
         logger.info(f"RAW_DIR: {RAW_DIR}")
         logger.info(f"PROCESSED_DIR: {PROCESSED_DIR}")
@@ -192,8 +213,19 @@ class IngestionViewsManager:
             """
             Uploads a file and creates an ingestion job.
 
-            - In local mode, the job is processed by this service.
-            - In orchestrator mode, the job is submitted to an external orchestrator service.
+            Modes:
+                - Local: Process job in API Gateway
+                - Orchestrator: Submit job to external orchestrator
+                - Redis: Publish job to Redis for event-driven orchestration
+
+            Args:
+                request (Request): FastAPI request object
+                file (UploadFile): Uploaded file
+                current_user: Authenticated user
+            Returns:
+                dict: Job ID and status
+            Raises:
+                HTTPException: On validation or processing errors
             """
             import os  # Ensure we get the latest env vars
             USE_ORCHESTRATOR = os.getenv("USE_ORCHESTRATOR", "false").lower() == "true"
@@ -289,7 +321,16 @@ class IngestionViewsManager:
         @self.router.get("/jobs/{job_id}", status_code=H.HTTP_200_OK, summary="Get job status (v1)")
         @auth_required
         async def get_job_status(job_id: str = Path(..., min_length=1), current_user=Depends(self.get_current_user)) -> Dict[str, Any]:
-            """Return job status or 404 if not found."""
+            """
+            Returns job status for the given job_id.
+            Args:
+                job_id (str): Job identifier
+                current_user: Authenticated user
+            Returns:
+                dict: Job metadata
+            Raises:
+                HTTPException: If job not found
+            """
             job = self.job_asset_store.get_job(job_id)
             if not job:
                 raise HTTPException(status_code=404, detail="Job not found")
@@ -298,9 +339,17 @@ class IngestionViewsManager:
         # GET @ http://127.0.0.1:8000/v1/assets/{asset_id}
         @self.router.get("/assets/{asset_id}", status_code=H.HTTP_200_OK, summary="Get asset metadata (v1)")
         @auth_required
-        async def get_asset(
-            asset_id: str = Path(..., min_length=1), current_user=Depends(self.get_current_user)) -> Dict[str, Any]:
-            """Return asset metadata or 404 if not found."""
+        async def get_asset(asset_id: str = Path(..., min_length=1), current_user=Depends(self.get_current_user)) -> Dict[str, Any]:
+            """
+            Returns asset metadata for the given asset_id.
+            Args:
+                asset_id (str): Asset identifier
+                current_user: Authenticated user
+            Returns:
+                dict: Asset metadata
+            Raises:
+                HTTPException: If asset not found
+            """
             asset = self.job_asset_store.get_asset(asset_id)
             if not asset:
                 raise HTTPException(status_code=404, detail="Asset not found")

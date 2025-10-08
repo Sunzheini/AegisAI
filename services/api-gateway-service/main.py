@@ -1,3 +1,24 @@
+"""
+API Gateway Microservice
+-----------------------
+Entry point for the API Gateway & Ingestion Service. Sets up FastAPI app, routers, and middleware.
+
+Routers:
+    - auth: Authentication endpoints
+    - users: User management endpoints
+    - v1: Versioned API endpoints (including ingestion)
+    - redis_router: Redis health and pub/sub endpoints
+
+Middleware:
+    - InMemoryRateLimiter: Local rate limiting (bypassed during tests)
+
+App State:
+    - ingestion_manager: Instance of IngestionViewsManager for job and asset management
+
+Health Endpoint:
+    - GET /health: Returns service status
+"""
+
 from fastapi import FastAPI
 
 from routers import auth, users, v1
@@ -23,4 +44,10 @@ app.state.ingestion_manager = IngestionViewsManager(v1.router, get_current_user)
 
 @app.get("/health")
 async def health_check():
+    """
+    Health check endpoint for API Gateway service.
+
+    Returns:
+        dict: Service status
+    """
     return {"status": "ok"}

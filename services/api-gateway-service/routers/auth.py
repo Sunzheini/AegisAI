@@ -14,7 +14,7 @@ THe flow is as follows:
 1. User sends a POST request to /auth/login with username and password.
 2. The server verifies the credentials and, if valid, generates a JWT token.
 3. The server responds with the JWT token.
-4. For protected routes, the client (frontend) includes the JWT token in the 
+4. For protected routes, the client (frontend) includes the JWT token in the
 Authorization header of subsequent requests in the format "Bearer <token>".
 5. When a request is made to a protected route, the server extracts the token
 from the Authorization header and verifies it (uses the get_current_user dependency).

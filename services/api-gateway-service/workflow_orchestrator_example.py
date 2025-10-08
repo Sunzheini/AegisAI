@@ -1,34 +1,40 @@
 """
-Workflow Orchestrator Example with LangGraph
--------------------------------------------
-This service orchestrates ingestion jobs using a workflow graph (LangGraph).
-Each job passes through simulated steps: validation, processing, transcoding.
+Workflow Orchestrator Service
+----------------------------
+Orchestrates ingestion jobs using a workflow graph (LangGraph).
+Supports both direct HTTP job submission and event-driven orchestration via Redis.
 
-- Modular design for easy migration to a separate project or AWS.
-- All workflow logic is encapsulated in the WorkflowOrchestrator class.
-- Endpoints: POST /jobs (submit job), GET /jobs/{job_id} (poll status)
+Features:
+    - Modular design for migration to AWS or other cloud platforms
+    - All workflow logic encapsulated in WorkflowOrchestrator class
+    - Endpoints: POST /jobs (submit job), GET /jobs/{job_id} (poll status)
+    - Redis listener for JOB_CREATED events from API Gateway
+
+Environment Variables:
+    - USE_REDIS_LISTENER: Enable Redis event-driven orchestration
+    - TEST_REDIS_URL: Redis connection string for tests
 
 To run:
     uvicorn workflow_orchestrator_example:app --reload --port 9000
 
-Future AWS migration:
-    - Replace in-memory stores with S3/DynamoDB
-    - Replace simulated workers with Lambda/Step Functions
+Migration Notes:
+    - Move shared contracts (e.g., contracts/job_schemas.py) to new project
+    - Update import paths as needed
+    - Ensure both services use the same Redis instance and job schema
+    - Replace in-memory stores with S3/DynamoDB for production
+    - Replace simulated workers with Lambda/Step Functions for cloud
 """
 
 
 # ToDo: continue
 """
-Impelement Redis using the new chat here
+I can now move workflow_orchestrator_example.py to another project.
+As long as I:
+Also move the shared contracts (e.g., contracts/job_schemas.py).
+Update import paths in your new project.
+Ensure both services use the same Redis instance and job schema.
 
-When you move test_workflow_orchestrator.py 
-to a new project, you do not need to change anything in your current project for it to continue working. The existing 
-API Gateway and ingestion tests (test_ingestion.py and others) will remain valid and functional. However, in the new project:
-    You must ensure that the new project includes the orchestrator service code (workflow_orchestrator_example.py) and the shared job schema models (contracts/job_schemas.py).
-    You may need to update import paths in test_workflow_orchestrator.py to match the new project structure (e.g., how you import the orchestrator app and job schemas).
-    If you change the orchestrator API or job schema in the new project, you should update the tests there accordingly.
-
-If you want to move to real workers, you can refactor each worker method to send jobs to 
+If I want to move to real workers, I can refactor each worker method to send jobs to 
 external services (e.g., via HTTP, message queue, or cloud). The orchestrator is now modular 
 and ready for further extension or migration.
 """
@@ -236,6 +242,12 @@ def get_job_status(job_id: str):
 # Redis listener to subscribe to command_queue and process JOB_CREATED events
 # ----------------------------------------------------------------------------------------------
 async def redis_listener():
+    """
+    Redis listener for JOB_CREATED events.
+    Subscribes to the 'command_queue' channel and processes new jobs.
+    Reconstructs jobs using IngestionJobRequest and submits them to the workflow orchestrator.
+    Skips duplicate jobs.
+    """
     pubsub = redis.pubsub()
     await pubsub.subscribe("command_queue")
     print("[Orchestrator] Listening for JOB_CREATED events on Redis...")

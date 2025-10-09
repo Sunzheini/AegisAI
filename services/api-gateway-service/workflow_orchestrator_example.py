@@ -53,17 +53,9 @@ async def get_redis():
         await redis_client.close()
 
 
-"""
-Examine WORK_PLAN.md. The API Gateway & Ingestion Service is this project and the Workflow Orchestrator is inside the file workflow_orchestrator_example.py, which will later be moved to another project. AWS usage will also be implemented at a much later stage, for now i will use local resources. Tell me are all requirements for the 2 services covered
-
-Implement the LangGraph workflow graph and node functions in workflow_orchestrator_example.py.
-Add state persistence using SQLite or Redis.
-Integrate Redis Pub/Sub for event-driven task coordination.
-Ensure the orchestrator reacts to JOB_CREATED events and manages job progression through the workflow graph.
-"""
-
-# #ToDo: refactor, move incl. tests to work there
-# ToDo: when moving Give the workflow orchestrator direct access to the storage via shared folder, it is better to pass only the file path and metadata in the job request, not the file content itself.
+# ToDo: 1. refactor
+# ToDo: 2. move incl. tests to work there
+# ToDo: 3. when moving Give the workflow orchestrator direct access to the storage via shared folder, it is better to pass only the file path and metadata in the job request, not the file content itself.
 
 
 @asynccontextmanager

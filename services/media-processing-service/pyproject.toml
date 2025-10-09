@@ -1,0 +1,18 @@
+[project]
+name = "media-processing-service"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Sunzheini",email = "daniel_zorov@abv.bg"}
+]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi (>=0.118.2,<0.119.0)",
+    "pytest (>=8.4.2,<9.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

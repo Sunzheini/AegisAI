@@ -56,6 +56,7 @@ async def get_redis():
 # ToDo: 1. refactor
 # ToDo: 2. move incl. tests to work there
 # ToDo: 3. when moving Give the workflow orchestrator direct access to the storage via shared folder, it is better to pass only the file path and metadata in the job request, not the file content itself.
+# ToDo: 4. current chat for the workers
 
 
 @asynccontextmanager

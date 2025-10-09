@@ -28,7 +28,7 @@ Migration Notes:
 import os
 import json
 from typing import Dict, Any, TypedDict
-from datetime import datetime
+from datetime import datetime, timezone
 import asyncio
 import logging
 from contextlib import asynccontextmanager
@@ -36,15 +36,31 @@ from typing import Optional
 
 import redis.asyncio as aioredis
 from langgraph.graph import StateGraph, END
-from fastapi import FastAPI, HTTPException, status, Request
+from fastapi import FastAPI, HTTPException, status, Request, Depends
 
 from contracts.job_schemas import IngestionJobRequest, IngestionJobStatusResponse
 
 
 REDIS_URL = os.getenv("TEST_REDIS_URL", "redis://localhost:6379/2")
-redis = aioredis.from_url(REDIS_URL, decode_responses=True)
 USE_REDIS_LISTENER = os.getenv("USE_REDIS_LISTENER", "true").lower() == "true"
 
+
+async def get_redis():
+    redis_client = aioredis.from_url(REDIS_URL, decode_responses=True)
+    try:
+        yield redis_client
+    finally:
+        await redis_client.close()
+
+
+"""
+Examine WORK_PLAN.md. The API Gateway & Ingestion Service is this project and the Workflow Orchestrator is inside the file workflow_orchestrator_example.py, which will later be moved to another project. AWS usage will also be implemented at a much later stage, for now i will use local resources. Tell me are all requirements for the 2 services covered
+
+Implement the LangGraph workflow graph and node functions in workflow_orchestrator_example.py.
+Add state persistence using SQLite or Redis.
+Integrate Redis Pub/Sub for event-driven task coordination.
+Ensure the orchestrator reacts to JOB_CREATED events and manages job progression through the workflow graph.
+"""
 
 # #ToDo: clean, refactor, move, tests working in both projects
 # ToDo: when moving Give the workflow orchestrator direct access to the storage via shared folder, it is better to pass only the file path and metadata in the job request, not the file content itself.
@@ -167,7 +183,18 @@ class WorkflowOrchestrator:
                 }
             }
 
-    async def submit_job(self, job: IngestionJobRequest) -> None:
+    async def save_job_state_to_redis(self, redis_client, job_id: str, state: MyState):
+        """Persist job state to Redis as JSON."""
+        await redis_client.set(f"job_state:{job_id}", json.dumps(dict(state)))
+
+    async def load_job_state_from_redis(self, redis_client, job_id: str) -> Optional[MyState]:
+        """Load job state from Redis as MyState."""
+        data = await redis_client.get(f"job_state:{job_id}")
+        if data:
+            return MyState(**json.loads(data))
+        return None
+
+    async def submit_job(self, redis_client, job: IngestionJobRequest):
         """
         Submit a new job to the orchestrator.
         Args:
@@ -176,7 +203,9 @@ class WorkflowOrchestrator:
             ValueError: If job_id already exists.
         """
         print(f"[Orchestrator] Received job submission: {job.job_id}")
-        if job.job_id in self.jobs:
+        # Check Redis for existing job
+        existing_state = await self.load_job_state_from_redis(redis_client, job.job_id)
+        if existing_state:
             print(f"[Orchestrator] Job {job.job_id} already exists!")
             raise ValueError("Job already exists")
 
@@ -187,25 +216,25 @@ class WorkflowOrchestrator:
             checksum_sha256=job.checksum_sha256,
             submitted_by=job.submitted_by,
             status="queued",
-            created_at=datetime.utcnow().isoformat(),
-            updated_at=datetime.utcnow().isoformat(),
+            created_at=datetime.now(timezone.utc).isoformat(),
+            updated_at=datetime.now(timezone.utc).isoformat(),
             step="queued",
             branch="",  # will be set by route_workflow
             metadata=None
         )
 
         self.jobs[job.job_id] = state
+        await self.save_job_state_to_redis(redis_client, job.job_id, state)
         print(f"[Orchestrator] Job {job.job_id} queued. Initial state: {state}")
         print(f"Jon content type: {job.content_type}")
 
         # Start workflow in background
-        asyncio.create_task(self._run_workflow(job.job_id))
+        asyncio.create_task(self._run_workflow(redis_client, job.job_id))
 
-
-    async def _run_workflow(self, job_id: str) -> None:
+    async def _run_workflow(self, redis_client, job_id: str) -> None:
         """
         Runs the workflow for a given job_id.
-        Updates job state in self.jobs.
+        Updates job state in self.jobs and Redis.
         Args:
             job_id (str): The job identifier.
         ️ Note: This runs in the background as a separate task.
@@ -215,15 +244,21 @@ class WorkflowOrchestrator:
             print(f"[DEBUG] Before graph.ainvoke: {state}")
             final_state = await self.graph.ainvoke(state)
             self.jobs[job_id] = final_state
+            await self.save_job_state_to_redis(redis_client, job_id, final_state)
         except Exception as e:
             # Get the current state and update it
             state = self.jobs[job_id]
             state["status"] = "failed"
             current_step = state.get("step", "unknown")
             state["step"] = f"failed_at_{current_step}"
-            state["updated_at"] = datetime.utcnow().isoformat()
+            state["updated_at"] = datetime.now(timezone.utc).isoformat()
             self.jobs[job_id] = state
+            await self.save_job_state_to_redis(redis_client, job_id, state)
             self.logger.error(f"Workflow failed for job {job_id}: {e}")
+
+    async def get_job(self, redis_client, job_id: str) -> Optional[MyState]:
+        """Get job state from Redis as MyState."""
+        return await self.load_job_state_from_redis(redis_client, job_id)
 
     async def _worker_validate_file(self, state: MyState) -> MyState:
         """
@@ -238,7 +273,7 @@ class WorkflowOrchestrator:
         await asyncio.sleep(0.5)
         state["status"] = "validate_in_progress"
         state["step"] = "validate_file"
-        state["updated_at"] = datetime.utcnow().isoformat()
+        state["updated_at"] = datetime.now(timezone.utc).isoformat()
         print(f"[Worker:validate_file] Job {state['job_id']} validation done. State: {state}")
         return state
 
@@ -259,10 +294,9 @@ class WorkflowOrchestrator:
         await asyncio.sleep(0.5)
         state["status"] = "metadata_extracted"
         state["step"] = "extract_metadata"
-        state["updated_at"] = datetime.utcnow().isoformat()
-        state["metadata"] = {"dummy": "metadata"}  # Simulate extraction
-        print(
-            f"[Worker:extract_metadata] Job {state['job_id']} metadata extraction done. State: {state}")
+        state["updated_at"] = datetime.now(timezone.utc).isoformat()
+        state["metadata"] = {"dummy": "metadata"}
+        print(f"[Worker:extract_metadata] Job {state['job_id']} metadata extraction done. State: {state}")
         return state
 
     async def _worker_route_workflow(self, state: MyState) -> MyState:
@@ -290,9 +324,8 @@ class WorkflowOrchestrator:
 
         state["status"] = f"routed_to_{state['branch']}_branch"
         state["step"] = "route_workflow"
-        state["updated_at"] = datetime.utcnow().isoformat()
-        print(
-            f"[Worker:route_workflow] Job {state['job_id']} routed to {state['branch']} branch. State: {state}")  
+        state["updated_at"] = datetime.now(timezone.utc).isoformat()
+        print(f"[Worker:route_workflow] Job {state['job_id']} routed to {state['branch']} branch. State: {state}")
         return state
 
     async def _worker_generate_thumbnails(self, state: MyState) -> MyState:
@@ -307,9 +340,8 @@ class WorkflowOrchestrator:
         await asyncio.sleep(0.3)
         state["status"] = "thumbnails_generated"
         state["step"] = "generate_thumbnails"
-        state["updated_at"] = datetime.utcnow().isoformat()
-        print(
-            f"[Worker:generate_thumbnails] Job {state['job_id']} thumbnails done. State: {state}")
+        state["updated_at"] = datetime.now(timezone.utc).isoformat()
+        print(f"[Worker:generate_thumbnails] Job {state['job_id']} thumbnails done. State: {state}")
         return state
 
     async def _worker_analyze_image_with_ai(self, state: MyState) -> MyState:
@@ -324,9 +356,8 @@ class WorkflowOrchestrator:
         await asyncio.sleep(0.4)
         state["status"] = "image_analyzed"
         state["step"] = "analyze_image_with_ai"
-        state["updated_at"] = datetime.utcnow().isoformat()
-        print(
-            f"[Worker:analyze_image_with_ai] Job {state['job_id']} image analysis done. State: {state}")
+        state["updated_at"] = datetime.now(timezone.utc).isoformat()
+        print(f"[Worker:analyze_image_with_ai] Job {state['job_id']} image analysis done. State: {state}")
         return state
 
     async def _worker_extract_audio(self, state: MyState) -> MyState:
@@ -341,9 +372,8 @@ class WorkflowOrchestrator:
         await asyncio.sleep(0.3)
         state["status"] = "audio_extracted"
         state["step"] = "extract_audio"
-        state["updated_at"] = datetime.utcnow().isoformat()
-        print(
-            f"[Worker:extract_audio] Job {state['job_id']} audio extraction done. State: {state}")
+        state["updated_at"] = datetime.now(timezone.utc).isoformat()
+        print(f"[Worker:extract_audio] Job {state['job_id']} audio extraction done. State: {state}")
         return state
 
     async def _worker_transcribe_audio(self, state: MyState) -> MyState:
@@ -358,9 +388,8 @@ class WorkflowOrchestrator:
         await asyncio.sleep(0.4)
         state["status"] = "audio_transcribed"
         state["step"] = "transcribe_audio"
-        state["updated_at"] = datetime.utcnow().isoformat()
-        print(
-            f"[Worker:transcribe_audio] Job {state['job_id']} audio transcription done. State: {state}")
+        state["updated_at"] = datetime.now(timezone.utc).isoformat()
+        print(f"[Worker:transcribe_audio] Job {state['job_id']} audio transcription done. State: {state}")
         return state
 
     async def _worker_generate_video_summary(self, state: MyState) -> MyState:
@@ -375,9 +404,8 @@ class WorkflowOrchestrator:
         await asyncio.sleep(0.4)
         state["status"] = "video_summary_generated"
         state["step"] = "generate_video_summary"
-        state["updated_at"] = datetime.utcnow().isoformat()
-        print(
-            f"[Worker:generate_video_summary] Job {state['job_id']} video summary done. State: {state}")
+        state["updated_at"] = datetime.now(timezone.utc).isoformat()
+        print(f"[Worker:generate_video_summary] Job {state['job_id']} video summary done. State: {state}")
         return state
 
     async def _worker_extract_text(self, state: MyState) -> MyState:
@@ -392,7 +420,7 @@ class WorkflowOrchestrator:
         await asyncio.sleep(0.3)
         state["status"] = "text_extracted"
         state["step"] = "extract_text"
-        state["updated_at"] = datetime.utcnow().isoformat()
+        state["updated_at"] = datetime.now(timezone.utc).isoformat()
         print(f"[Worker:extract_text] Job {state['job_id']} text extraction done. State: {state}")
         return state
 
@@ -408,27 +436,16 @@ class WorkflowOrchestrator:
         await asyncio.sleep(0.4)
         state["status"] = "document_summarized"
         state["step"] = "summarize_document"
-        state["updated_at"] = datetime.utcnow().isoformat()
-        print(
-            f"[Worker:summarize_document] Job {state['job_id']} document summary done. State: {state}")
+        state["updated_at"] = datetime.now(timezone.utc).isoformat()
+        print(f"[Worker:summarize_document] Job {state['job_id']} document summary done. State: {state}")
         return state
-
-    def get_job(self, job_id: str) -> Optional[MyState]:
-        """
-        Returns the current state for a job.
-        Args:
-            job_id (str): The job identifier.
-        Returns:
-            MyState: Job state if found, else None.
-        """
-        return self.jobs.get(job_id)
 
 
 orchestrator = WorkflowOrchestrator()
 
 
 @app.post("/jobs", status_code=status.HTTP_202_ACCEPTED)
-async def submit_job(job: IngestionJobRequest, request: Request):
+async def submit_job(job: IngestionJobRequest, request: Request, redis_client=Depends(get_redis)):
     """
     Submit a new job to the orchestrator via HTTP POST.
     Args:
@@ -441,15 +458,15 @@ async def submit_job(job: IngestionJobRequest, request: Request):
     """
     print(f"[Orchestrator] Received direct job submission for job_id: {job.job_id}")
     try:
-        await orchestrator.submit_job(job)
+        await orchestrator.submit_job(redis_client, job)
     except ValueError as e:
         print(f"[Orchestrator] Duplicate job_id {job.job_id} received via HTTP. Skipping.")
         raise HTTPException(status_code=409, detail=str(e))
     return {"job_id": job.job_id, "status": "queued"}
 
 
-@app.get("/jobs/{job_id}", status_code=status.HTTP_200_OK)
-def get_job_status(job_id: str):
+@app.get("/jobs/{job_id}", status_code=status.HTTP_200_OK, response_model=IngestionJobStatusResponse)
+async def get_job_status(job_id: str, redis_client=Depends(get_redis)):
     """
     Returns the current status and metadata for a job.
     Args:
@@ -459,10 +476,9 @@ def get_job_status(job_id: str):
     Raises:
         HTTPException: If job not found.
     """
-    job = orchestrator.get_job(job_id)
+    job = await orchestrator.get_job(redis_client, job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    # Convert MyState (dict) to IngestionJobStatusResponse
     return IngestionJobStatusResponse(
         job_id=job["job_id"],
         status=job["status"],
@@ -472,7 +488,7 @@ def get_job_status(job_id: str):
         file_path=job["file_path"],
         content_type=job["content_type"],
         checksum_sha256=job["checksum_sha256"],
-        submitted_by=job["submitted_by"]
+        submitted_by=job.get("submitted_by")
     )
 
 
@@ -486,7 +502,8 @@ async def redis_listener():
     Reconstructs jobs using IngestionJobRequest and submits them to the workflow orchestrator.
     Skips duplicate jobs.
     """
-    pubsub = redis.pubsub()
+    pubsub = aioredis.from_url(REDIS_URL, decode_responses=True).pubsub()
+    redis_client = aioredis.from_url(REDIS_URL, decode_responses=True)
     try:
         await pubsub.subscribe("command_queue")
         print("[Orchestrator] Listening for JOB_CREATED events on Redis...")
@@ -499,9 +516,10 @@ async def redis_listener():
                     # Use IngestionJobRequest to reconstruct job from event
                     job = IngestionJobRequest(**{k: v for k, v in event.items() if k != "event"})
                     try:
-                        await orchestrator.submit_job(job)
+                        await orchestrator.submit_job(redis_client, job)
                     except ValueError:
                         print(f"[Orchestrator] Duplicate job_id {event['job_id']} received from Redis. Skipping.")
     except asyncio.CancelledError:
         await pubsub.unsubscribe("command_queue")
         await pubsub.close()
+        await redis_client.close()

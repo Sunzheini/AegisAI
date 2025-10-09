@@ -40,9 +40,9 @@ from contracts.job_schemas import IngestionJobRequest
 
 load_dotenv()
 STORAGE_ROOT = os.getenv("STORAGE_ROOT", os.path.abspath(os.path.join(os.getcwd(), "storage")))
-RAW_DIR = os.getenv("RAW_DIR", os.path.join(STORAGE_ROOT, "raw"))
-PROCESSED_DIR = os.getenv("PROCESSED_DIR", os.path.join(STORAGE_ROOT, "processed"))
-TRANSCODED_DIR = os.getenv("TRANSCODED_DIR", os.path.join(STORAGE_ROOT, "transcoded"))
+RAW_DIR = os.getenv("RAW_DIR", os.path.join(STORAGE_ROOT, "raw"))  # Stores the original uploaded files before any processing
+PROCESSED_DIR = os.getenv("PROCESSED_DIR", os.path.join(STORAGE_ROOT, "processed"))  # Stores files after initial processing (e.g., validation, copying, basic transformation)
+TRANSCODED_DIR = os.getenv("TRANSCODED_DIR", os.path.join(STORAGE_ROOT, "transcoded"))  # Stores files after advanced processing, such as format conversion or transcoding
 
 ALLOWED_CONTENT_TYPES = ALLOWED_CONTENT_TYPES_SET
 MAX_UPLOAD_BYTES = MAX_UPLOAD_BYTES_SIZE  # 50 MB
@@ -135,7 +135,8 @@ class IngestionViewsManager:
         job = self.job_asset_store.get_job(job_id)
         if not job:
             return
-        self.job_asset_store.update_job(job_id, {"status": "in_progress", "updated_at": datetime.utcnow().isoformat()})
+        self.job_asset_store.update_job(job_id, {
+            "status": "in_progress", "updated_at": datetime.utcnow().isoformat()})
 
         # Simulate processing delay
         await asyncio.sleep(0.2)

@@ -32,8 +32,11 @@ from datetime import datetime
 import asyncio
 import logging
 from contextlib import asynccontextmanager
+from dataclasses import dataclass, field
+from typing import Optional
 
 import redis.asyncio as aioredis
+from langgraph.graph import StateGraph
 from fastapi import FastAPI, HTTPException, status, Request
 
 from contracts.job_schemas import IngestionJobRequest, IngestionJobStatusResponse
@@ -41,16 +44,6 @@ from contracts.job_schemas import IngestionJobRequest, IngestionJobStatusRespons
 
 REDIS_URL = os.getenv("TEST_REDIS_URL", "redis://localhost:6379/2")
 redis = aioredis.from_url(REDIS_URL, decode_responses=True)
-
-
-# LangGraph imports (simulate for now)
-try:
-    from langgraph.graph import StateGraph, WorkflowExecutor
-except ImportError:
-    StateGraph = None
-    WorkflowExecutor = None
-
-
 USE_REDIS_LISTENER = os.getenv("USE_REDIS_LISTENER", "true").lower() == "true"
 
 
@@ -70,19 +63,76 @@ async def lifespan(app):
 app = FastAPI(title="Workflow Orchestrator Example", lifespan=lifespan)
 
 
+@dataclass
+class MyState:
+    job_id: str
+    file_path: str
+    content_type: str
+    checksum_sha256: str
+    submitted_by: str
+    status: str = "queued"
+    created_at: str = ""
+    updated_at: str = ""
+    step: str = "queued"
+    metadata: Optional[dict] = field(default_factory=dict)
+    # Add more fields as needed for workflow state
+
+
 class WorkflowOrchestrator:
     """
     Orchestrates ingestion jobs using a workflow graph.
     Each step is a simulated async worker.
     Replace with real workers/cloud services for production.
-
-    Attributes:
-        jobs (Dict[str, Dict[str, Any]]): In-memory job store.
-        logger (logging.Logger): Logger for orchestrator events.
     """
     def __init__(self):
         self.jobs: Dict[str, Dict[str, Any]] = {}
         self.logger = logging.getLogger("orchestrator")
+        # Define workflow graph structure
+        self.graph = self._build_graph()
+
+    def _build_graph(self):
+        print("[Orchestrator] Building workflow graph...")
+        # Use LangGraph StateGraph if available, else use dict
+        if StateGraph:
+            print("[Orchestrator] Using LangGraph StateGraph with state_schema=MyState.")
+            graph = StateGraph(state_schema=MyState)
+            graph.add_node("validate_file", self._worker_validate_file)
+            graph.add_node("extract_metadata", self._worker_extract_metadata)
+            graph.add_node("route_workflow", self._worker_route_workflow)
+            graph.add_node("generate_thumbnails", self._worker_generate_thumbnails)
+            graph.add_node("analyze_image_with_ai", self._worker_analyze_image_with_ai)
+            graph.add_node("extract_audio", self._worker_extract_audio)
+            graph.add_node("transcribe_audio", self._worker_transcribe_audio)
+            graph.add_node("generate_video_summary", self._worker_generate_video_summary)
+            graph.add_node("extract_text", self._worker_extract_text)
+            graph.add_node("summarize_document", self._worker_summarize_document)
+            print("[Orchestrator] Added all nodes to graph.")
+            # Edges
+            graph.add_edge("validate_file", "extract_metadata")
+            graph.add_edge("extract_metadata", "route_workflow")
+            print("[Orchestrator] Added main edges.")
+            # Explicit edges for all possible branches
+            graph.add_edge("route_workflow", "generate_thumbnails")
+            graph.add_edge("route_workflow", "analyze_image_with_ai")
+            graph.add_edge("route_workflow", "extract_audio")
+            graph.add_edge("route_workflow", "transcribe_audio")
+            graph.add_edge("route_workflow", "generate_video_summary")
+            graph.add_edge("route_workflow", "extract_text")
+            graph.add_edge("route_workflow", "summarize_document")
+            print("[Orchestrator] Added explicit edges for all branches.")
+            return graph
+        else:
+            print("[Orchestrator] LangGraph not available, using fallback graph structure.")
+            return {
+                "nodes": [
+                    "validate_file", "extract_metadata", "route_workflow"
+                ],
+                "branches": {
+                    "image": ["generate_thumbnails", "analyze_image_with_ai"],
+                    "video": ["extract_audio", "transcribe_audio", "generate_video_summary"],
+                    "pdf": ["extract_text", "summarize_document"],
+                }
+            }
 
     async def submit_job(self, job: IngestionJobRequest) -> None:
         """
@@ -96,92 +146,245 @@ class WorkflowOrchestrator:
         if job.job_id in self.jobs:
             print(f"[Orchestrator] Job {job.job_id} already exists!")
             raise ValueError("Job already exists")
-        job_record = {
-            "job_id": job.job_id,
-            "file_path": job.file_path,
-            "content_type": job.content_type,
-            "checksum_sha256": job.checksum_sha256,
-            "submitted_by": job.submitted_by,
-            "status": "queued",
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat(),
-            "step": "queued",
-        }
-        self.jobs[job.job_id] = job_record
-        print(f"[Orchestrator] Job {job.job_id} queued.")
+        state = MyState(
+            job_id=job.job_id,
+            file_path=job.file_path,
+            content_type=job.content_type,
+            checksum_sha256=job.checksum_sha256,
+            submitted_by=job.submitted_by,
+            created_at=datetime.utcnow().isoformat(),
+            updated_at=datetime.utcnow().isoformat(),
+        )
+        self.jobs[job.job_id] = state
+        print(f"[Orchestrator] Job {job.job_id} queued. Initial state: {state}")
+        print(f"Jon content type: {job.content_type}")
         # Start workflow in background
         asyncio.create_task(self._run_workflow(job.job_id))
 
     async def _run_workflow(self, job_id: str):
-        """
-        Simulates a workflow with three steps, each as a separate worker function.
-        In production, these would be separate services or processes.
-        Args:
-            job_id (str): The job identifier.
-        """
         print(f"[Orchestrator] Starting workflow for job {job_id}.")
-        await self._worker_validate(job_id)
-        await self._worker_process(job_id)
-        await self._worker_transcode(job_id)
-        self.jobs[job_id]["status"] = "completed"
-        self.jobs[job_id]["step"] = "done"
-        self.jobs[job_id]["updated_at"] = datetime.utcnow().isoformat()
-        print(f"[Orchestrator] Job {job_id} completed.")
+        state = self.jobs[job_id]
+        print(f"[Orchestrator] Initial state: {state}")
+        state = await self._worker_validate_file(state)
+        print(f"[Orchestrator] State after validate_file: {state}")
+        state = await self._worker_extract_metadata(state)
+        print(f"[Orchestrator] State after extract_metadata: {state}")
+        branch, state = await self._worker_route_workflow(state)
+        print(f"[Orchestrator] State after route_workflow: {state}")
+        print(f"[Orchestrator] Branch selected: {branch}")
+        # Step 4: branch execution
+        if branch == "image":
+            state = await self._worker_generate_thumbnails(state)
+            print(f"[Orchestrator] State after generate_thumbnails: {state}")
+            state = await self._worker_analyze_image_with_ai(state)
+            print(f"[Orchestrator] State after analyze_image_with_ai: {state}")
+        elif branch == "video":
+            state = await self._worker_extract_audio(state)
+            print(f"[Orchestrator] State after extract_audio: {state}")
+            state = await self._worker_transcribe_audio(state)
+            print(f"[Orchestrator] State after transcribe_audio: {state}")
+            state = await self._worker_generate_video_summary(state)
+            print(f"[Orchestrator] State after generate_video_summary: {state}")
+        elif branch == "pdf":
+            state = await self._worker_extract_text(state)
+            print(f"[Orchestrator] State after extract_text: {state}")
+            state = await self._worker_summarize_document(state)
+            print(f"[Orchestrator] State after summarize_document: {state}")
+        state.status = "completed"
+        state.step = "done"
+        state.updated_at = datetime.utcnow().isoformat()
+        self.jobs[job_id] = state
+        print(f"[Orchestrator] Job {job_id} completed. Final state: {state}")
 
-    async def _worker_validate(self, job_id: str):
+    # Node functions now accept and return MyState
+    async def _worker_validate_file(self, state: MyState) -> MyState:
         """
         Simulated validation worker.
+        Receives initial metadata from IngestionJobRequest (job_id, file_path, content_type, checksum_sha256, submitted_by).
+        Performs validation on the file (e.g., existence, integrity, format checks).
         In production, replace with a real validation service.
         Args:
             job_id (str): The job identifier.
         """
-        print(f"[Worker:validate] Job {job_id} validating...")
+        print(f"[Worker:validate_file] Job {state.job_id} validating...")
         await asyncio.sleep(0.5)
-        self.jobs[job_id]["status"] = "validate_in_progress"
-        self.jobs[job_id]["step"] = "validate"
-        self.jobs[job_id]["updated_at"] = datetime.utcnow().isoformat()
-        print(f"[Worker:validate] Job {job_id} validation done.")
+        state.status = "validate_in_progress"
+        state.step = "validate_file"
+        state.updated_at = datetime.utcnow().isoformat()
+        print(f"[Worker:validate_file] Job {state.job_id} validation done. State: {state}")
+        return state
 
-    async def _worker_process(self, job_id: str):
+    async def _worker_extract_metadata(self, state: MyState) -> MyState:
         """
-        Simulated processing worker.
-        In production, replace with a real processing service.
+        Simulated metadata extraction worker.
+        Receives initial metadata from IngestionJobRequest.
+        Extracts additional technical/descriptive metadata from the file itself, such as:
+            - Images: dimensions, format, EXIF data
+            - Videos: duration, resolution, codec info
+            - PDFs: number of pages, author, title
+        Enriches the job record for downstream processing.
+        In production, replace with a real metadata extraction service.
         Args:
             job_id (str): The job identifier.
         """
-        print(f"[Worker:process] Job {job_id} processing...")
+        print(f"[Worker:extract_metadata] Job {state.job_id} extracting metadata...")
         await asyncio.sleep(0.5)
-        self.jobs[job_id]["status"] = "process_in_progress"
-        self.jobs[job_id]["step"] = "process"
-        self.jobs[job_id]["updated_at"] = datetime.utcnow().isoformat()
-        print(f"[Worker:process] Job {job_id} processing done.")
+        state.status = "metadata_extracted"
+        state.step = "extract_metadata"
+        state.updated_at = datetime.utcnow().isoformat()
+        state.metadata = {"dummy": "metadata"}  # Simulate extraction
+        print(f"[Worker:extract_metadata] Job {state.job_id} metadata extraction done. State: {state}")
+        return state
 
-    async def _worker_transcode(self, job_id: str):
+    async def _worker_route_workflow(self, state: MyState) -> tuple:
         """
-        Simulated transcoding worker.
-        In production, replace with a real transcoding service.
-        Args:
-            job_id (str): The job identifier.
-        """
-        print(f"[Worker:transcode] Job {job_id} transcoding...")
-        await asyncio.sleep(0.5)
-        self.jobs[job_id]["status"] = "transcode_in_progress"
-        self.jobs[job_id]["step"] = "transcode"
-        self.jobs[job_id]["updated_at"] = datetime.utcnow().isoformat()
-        print(f"[Worker:transcode] Job {job_id} transcoding done.")
-
-    def get_job(self, job_id: str) -> IngestionJobStatusResponse:
-        """
-        Retrieve job metadata and status as a response model.
+        Simulated routing worker.
+        Uses content_type from IngestionJobRequest to decide the workflow branch (image, video, pdf).
+        In production, replace with a real routing service or logic.
         Args:
             job_id (str): The job identifier.
         Returns:
-            IngestionJobStatusResponse: Job metadata or None if not found.
+            str: The selected branch (image, video, pdf).
         """
-        job = self.jobs.get(job_id)
-        if not job:
-            return None
-        return IngestionJobStatusResponse(**job)
+        print(f"[Worker:route_workflow] Job {state.job_id} routing workflow...")
+        await asyncio.sleep(0.2)
+        # Simulate branch selection based on content_type
+        content_type = state.content_type
+        if "image" in content_type:
+            branch = "image"
+        elif "video" in content_type:
+            branch = "video"
+        elif "pdf" in content_type:
+            branch = "pdf"
+        else:
+            branch = "image"  # default
+        state.status = f"routed_to_{branch}_branch"
+        state.step = "route_workflow"
+        state.updated_at = datetime.utcnow().isoformat()
+        print(f"[Worker:route_workflow] Job {state.job_id} routed to {branch} branch. State: {state}")
+        return branch, state
+
+    async def _worker_generate_thumbnails(self, state: MyState) -> MyState:
+        """
+        Simulated thumbnail generation worker for images.
+        Uses enriched metadata (e.g., image dimensions) from previous extraction.
+        In production, replace with a real thumbnail generation service.
+        Args:
+            job_id (str): The job identifier.
+        """
+        print(f"[Worker:generate_thumbnails] Job {state.job_id} generating thumbnails...")
+        await asyncio.sleep(0.3)
+        state.status = "thumbnails_generated"
+        state.step = "generate_thumbnails"
+        state.updated_at = datetime.utcnow().isoformat()
+        print(f"[Worker:generate_thumbnails] Job {state.job_id} thumbnails done. State: {state}")
+        return state
+
+    async def _worker_analyze_image_with_ai(self, state: MyState) -> MyState:
+        """
+        Simulated image analysis worker using AI for images.
+        Uses enriched metadata and image file.
+        In production, replace with a real AI image analysis service.
+        Args:
+            job_id (str): The job identifier.
+        """
+        print(f"[Worker:analyze_image_with_ai] Job {state.job_id} analyzing image with AI...")
+        await asyncio.sleep(0.4)
+        state.status = "image_analyzed"
+        state.step = "analyze_image_with_ai"
+        state.updated_at = datetime.utcnow().isoformat()
+        print(f"[Worker:analyze_image_with_ai] Job {state.job_id} image analysis done. State: {state}")
+        return state
+
+    async def _worker_extract_audio(self, state: MyState) -> MyState:
+        """
+        Simulated audio extraction worker for videos.
+        Uses enriched metadata (e.g., video duration, codec info).
+        In production, replace with a real audio extraction service.
+        Args:
+            job_id (str): The job identifier.
+        """
+        print(f"[Worker:extract_audio] Job {state.job_id} extracting audio...")
+        await asyncio.sleep(0.3)
+        state.status = "audio_extracted"
+        state.step = "extract_audio"
+        state.updated_at = datetime.utcnow().isoformat()
+        print(f"[Worker:extract_audio] Job {state.job_id} audio extraction done. State: {state}")
+        return state
+
+    async def _worker_transcribe_audio(self, state: MyState) -> MyState:
+        """
+        Simulated audio transcription worker for videos.
+        Uses extracted audio from previous step.
+        In production, replace with a real audio transcription service.
+        Args:
+            job_id (str): The job identifier.
+        """
+        print(f"[Worker:transcribe_audio] Job {state.job_id} transcribing audio...")
+        await asyncio.sleep(0.4)
+        state.status = "audio_transcribed"
+        state.step = "transcribe_audio"
+        state.updated_at = datetime.utcnow().isoformat()
+        print(f"[Worker:transcribe_audio] Job {state.job_id} audio transcription done. State: {state}")
+        return state
+
+    async def _worker_generate_video_summary(self, state: MyState) -> MyState:
+        """
+        Simulated video summary generation worker for videos.
+        Uses transcribed audio and video metadata.
+        In production, replace with a real video summary generation service.
+        Args:
+            job_id (str): The job identifier.
+        """
+        print(f"[Worker:generate_video_summary] Job {state.job_id} generating video summary...")
+        await asyncio.sleep(0.4)
+        state.status = "video_summary_generated"
+        state.step = "generate_video_summary"
+        state.updated_at = datetime.utcnow().isoformat()
+        print(f"[Worker:generate_video_summary] Job {state.job_id} video summary done. State: {state}")
+        return state
+
+    async def _worker_extract_text(self, state: MyState) -> MyState:
+        """
+        Simulated text extraction worker for PDFs.
+        Uses enriched metadata (e.g., number of pages, author).
+        In production, replace with a real PDF text extraction service.
+        Args:
+            job_id (str): The job identifier.
+        """
+        print(f"[Worker:extract_text] Job {state.job_id} extracting text from PDF...")
+        await asyncio.sleep(0.3)
+        state.status = "text_extracted"
+        state.step = "extract_text"
+        state.updated_at = datetime.utcnow().isoformat()
+        print(f"[Worker:extract_text] Job {state.job_id} text extraction done. State: {state}")
+        return state
+
+    async def _worker_summarize_document(self, state: MyState) -> MyState:
+        """
+        Simulated document summarization worker for PDFs.
+        Uses extracted text and PDF metadata.
+        In production, replace with a real document summarization service.
+        Args:
+            job_id (str): The job identifier.
+        """
+        print(f"[Worker:summarize_document] Job {state.job_id} summarizing document...")
+        await asyncio.sleep(0.4)
+        state.status = "document_summarized"
+        state.step = "summarize_document"
+        state.updated_at = datetime.utcnow().isoformat()
+        print(f"[Worker:summarize_document] Job {state.job_id} document summary done. State: {state}")
+        return state
+
+    def get_job(self, job_id: str) -> Optional[MyState]:
+        """
+        Returns the current state for a job.
+        Args:
+            job_id (str): The job identifier.
+        Returns:
+            MyState: Job state if found, else None.
+        """
+        return self.jobs.get(job_id)
 
 
 orchestrator = WorkflowOrchestrator()
@@ -222,7 +425,18 @@ def get_job_status(job_id: str):
     job = orchestrator.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    return job
+    # Convert MyState to IngestionJobStatusResponse
+    return IngestionJobStatusResponse(
+        job_id=job.job_id,
+        status=job.status,
+        step=job.step,
+        created_at=job.created_at,
+        updated_at=job.updated_at,
+        file_path=job.file_path,
+        content_type=job.content_type,
+        checksum_sha256=job.checksum_sha256,
+        submitted_by=job.submitted_by
+    )
 
 
 # ----------------------------------------------------------------------------------------------

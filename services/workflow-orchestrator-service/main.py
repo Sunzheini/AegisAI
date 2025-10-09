@@ -26,42 +26,6 @@ Migration Notes:
 """
 
 
-# ToDo: continue
-"""
-last chat in api-gateway-service
-
-Detailed Breakdown for Each Step
-1. Implement the LangGraph Workflow Graph and Node Functions
-What’s missing:
-No StateGraph, WorkflowExecutor, or node definitions.
-How to cover:
-Define a LangGraph graph object.
-Create node functions: validate_file, extract_metadata, route_workflow.
-In route_workflow, branch to image/video/pdf chains with their respective nodes (e.g., generate_thumbnails, extract_audio, etc.).
-Each node should encapsulate its logic and transition to the next node based on results.
-2. Add State Persistence Using SQLite or Redis
-What’s missing:
-No code for saving or retrieving job/graph state from SQLite or Redis.
-How to cover:
-Create a persistence layer (class or functions) for job and workflow state.
-On each node transition, update the job’s state in SQLite or Redis.
-On orchestrator startup, load incomplete jobs and resume workflows.
-3. Integrate Redis Pub/Sub for Event-Driven Task Coordination
-What’s missing:
-No code for publishing tasks to queues, waiting for worker callbacks, or handling results.
-How to cover:
-On node execution, publish a task message to the appropriate Redis Task Queue.
-Subscribe to a Callback Queue for worker results.
-On result receipt, update state and trigger the next node in the graph.
-4. Ensure the Orchestrator Reacts to JOB_CREATED Events and Manages Job Progression
-What’s missing:
-No code for consuming JOB_CREATED events and starting new graph executions.
-How to cover:
-Subscribe to the Command Queue for JOB_CREATED events.
-On event, create a new graph execution for the job_id.
-Start the workflow at the validate_file node and progress through the graph as results arrive.
-"""
-
 import os
 import json
 from typing import Dict, Any

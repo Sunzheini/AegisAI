@@ -232,6 +232,11 @@ class IngestionViewsManager:
             USE_ORCHESTRATOR = os.getenv("USE_ORCHESTRATOR", "false").lower() == "true"
             ORCHESTRATOR_URL = os.getenv("ORCHESTRATOR_URL", "http://localhost:9000/jobs")
 
+            print(20 * '-')
+            print(f"file content_type: {file.content_type}")
+            print(f"file filename: {file.filename}")
+            print(20 * '-')
+
             if file.content_type not in ALLOWED_CONTENT_TYPES:
                 raise HTTPException(
                     status_code=415,

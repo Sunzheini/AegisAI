@@ -62,7 +62,7 @@ Integrate Redis Pub/Sub for event-driven task coordination.
 Ensure the orchestrator reacts to JOB_CREATED events and manages job progression through the workflow graph.
 """
 
-# #ToDo: clean, refactor, move, tests working in both projects
+# #ToDo: refactor, move incl. tests to work there
 # ToDo: when moving Give the workflow orchestrator direct access to the storage via shared folder, it is better to pass only the file path and metadata in the job request, not the file content itself.
 
 
@@ -322,7 +322,7 @@ class WorkflowOrchestrator:
         else:
             state["branch"] = "image_branch"
 
-        state["status"] = f"routed_to_{state['branch']}_branch"
+        state["status"] = f"routed_to_{state['branch']}"
         state["step"] = "route_workflow"
         state["updated_at"] = datetime.now(timezone.utc).isoformat()
         print(f"[Worker:route_workflow] Job {state['job_id']} routed to {state['branch']} branch. State: {state}")

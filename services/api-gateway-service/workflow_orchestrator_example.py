@@ -39,6 +39,19 @@ from langgraph.graph import StateGraph, END
 from fastapi import FastAPI, HTTPException, status, Request, Depends
 
 from contracts.job_schemas import IngestionJobRequest, IngestionJobStatusResponse
+from validation_worker_example import validate_file_worker
+from media_processing_worker_example import (
+    extract_metadata_worker,
+    generate_thumbnails_worker,
+    extract_audio_worker,
+    transcribe_audio_worker,
+    generate_video_summary_worker
+)
+from ai_worker_example import (
+    analyze_image_with_ai_worker,
+    extract_text_worker,
+    summarize_document_worker
+)
 
 
 REDIS_URL = os.getenv("TEST_REDIS_URL", "redis://localhost:6379/2")
@@ -109,16 +122,16 @@ class WorkflowOrchestrator:
             graph = StateGraph(state_schema=MyState)
 
             # Nodes
-            graph.add_node("validate_file", self._worker_validate_file)
-            graph.add_node("extract_metadata", self._worker_extract_metadata)
+            graph.add_node("validate_file", validate_file_worker)
+            graph.add_node("extract_metadata", extract_metadata_worker)
             graph.add_node("route_workflow", self._worker_route_workflow)
-            graph.add_node("generate_thumbnails", self._worker_generate_thumbnails)
-            graph.add_node("analyze_image_with_ai", self._worker_analyze_image_with_ai)
-            graph.add_node("extract_audio", self._worker_extract_audio)
-            graph.add_node("transcribe_audio", self._worker_transcribe_audio)
-            graph.add_node("generate_video_summary", self._worker_generate_video_summary)
-            graph.add_node("extract_text", self._worker_extract_text)
-            graph.add_node("summarize_document", self._worker_summarize_document)
+            graph.add_node("generate_thumbnails", generate_thumbnails_worker)
+            graph.add_node("analyze_image_with_ai", analyze_image_with_ai_worker)
+            graph.add_node("extract_audio", extract_audio_worker)
+            graph.add_node("transcribe_audio", transcribe_audio_worker)
+            graph.add_node("generate_video_summary", generate_video_summary_worker)
+            graph.add_node("extract_text", extract_text_worker)
+            graph.add_node("summarize_document", summarize_document_worker)
             print("[Orchestrator] Added all nodes to graph.")
 
             # Edges
@@ -253,45 +266,6 @@ class WorkflowOrchestrator:
         """Get job state from Redis as MyState."""
         return await self.load_job_state_from_redis(redis_client, job_id)
 
-    async def _worker_validate_file(self, state: MyState) -> MyState:
-        """
-        Simulated validation worker.
-        Receives initial metadata from IngestionJobRequest (job_id, file_path, content_type, checksum_sha256, submitted_by).
-        Performs validation on the file (e.g., existence, integrity, format checks).
-        In production, replace with a real validation service.
-        Args:
-            job_id (str): The job identifier.
-        """
-        print(f"[Worker:validate_file] Job {state['job_id']} validating...")
-        await asyncio.sleep(0.5)
-        state["status"] = "validate_in_progress"
-        state["step"] = "validate_file"
-        state["updated_at"] = datetime.now(timezone.utc).isoformat()
-        print(f"[Worker:validate_file] Job {state['job_id']} validation done. State: {state}")
-        return state
-
-    async def _worker_extract_metadata(self, state: MyState) -> MyState:
-        """
-        Simulated metadata extraction worker.
-        Receives initial metadata from IngestionJobRequest.
-        Extracts additional technical/descriptive metadata from the file itself, such as:
-            - Images: dimensions, format, EXIF data
-            - Videos: duration, resolution, codec info
-            - PDFs: number of pages, author, title
-        Enriches the job record for downstream processing.
-        In production, replace with a real metadata extraction service.
-        Args:
-            job_id (str): The job identifier.
-        """
-        print(f"[Worker:extract_metadata] Job {state['job_id']} extracting metadata...")
-        await asyncio.sleep(0.5)
-        state["status"] = "metadata_extracted"
-        state["step"] = "extract_metadata"
-        state["updated_at"] = datetime.now(timezone.utc).isoformat()
-        state["metadata"] = {"dummy": "metadata"}
-        print(f"[Worker:extract_metadata] Job {state['job_id']} metadata extraction done. State: {state}")
-        return state
-
     async def _worker_route_workflow(self, state: MyState) -> MyState:
         """
         Simulated routing worker.
@@ -319,118 +293,6 @@ class WorkflowOrchestrator:
         state["step"] = "route_workflow"
         state["updated_at"] = datetime.now(timezone.utc).isoformat()
         print(f"[Worker:route_workflow] Job {state['job_id']} routed to {state['branch']} branch. State: {state}")
-        return state
-
-    async def _worker_generate_thumbnails(self, state: MyState) -> MyState:
-        """
-        Simulated thumbnail generation worker for images.
-        Uses enriched metadata (e.g., image dimensions) from previous extraction.
-        In production, replace with a real thumbnail generation service.
-        Args:
-            job_id (str): The job identifier.
-        """
-        print(f"[Worker:generate_thumbnails] Job {state['job_id']} generating thumbnails...")
-        await asyncio.sleep(0.3)
-        state["status"] = "thumbnails_generated"
-        state["step"] = "generate_thumbnails"
-        state["updated_at"] = datetime.now(timezone.utc).isoformat()
-        print(f"[Worker:generate_thumbnails] Job {state['job_id']} thumbnails done. State: {state}")
-        return state
-
-    async def _worker_analyze_image_with_ai(self, state: MyState) -> MyState:
-        """
-        Simulated image analysis worker using AI for images.
-        Uses enriched metadata and image file.
-        In production, replace with a real AI image analysis service.
-        Args:
-            job_id (str): The job identifier.
-        """
-        print(f"[Worker:analyze_image_with_ai] Job {state['job_id']} analyzing image with AI...")
-        await asyncio.sleep(0.4)
-        state["status"] = "image_analyzed"
-        state["step"] = "analyze_image_with_ai"
-        state["updated_at"] = datetime.now(timezone.utc).isoformat()
-        print(f"[Worker:analyze_image_with_ai] Job {state['job_id']} image analysis done. State: {state}")
-        return state
-
-    async def _worker_extract_audio(self, state: MyState) -> MyState:
-        """
-        Simulated audio extraction worker for videos.
-        Uses enriched metadata (e.g., video duration, codec info).
-        In production, replace with a real audio extraction service.
-        Args:
-            job_id (str): The job identifier.
-        """
-        print(f"[Worker:extract_audio] Job {state['job_id']} extracting audio...")
-        await asyncio.sleep(0.3)
-        state["status"] = "audio_extracted"
-        state["step"] = "extract_audio"
-        state["updated_at"] = datetime.now(timezone.utc).isoformat()
-        print(f"[Worker:extract_audio] Job {state['job_id']} audio extraction done. State: {state}")
-        return state
-
-    async def _worker_transcribe_audio(self, state: MyState) -> MyState:
-        """
-        Simulated audio transcription worker for videos.
-        Uses extracted audio from previous step.
-        In production, replace with a real audio transcription service.
-        Args:
-            job_id (str): The job identifier.
-        """
-        print(f"[Worker:transcribe_audio] Job {state['job_id']} transcribing audio...")
-        await asyncio.sleep(0.4)
-        state["status"] = "audio_transcribed"
-        state["step"] = "transcribe_audio"
-        state["updated_at"] = datetime.now(timezone.utc).isoformat()
-        print(f"[Worker:transcribe_audio] Job {state['job_id']} audio transcription done. State: {state}")
-        return state
-
-    async def _worker_generate_video_summary(self, state: MyState) -> MyState:
-        """
-        Simulated video summary generation worker for videos.
-        Uses transcribed audio and video metadata.
-        In production, replace with a real video summary generation service.
-        Args:
-            job_id (str): The job identifier.
-        """
-        print(f"[Worker:generate_video_summary] Job {state['job_id']} generating video summary...")
-        await asyncio.sleep(0.4)
-        state["status"] = "video_summary_generated"
-        state["step"] = "generate_video_summary"
-        state["updated_at"] = datetime.now(timezone.utc).isoformat()
-        print(f"[Worker:generate_video_summary] Job {state['job_id']} video summary done. State: {state}")
-        return state
-
-    async def _worker_extract_text(self, state: MyState) -> MyState:
-        """
-        Simulated text extraction worker for PDFs.
-        Uses enriched metadata (e.g., number of pages, author).
-        In production, replace with a real PDF text extraction service.
-        Args:
-            job_id (str): The job identifier.
-        """
-        print(f"[Worker:extract_text] Job {state['job_id']} extracting text from PDF...")
-        await asyncio.sleep(0.3)
-        state["status"] = "text_extracted"
-        state["step"] = "extract_text"
-        state["updated_at"] = datetime.now(timezone.utc).isoformat()
-        print(f"[Worker:extract_text] Job {state['job_id']} text extraction done. State: {state}")
-        return state
-
-    async def _worker_summarize_document(self, state: MyState) -> MyState:
-        """
-        Simulated document summarization worker for PDFs.
-        Uses extracted text and PDF metadata.
-        In production, replace with a real document summarization service.
-        Args:
-            job_id (str): The job identifier.
-        """
-        print(f"[Worker:summarize_document] Job {state['job_id']} summarizing document...")
-        await asyncio.sleep(0.4)
-        state["status"] = "document_summarized"
-        state["step"] = "summarize_document"
-        state["updated_at"] = datetime.now(timezone.utc).isoformat()
-        print(f"[Worker:summarize_document] Job {state['job_id']} document summary done. State: {state}")
         return state
 
 

@@ -66,10 +66,10 @@ async def get_redis():
         await redis_client.close()
 
 
-# ToDo: 1. refactor
-# ToDo: 2. move incl. tests to work there
-# ToDo: 3. when moving Give the workflow orchestrator direct access to the storage via shared folder, it is better to pass only the file path and metadata in the job request, not the file content itself.
-# ToDo: 4. current chat for the workers
+# ToDo: 1. workers + redis
+# ToDo: 2. refactor
+# ToDo: 3. move incl. tests to work there
+# ToDo: 4. when moving Give the workflow orchestrator direct access to the storage via shared folder, it is better to pass only the file path and metadata in the job request, not the file content itself.
 
 
 @asynccontextmanager

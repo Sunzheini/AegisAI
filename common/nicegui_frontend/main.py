@@ -15,6 +15,10 @@ class MainApp:
         self._access_token = None
         self._form_is_visible = False
 
+        # Add these for polling management
+        self._polling_active = False
+        self._polling_job_id = None
+
         self.create_app()
 
     # region general methods ------------------------------------------------------------------------------------------
@@ -30,11 +34,12 @@ class MainApp:
                     button.props(remove='disable')
                     button.classes(remove='opacity-50 cursor-not-allowed')
 
-    async def _poll_job_status(self, job_id):
+    async def _poll_job_status(self, job_id, context):
         """Poll the job status endpoint until job is completed or failed."""
         # url = f'http://127.0.0.1:8000/v1/jobs/{job_id}'   # the service itself, not implemented
-        url = f'http://127.0.0.1:9000/jobs/{job_id}'    # polling the orchestrator
+        url = f'http://127.0.0.1:9000/jobs/{job_id}'  # polling the orchestrator
         headers = {"Authorization": f"Bearer {self._access_token}"}
+
         while True:
             await asyncio.sleep(2)  # Poll every 2 seconds
             try:
@@ -42,14 +47,22 @@ class MainApp:
                     async with session.get(url, headers=headers) as response:
                         resp_json = await response.json()
                         status = resp_json.get("status")
-                        self.service1_textarea1.set_value(
-                            f"Polling job {job_id}...\nStatus: {response.status}\n{json.dumps(resp_json, indent=4)}"
-                        )
-                        if status in ("completed", "failed"):
-                            ui.notify(f"Job {job_id} {status}!")
-                            break
+
+                        # Update textarea with status - wrap in context
+                        with context:
+                            self.service1_textarea1.set_value(
+                                f"Polling job {job_id}...\nStatus: {response.status}\n{json.dumps(resp_json, indent=4)}"
+                            )
+
+                        # Check if job is completed or failed, then BREAK the loop
+                        if status in ["completed", "failed", "document_summarized"]:
+                            with context:
+                                ui.notify(f"Job {job_id} {status}!")
+                            break  # Stop polling
+
             except Exception as e:
-                ui.notify(f"Polling failed: {str(e)}")
+                with context:
+                    ui.notify(f"Polling failed: {str(e)}")
                 break
 
     async def _base_request_handler(self, method_type: str, url: str, data=None, headers=None):
@@ -401,7 +414,7 @@ class MainApp:
         file_obj = file_info.content
         file_obj.seek(0, 2)  # move to end
         file_size = file_obj.tell()
-        file_obj.seek(0)     # reset to start
+        file_obj.seek(0)  # reset to start
 
         ui.notify(f"File selected: {file_info.name} ({file_size} bytes)")
 
@@ -424,9 +437,9 @@ class MainApp:
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    'http://127.0.0.1:8000/v1/upload',
-                    data=data,
-                    headers=headers
+                        'http://127.0.0.1:8000/v1/upload',
+                        data=data,
+                        headers=headers
                 ) as response:
                     resp_json = await response.json()
                     self.service1_textarea1.set_value(f"Status: {response.status}\n{json.dumps(resp_json, indent=4)}")
@@ -434,7 +447,9 @@ class MainApp:
                     # Start polling if job_id is present
                     job_id = resp_json.get("job_id")
                     if job_id:
-                        asyncio.create_task(self._poll_job_status(job_id))
+                        # Capture the context BEFORE starting the background task
+                        context = ui.context.client
+                        asyncio.create_task(self._poll_job_status(job_id, context))
 
         except Exception as e:
             ui.notify(f"Upload failed: {str(e)}")

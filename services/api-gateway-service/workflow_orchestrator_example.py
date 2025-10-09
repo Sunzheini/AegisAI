@@ -32,7 +32,6 @@ from datetime import datetime
 import asyncio
 import logging
 from contextlib import asynccontextmanager
-from dataclasses import dataclass, field
 from typing import Optional
 
 import redis.asyncio as aioredis
@@ -47,6 +46,7 @@ redis = aioredis.from_url(REDIS_URL, decode_responses=True)
 USE_REDIS_LISTENER = os.getenv("USE_REDIS_LISTENER", "true").lower() == "true"
 
 
+# #ToDo: clean, refactor, move, tests working in both projects
 # ToDo: when moving Give the workflow orchestrator direct access to the storage via shared folder, it is better to pass only the file path and metadata in the job request, not the file content itself.
 
 
@@ -131,16 +131,6 @@ class WorkflowOrchestrator:
                 }
             )
 
-            # # Explicit edges for all possible branches
-            # graph.add_edge("route_workflow", "generate_thumbnails")
-            # graph.add_edge("route_workflow", "analyze_image_with_ai")
-            # graph.add_edge("route_workflow", "extract_audio")
-            # graph.add_edge("route_workflow", "transcribe_audio")
-            # graph.add_edge("route_workflow", "generate_video_summary")
-            # graph.add_edge("route_workflow", "extract_text")
-            # graph.add_edge("route_workflow", "summarize_document")
-            # print("[Orchestrator] Added explicit edges for all branches.")
-
             # Define branch flows
             graph.add_edge("generate_thumbnails", "analyze_image_with_ai")
             graph.add_edge("analyze_image_with_ai", END)
@@ -155,7 +145,7 @@ class WorkflowOrchestrator:
             graph.set_entry_point("validate_file")
             compiled_graph = graph.compile()
 
-            # Add visualization to see if your graph is built correctly
+            # Add visualization to see graph
             try:
                 compiled_graph.get_graph().draw_mermaid_png(output_file_path='workflow_graph.png')
                 print("[Orchestrator] Workflow graph visualization saved to workflow_graph.png")
@@ -164,7 +154,6 @@ class WorkflowOrchestrator:
 
             return compiled_graph
 
-            # return graph
         else:
             print("[Orchestrator] LangGraph not available, using fallback graph structure.")
             return {
@@ -191,29 +180,36 @@ class WorkflowOrchestrator:
             print(f"[Orchestrator] Job {job.job_id} already exists!")
             raise ValueError("Job already exists")
 
-        # Initialize all required fields for TypedDict
         state = MyState(
             job_id=job.job_id,
             file_path=job.file_path,
             content_type=job.content_type,
             checksum_sha256=job.checksum_sha256,
             submitted_by=job.submitted_by,
-            status="queued",  # ✅ Add default value
+            status="queued",
             created_at=datetime.utcnow().isoformat(),
             updated_at=datetime.utcnow().isoformat(),
-            step="queued",  # ✅ Add default value
-            branch="",  # ✅ Add default value (will be set by route_workflow)
-            metadata=None  # ✅ Add default value
+            step="queued",
+            branch="",  # will be set by route_workflow
+            metadata=None
         )
 
         self.jobs[job.job_id] = state
         print(f"[Orchestrator] Job {job.job_id} queued. Initial state: {state}")
         print(f"Jon content type: {job.content_type}")
+
         # Start workflow in background
         asyncio.create_task(self._run_workflow(job.job_id))
 
 
-    async def _run_workflow(self, job_id: str):
+    async def _run_workflow(self, job_id: str) -> None:
+        """
+        Runs the workflow for a given job_id.
+        Updates job state in self.jobs.
+        Args:
+            job_id (str): The job identifier.
+        ️ Note: This runs in the background as a separate task.
+        """
         try:
             state = self.jobs[job_id]
             print(f"[DEBUG] Before graph.ainvoke: {state}")
@@ -225,7 +221,7 @@ class WorkflowOrchestrator:
             state["status"] = "failed"
             current_step = state.get("step", "unknown")
             state["step"] = f"failed_at_{current_step}"
-            state["updated_at"] = datetime.utcnow().isoformat()  # Add this too
+            state["updated_at"] = datetime.utcnow().isoformat()
             self.jobs[job_id] = state
             self.logger.error(f"Workflow failed for job {job_id}: {e}")
 
@@ -238,12 +234,12 @@ class WorkflowOrchestrator:
         Args:
             job_id (str): The job identifier.
         """
-        print(f"[Worker:validate_file] Job {state['job_id']} validating...")  # ✅ Use dict access
+        print(f"[Worker:validate_file] Job {state['job_id']} validating...")
         await asyncio.sleep(0.5)
-        state["status"] = "validate_in_progress"  # ✅ Use dict access
-        state["step"] = "validate_file"  # ✅ Use dict access
-        state["updated_at"] = datetime.utcnow().isoformat()  # ✅ Use dict access
-        print(f"[Worker:validate_file] Job {state['job_id']} validation done. State: {state}")  # ✅ Use dict access
+        state["status"] = "validate_in_progress"
+        state["step"] = "validate_file"
+        state["updated_at"] = datetime.utcnow().isoformat()
+        print(f"[Worker:validate_file] Job {state['job_id']} validation done. State: {state}")
         return state
 
     async def _worker_extract_metadata(self, state: MyState) -> MyState:
@@ -259,14 +255,14 @@ class WorkflowOrchestrator:
         Args:
             job_id (str): The job identifier.
         """
-        print(f"[Worker:extract_metadata] Job {state['job_id']} extracting metadata...")  # ✅ Use dict access
+        print(f"[Worker:extract_metadata] Job {state['job_id']} extracting metadata...")
         await asyncio.sleep(0.5)
-        state["status"] = "metadata_extracted"  # ✅ Use dict access
-        state["step"] = "extract_metadata"  # ✅ Use dict access
-        state["updated_at"] = datetime.utcnow().isoformat()  # ✅ Use dict access
-        state["metadata"] = {"dummy": "metadata"}  # Simulate extraction  # ✅ Use dict access
+        state["status"] = "metadata_extracted"
+        state["step"] = "extract_metadata"
+        state["updated_at"] = datetime.utcnow().isoformat()
+        state["metadata"] = {"dummy": "metadata"}  # Simulate extraction
         print(
-            f"[Worker:extract_metadata] Job {state['job_id']} metadata extraction done. State: {state}")  # ✅ Use dict access
+            f"[Worker:extract_metadata] Job {state['job_id']} metadata extraction done. State: {state}")
         return state
 
     async def _worker_route_workflow(self, state: MyState) -> MyState:
@@ -279,24 +275,24 @@ class WorkflowOrchestrator:
         Returns:
             str: The selected branch (image, video, pdf).
         """
-        print(f"[Worker:route_workflow] Job {state['job_id']} routing workflow...")  # ✅ Use dict access
+        print(f"[Worker:route_workflow] Job {state['job_id']} routing workflow...")
         await asyncio.sleep(0.2)
         # Simulate branch selection based on content_type
-        content_type = state["content_type"]  # ✅ Use dict access
+        content_type = state["content_type"]
         if "image" in content_type:
-            state["branch"] = "image_branch"  # ✅ Use dict access
+            state["branch"] = "image_branch"
         elif "video" in content_type:
-            state["branch"] = "video_branch"  # ✅ Use dict access
+            state["branch"] = "video_branch"
         elif "pdf" in content_type:
-            state["branch"] = "pdf_branch"  # ✅ Use dict access
+            state["branch"] = "pdf_branch"
         else:
-            state["branch"] = "image_branch"  # ✅ Use dict access
+            state["branch"] = "image_branch"
 
-        state["status"] = f"routed_to_{state['branch']}_branch"  # ✅ Use dict access
-        state["step"] = "route_workflow"  # ✅ Use dict access
-        state["updated_at"] = datetime.utcnow().isoformat()  # ✅ Use dict access
+        state["status"] = f"routed_to_{state['branch']}_branch"
+        state["step"] = "route_workflow"
+        state["updated_at"] = datetime.utcnow().isoformat()
         print(
-            f"[Worker:route_workflow] Job {state['job_id']} routed to {state['branch']} branch. State: {state}")  # ✅ Use dict access
+            f"[Worker:route_workflow] Job {state['job_id']} routed to {state['branch']} branch. State: {state}")  
         return state
 
     async def _worker_generate_thumbnails(self, state: MyState) -> MyState:
@@ -307,13 +303,13 @@ class WorkflowOrchestrator:
         Args:
             job_id (str): The job identifier.
         """
-        print(f"[Worker:generate_thumbnails] Job {state['job_id']} generating thumbnails...")  # ✅ Use dict access
+        print(f"[Worker:generate_thumbnails] Job {state['job_id']} generating thumbnails...")
         await asyncio.sleep(0.3)
-        state["status"] = "thumbnails_generated"  # ✅ Use dict access
-        state["step"] = "generate_thumbnails"  # ✅ Use dict access
-        state["updated_at"] = datetime.utcnow().isoformat()  # ✅ Use dict access
+        state["status"] = "thumbnails_generated"
+        state["step"] = "generate_thumbnails"
+        state["updated_at"] = datetime.utcnow().isoformat()
         print(
-            f"[Worker:generate_thumbnails] Job {state['job_id']} thumbnails done. State: {state}")  # ✅ Use dict access
+            f"[Worker:generate_thumbnails] Job {state['job_id']} thumbnails done. State: {state}")
         return state
 
     async def _worker_analyze_image_with_ai(self, state: MyState) -> MyState:
@@ -324,13 +320,13 @@ class WorkflowOrchestrator:
         Args:
             job_id (str): The job identifier.
         """
-        print(f"[Worker:analyze_image_with_ai] Job {state['job_id']} analyzing image with AI...")  # ✅ Use dict access
+        print(f"[Worker:analyze_image_with_ai] Job {state['job_id']} analyzing image with AI...")
         await asyncio.sleep(0.4)
-        state["status"] = "image_analyzed"  # ✅ Use dict access
-        state["step"] = "analyze_image_with_ai"  # ✅ Use dict access
-        state["updated_at"] = datetime.utcnow().isoformat()  # ✅ Use dict access
+        state["status"] = "image_analyzed"
+        state["step"] = "analyze_image_with_ai"
+        state["updated_at"] = datetime.utcnow().isoformat()
         print(
-            f"[Worker:analyze_image_with_ai] Job {state['job_id']} image analysis done. State: {state}")  # ✅ Use dict access
+            f"[Worker:analyze_image_with_ai] Job {state['job_id']} image analysis done. State: {state}")
         return state
 
     async def _worker_extract_audio(self, state: MyState) -> MyState:
@@ -341,13 +337,13 @@ class WorkflowOrchestrator:
         Args:
             job_id (str): The job identifier.
         """
-        print(f"[Worker:extract_audio] Job {state['job_id']} extracting audio...")  # ✅ Use dict access
+        print(f"[Worker:extract_audio] Job {state['job_id']} extracting audio...")
         await asyncio.sleep(0.3)
-        state["status"] = "audio_extracted"  # ✅ Use dict access
-        state["step"] = "extract_audio"  # ✅ Use dict access
-        state["updated_at"] = datetime.utcnow().isoformat()  # ✅ Use dict access
+        state["status"] = "audio_extracted"
+        state["step"] = "extract_audio"
+        state["updated_at"] = datetime.utcnow().isoformat()
         print(
-            f"[Worker:extract_audio] Job {state['job_id']} audio extraction done. State: {state}")  # ✅ Use dict access
+            f"[Worker:extract_audio] Job {state['job_id']} audio extraction done. State: {state}")
         return state
 
     async def _worker_transcribe_audio(self, state: MyState) -> MyState:
@@ -358,13 +354,13 @@ class WorkflowOrchestrator:
         Args:
             job_id (str): The job identifier.
         """
-        print(f"[Worker:transcribe_audio] Job {state['job_id']} transcribing audio...")  # ✅ Use dict access
+        print(f"[Worker:transcribe_audio] Job {state['job_id']} transcribing audio...")
         await asyncio.sleep(0.4)
-        state["status"] = "audio_transcribed"  # ✅ Use dict access
-        state["step"] = "transcribe_audio"  # ✅ Use dict access
-        state["updated_at"] = datetime.utcnow().isoformat()  # ✅ Use dict access
+        state["status"] = "audio_transcribed"
+        state["step"] = "transcribe_audio"
+        state["updated_at"] = datetime.utcnow().isoformat()
         print(
-            f"[Worker:transcribe_audio] Job {state['job_id']} audio transcription done. State: {state}")  # ✅ Use dict access
+            f"[Worker:transcribe_audio] Job {state['job_id']} audio transcription done. State: {state}")
         return state
 
     async def _worker_generate_video_summary(self, state: MyState) -> MyState:
@@ -375,13 +371,13 @@ class WorkflowOrchestrator:
         Args:
             job_id (str): The job identifier.
         """
-        print(f"[Worker:generate_video_summary] Job {state['job_id']} generating video summary...")  # ✅ Use dict access
+        print(f"[Worker:generate_video_summary] Job {state['job_id']} generating video summary...")
         await asyncio.sleep(0.4)
-        state["status"] = "video_summary_generated"  # ✅ Use dict access
-        state["step"] = "generate_video_summary"  # ✅ Use dict access
-        state["updated_at"] = datetime.utcnow().isoformat()  # ✅ Use dict access
+        state["status"] = "video_summary_generated"
+        state["step"] = "generate_video_summary"
+        state["updated_at"] = datetime.utcnow().isoformat()
         print(
-            f"[Worker:generate_video_summary] Job {state['job_id']} video summary done. State: {state}")  # ✅ Use dict access
+            f"[Worker:generate_video_summary] Job {state['job_id']} video summary done. State: {state}")
         return state
 
     async def _worker_extract_text(self, state: MyState) -> MyState:
@@ -392,12 +388,12 @@ class WorkflowOrchestrator:
         Args:
             job_id (str): The job identifier.
         """
-        print(f"[Worker:extract_text] Job {state['job_id']} extracting text from PDF...")  # ✅ Use dict access
+        print(f"[Worker:extract_text] Job {state['job_id']} extracting text from PDF...")
         await asyncio.sleep(0.3)
-        state["status"] = "text_extracted"  # ✅ Use dict access
-        state["step"] = "extract_text"  # ✅ Use dict access
-        state["updated_at"] = datetime.utcnow().isoformat()  # ✅ Use dict access
-        print(f"[Worker:extract_text] Job {state['job_id']} text extraction done. State: {state}")  # ✅ Use dict access
+        state["status"] = "text_extracted"
+        state["step"] = "extract_text"
+        state["updated_at"] = datetime.utcnow().isoformat()
+        print(f"[Worker:extract_text] Job {state['job_id']} text extraction done. State: {state}")
         return state
 
     async def _worker_summarize_document(self, state: MyState) -> MyState:
@@ -408,13 +404,13 @@ class WorkflowOrchestrator:
         Args:
             job_id (str): The job identifier.
         """
-        print(f"[Worker:summarize_document] Job {state['job_id']} summarizing document...")  # ✅ Use dict access
+        print(f"[Worker:summarize_document] Job {state['job_id']} summarizing document...")
         await asyncio.sleep(0.4)
-        state["status"] = "document_summarized"  # ✅ Use dict access
-        state["step"] = "summarize_document"  # ✅ Use dict access
-        state["updated_at"] = datetime.utcnow().isoformat()  # ✅ Use dict access
+        state["status"] = "document_summarized"
+        state["step"] = "summarize_document"
+        state["updated_at"] = datetime.utcnow().isoformat()
         print(
-            f"[Worker:summarize_document] Job {state['job_id']} document summary done. State: {state}")  # ✅ Use dict access
+            f"[Worker:summarize_document] Job {state['job_id']} document summary done. State: {state}")
         return state
 
     def get_job(self, job_id: str) -> Optional[MyState]:
@@ -468,15 +464,15 @@ def get_job_status(job_id: str):
         raise HTTPException(status_code=404, detail="Job not found")
     # Convert MyState (dict) to IngestionJobStatusResponse
     return IngestionJobStatusResponse(
-        job_id=job["job_id"],  # ✅ Use dict access
-        status=job["status"],  # ✅ Use dict access
-        step=job["step"],  # ✅ Use dict access
-        created_at=job["created_at"],  # ✅ Use dict access
-        updated_at=job["updated_at"],  # ✅ Use dict access
-        file_path=job["file_path"],  # ✅ Use dict access
-        content_type=job["content_type"],  # ✅ Use dict access
-        checksum_sha256=job["checksum_sha256"],  # ✅ Use dict access
-        submitted_by=job["submitted_by"]  # ✅ Use dict access
+        job_id=job["job_id"],
+        status=job["status"],
+        step=job["step"],
+        created_at=job["created_at"],
+        updated_at=job["updated_at"],
+        file_path=job["file_path"],
+        content_type=job["content_type"],
+        checksum_sha256=job["checksum_sha256"],
+        submitted_by=job["submitted_by"]
     )
 
 
@@ -499,6 +495,7 @@ async def redis_listener():
                 event = json.loads(message["data"])
                 if event.get("event") == "JOB_CREATED":
                     print(f"[Orchestrator] Received JOB_CREATED event for job_id: {event['job_id']}")
+
                     # Use IngestionJobRequest to reconstruct job from event
                     job = IngestionJobRequest(**{k: v for k, v in event.items() if k != "event"})
                     try:

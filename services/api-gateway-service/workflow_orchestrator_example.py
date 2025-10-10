@@ -66,6 +66,18 @@ async def get_redis():
         await redis_client.close()
 
 
+# ToDo:
+"""
+pylint
+max 79 on line
+logging integrate more
+base exceptions only at the end after some specific ones, make error middleware
+add user stories use jira
+pull requests
+check time token validity
+"""
+
+
 # ToDo: 1. workers + redis
 # ToDo: 2. refactor
 # ToDo: 3. move incl. tests to work there

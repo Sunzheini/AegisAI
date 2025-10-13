@@ -68,21 +68,12 @@ async def get_redis():
 
 # ToDo:
 """
-pylint
-max 79 on line
-logging integrate more
+refactor
 base exceptions only at the end after some specific ones, make error middleware
-pull requests
-check time token validity
-
-reformat
-logging integrate more
-base exceptions only at the end after some specific ones, make error middleware
-
 use black and check with pylint
 pull requests
-tell black uses 88 max line length and ""
 
+tell black uses 88 max line length and "", logging implemented, pylint used
 later: add user stories use jira
 """
 

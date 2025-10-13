@@ -72,9 +72,18 @@ pylint
 max 79 on line
 logging integrate more
 base exceptions only at the end after some specific ones, make error middleware
-add user stories use jira
 pull requests
 check time token validity
+
+reformat
+logging integrate more
+base exceptions only at the end after some specific ones, make error middleware
+
+use black and check with pylint
+pull requests
+tell black uses 88 max line length and ""
+
+later: add user stories use jira
 """
 
 

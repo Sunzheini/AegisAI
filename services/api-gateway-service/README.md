@@ -52,3 +52,8 @@ What Happens:
     It passes the return value to your route function as value
     Your route uses the value
 
+
+# black --check .          # See what would change
+# black --diff .           # Preview changes
+# black .                  # Apply changes, but exclude venv, .venv, .idea, migrations, test, __pycache__
+# pylint --ignore-paths=".*venv.*|.*\.idea.*|.*migrations.*|.*test.*|.*__pycache__.*" .     

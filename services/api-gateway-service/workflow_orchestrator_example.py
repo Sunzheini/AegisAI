@@ -68,7 +68,7 @@ async def get_redis():
 
 # ToDo:
 """
-refactor
+refactor, start from db (abstract db then use either local or the one from playground)
 base exceptions only at the end after some specific ones, make error middleware
 use black and check with pylint
 pull requests

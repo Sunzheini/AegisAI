@@ -1,6 +1,6 @@
 import pytest
 
-from models.temp_db import DataBaseManager
+from db_config.temp_db import DataBaseManager
 from models.models import User
 from routers.security import get_password_hash
 

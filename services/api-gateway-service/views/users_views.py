@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Path, Query, Depends
 from starlette import status as H
 
 from models.models import User, UserCreate, UserUpdate
-from models.temp_db import DataBaseManager
+from db_config.temp_db import DataBaseManager
 from routers.security import auth_required, get_password_hash
 
 

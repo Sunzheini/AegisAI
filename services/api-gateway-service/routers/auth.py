@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from jose import jwt, JWTError
 
-from models.temp_db import DataBaseManager
+from db_config.temp_db import DataBaseManager
 from routers.security import verify_password, get_password_hash
 
 """

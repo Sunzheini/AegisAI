@@ -10,7 +10,7 @@ from redis.asyncio import Redis
 from fastapi.testclient import TestClient
 
 from main import app
-from models.temp_db import DataBaseManager
+from db_config.temp_db import DataBaseManager
 from models.models import User
 from routers.security import get_password_hash
 from support.constants import LOG_FILE_PATH

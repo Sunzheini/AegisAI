@@ -1,5 +1,7 @@
+import logging
 import os
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -11,6 +13,7 @@ from main import app
 from models.temp_db import DataBaseManager
 from models.models import User
 from routers.security import get_password_hash
+from support.constants import LOG_FILE_PATH
 
 
 project_root = Path(__file__).parent.parent
@@ -109,3 +112,53 @@ async def pubsub_client(redis_client):
     yield pubsub
     await pubsub.unsubscribe()
     await pubsub.aclose()
+
+
+# Logging ----------------------------------------------------------------------------------------------
+def delete_log_file():
+    """Helper function to delete log file if it exists with retry logic"""
+    if os.path.exists(LOG_FILE_PATH):
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                os.remove(LOG_FILE_PATH)
+                break
+            except PermissionError:
+                if attempt < max_retries - 1:
+                    time.sleep(0.5)
+                else:
+                    # Try to just clear the content instead
+                    try:
+                        with open(LOG_FILE_PATH, 'w') as f:
+                            f.write('')
+                    except:
+                        pass
+
+
+def close_all_log_handlers():
+    """Close all logging handlers to release file handles"""
+    for logger_name in logging.Logger.manager.loggerDict:
+        logger = logging.getLogger(logger_name)
+        for handler in logger.handlers[:]:
+            if hasattr(handler, 'close'):
+                handler.close()
+            logger.removeHandler(handler)
+
+    # Also close root logger handlers
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers[:]:
+        if hasattr(handler, 'close'):
+            handler.close()
+        root_logger.removeHandler(handler)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def cleanup_log_file_after_tests():
+    """
+    Automatically delete the log file after all tests are completed.
+    This runs once at the end of the entire test session.
+    """
+    yield
+
+    close_all_log_handlers()
+    delete_log_file()

@@ -33,6 +33,8 @@ from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
+from support.constants import RATE_LIMIT_PER_MINUTE
+
 
 class InMemoryRateLimiter(BaseHTTPMiddleware):
     """A tiny fixed-window rate limiter for local development.
@@ -41,10 +43,10 @@ class InMemoryRateLimiter(BaseHTTPMiddleware):
     Includes a test bypass when app.state.testing is True.
     """
 
-    def __init__(self, app, requests_per_minute: int = 60):
+    def __init__(self, app, requests_per_minute: int = RATE_LIMIT_PER_MINUTE):
         super().__init__(app)
         self.limit = int(requests_per_minute)
-        self.window_seconds = 60
+        self.window_seconds = RATE_LIMIT_PER_MINUTE
         self._buckets: Dict[str, Tuple[int, int]] = {}  # identity -> (window_start_timestamp, count)
 
     @staticmethod
@@ -59,7 +61,7 @@ class InMemoryRateLimiter(BaseHTTPMiddleware):
         client = request.client.host if request.client else "unknown"
         return f"ip:{client}"
 
-    async def dispatch(self, request: Request, call_next: Callable):
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """Rate limit requests per identity in a fixed time window."""
 
         # Bypass rate limiting during tests!!!

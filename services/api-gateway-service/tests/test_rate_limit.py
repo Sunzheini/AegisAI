@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from routers.rate_limit import InMemoryRateLimiter
+from custom_middleware.rate_limiting_middleware import InMemoryRateLimiter
 
 
 class SetUserNameMiddleware(BaseHTTPMiddleware):
@@ -50,7 +50,7 @@ def test_exceed_limit_returns_429(monkeypatch):
     app = make_test_app(limit=3, testing=False)
 
     # Freeze time at a fixed base so all calls are in the same window
-    import routers.rate_limit as rl
+    import custom_middleware.rate_limiting_middleware as rl
     base = 1_700_000_000
     monkeypatch.setattr(rl.time, "time", lambda: base)
 
@@ -92,7 +92,7 @@ def test_identity_uses_user_name_over_ip(monkeypatch):
     app = make_test_app(limit=2, testing=False, set_user_mw=True)
 
     # Keep all calls in the same window
-    import routers.rate_limit as rl
+    import custom_middleware.rate_limiting_middleware as rl
     base = 1_700_000_000
     monkeypatch.setattr(rl.time, "time", lambda: base)
 

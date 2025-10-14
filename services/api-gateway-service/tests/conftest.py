@@ -3,6 +3,7 @@ import os
 import sys
 import time
 from pathlib import Path
+import uuid
 
 import pytest
 import pytest_asyncio
@@ -10,7 +11,7 @@ from redis.asyncio import Redis
 from fastapi.testclient import TestClient
 
 from main import app
-from db_config.temp_db import DataBaseManager
+from db_management.db_manager import DataBaseManager
 from models.models import User
 from routers.security import get_password_hash
 from support.constants import LOG_FILE_PATH
@@ -38,29 +39,26 @@ def authenticated_client(client, auth_headers):
 
 @pytest.fixture
 def database():
-    """Reset the in-memory database and return the users list reference."""
+    """Reset the database manager and return the DataBaseManager instance."""
     DataBaseManager._initialized = False
     db = DataBaseManager()
-    return db.users_db
+    return db
 
 
 @pytest.fixture
 def auth_token(client, database):
-    """Create a known test user with a known password and obtain a JWT token."""
-    # Ensure clean DB and add a known user with a known password
-    database.clear()
-
+    """Create a unique test user with a known password and obtain a JWT token."""
+    unique_str = str(uuid.uuid4())[:8]
     test_user = User(
-        id=1,
-        name="testuser",
+        name=f"testuser_{unique_str}",
         age=30,
         city="Boston",
-        email="test@example.com",
-        password_hash=get_password_hash("testpass123"),
+        email=f"testuser_{unique_str}@example.com",
+        password_hash=get_password_hash("testpassword")
     )
-    database.append(test_user)
+    created_user = database.create_user(test_user)
 
-    resp = client.post("/auth/login", data={"username": "testuser", "password": "testpass123"})
+    resp = client.post("/auth/login", data={"username": created_user.name, "password": "testpassword"})
     assert resp.status_code == 200, f"Login failed: {resp.json()}"
     return resp.json()["access_token"]
 

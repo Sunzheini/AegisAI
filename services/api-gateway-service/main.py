@@ -25,7 +25,6 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from custom_middleware.logging_middleware import CustomLogger
-from db_config.db_settings import db_engine, db_session_local, db_base
 from routers import auth, users, v1
 from custom_middleware.rate_limiting_middleware import InMemoryRateLimiter
 from support.constants import LOG_FILE_PATH, APP_NAME
@@ -46,9 +45,6 @@ logging.basicConfig(
 logger = logging.getLogger(APP_NAME)
 logger.info("Starting API Gateway Microservice...")
 
-
-# Database setup
-# db_base.metadata.create_all(bind=db_engine)
 
 # FastAPI app setup
 app = FastAPI(title="api-gateway-microservice", version="1.0.0")

@@ -1,6 +1,5 @@
 import pytest
 
-from db_config.temp_db import DataBaseManager
 from models.models import User
 from routers.security import get_password_hash
 
@@ -8,6 +7,12 @@ from routers.security import get_password_hash
 # --------------------------------------------------------------------------------------
 # Fixtures specific to this module
 # --------------------------------------------------------------------------------------
+@pytest.fixture(autouse=True)
+def clear_users_before_test(database):
+    database.clear_users()
+    yield
+
+
 @pytest.fixture
 def sample_user_data(database):
     new_user_data = {
@@ -50,35 +55,42 @@ def test_list_users_requires_auth(client, auth_headers):
     assert isinstance(users, list)
 
 
-def test_get_user_by_id(client, auth_headers):
-    db = DataBaseManager()
-    if not db.users_db:
-        db.users_db.append(User(
+def test_get_user_by_id(client, auth_headers, database):
+    # Ensure at least one user exists
+    all_users = database.get_all_users()
+    if not all_users:
+        user = User(
             id=1,
             name="testuser",
             age=30,
             city="Boston",
-            email="test@example.com",
-            password_hash=get_password_hash("testpass123")
-        ))
+            email="testuser@example.com",
+            password_hash=get_password_hash("testpassword")
+        )
+        database.create_user(user)
+        user_id = user.id
+    else:
+        user_id = all_users[0].id
 
-    user_id = db.users_db[0].id
     response = client.get(f"/users/id/{user_id}", headers=auth_headers)
     assert response.status_code == 200
     data = response.json()
     assert data["id"] == user_id
 
 
-def test_get_users_by_city(client, auth_headers):
-    db = DataBaseManager()
-    db.users_db.append(User(
-        id=2,
-        name="Alice",
-        age=25,
-        city="Boston",
-        email="alice@example.com",
-        password_hash=get_password_hash("alicepass")
-    ))
+def test_get_users_by_city(client, auth_headers, database):
+    # Ensure at least one user in Boston exists
+    all_users = database.get_all_users()
+    if not any(u.city.lower() == "boston" for u in all_users):
+        user = User(
+            id=2,
+            name="Alice",
+            age=25,
+            city="Boston",
+            email="alice@example.com",
+            password_hash=get_password_hash("alicepass")
+        )
+        database.create_user(user)
 
     response = client.get("/users/list/?city=Boston", headers=auth_headers)
     assert response.status_code == 200
@@ -86,19 +98,23 @@ def test_get_users_by_city(client, auth_headers):
     assert all(user["city"].lower() == "boston" for user in users)
 
 
-def test_edit_user(client, auth_headers):
-    db = DataBaseManager()
-    if not db.users_db:
-        db.users_db.append(User(
+def test_edit_user(client, auth_headers, database):
+    # Ensure a user to edit exists
+    all_users = database.get_all_users()
+    if not all_users:
+        user = User(
             id=1,
             name="Bob",
             age=40,
             city="Chicago",
             email="bob@example.com",
             password_hash=get_password_hash("bobpass")
-        ))
+        )
+        database.create_user(user)
+        user_id = user.id
+    else:
+        user_id = all_users[0].id
 
-    user_id = db.users_db[0].id
     update_data = {"name": "Bob2", "age": 41, "city": "Chicago", "email": "bob2@example.com"}
     response = client.put(f"/users/edit/{user_id}", json=update_data, headers=auth_headers)
     assert response.status_code == 200
@@ -106,33 +122,40 @@ def test_edit_user(client, auth_headers):
     assert data["id"] == user_id
     assert data["name"] == "Bob2"
     # Check update in DB
-    user = next(u for u in db.users_db if u.id == user_id)
-    assert user.name == "Bob2"
+    updated_user = database.get_user_by_id(user_id)
+    assert updated_user.name == "Bob2"
 
 
-def test_delete_user(client, auth_headers):
-    db = DataBaseManager()
-    user_to_delete = User(
-        id=999,
-        name="Temp",
-        age=50,
-        city="LA",
-        email="temp@example.com",
-        password_hash=get_password_hash("temppass")
-    )
-    db.users_db.append(user_to_delete)
+def test_delete_user(client, auth_headers, database):
+    # Ensure a user to delete exists
+    all_users = database.get_all_users()
+    if not all_users:
+        user_to_delete = User(
+            id=123,
+            name="deleteuser",
+            age=40,
+            city="DeleteCity",
+            email="deleteuser@example.com",
+            password_hash=get_password_hash("deletepassword")
+        )
+        database.create_user(user_to_delete)
+        user_id = user_to_delete.id
+    else:
+        user_id = all_users[0].id
 
-    response = client.delete(f"/users/delete/{user_to_delete.id}", headers=auth_headers)
+    response = client.delete(f"/users/delete/{user_id}", headers=auth_headers)
     assert response.status_code == 200
     data = response.json()
-    assert data == {"deleted": True, "id": user_to_delete.id}
-    assert all(u.id != user_to_delete.id for u in db.users_db)
+    assert data["deleted"] is True
+    assert data["id"] == user_id
+    # Confirm user is deleted
+    assert database.get_user_by_id(user_id) is None
 
 
 def test_login_success(client, database):
     # Setup
-    database.clear()
-    database.append(User(
+    database.clear_users()
+    database.create_user(User(
         id=1,
         name="testuser",
         age=30,
@@ -153,8 +176,8 @@ def test_login_success(client, database):
 
 def test_login_wrong_password(client, database):
     # Setup
-    database.clear()
-    database.append(User(
+    database.clear_users()
+    database.create_user(User(
         id=1,
         name="testuser",
         age=30,
@@ -173,7 +196,7 @@ def test_login_wrong_password(client, database):
 
 def test_login_user_not_found(client, database):
     # Setup - empty database
-    database.clear()
+    database.clear_users()
 
     # Test non-existent user
     login_data = {"username": "nonexistent", "password": "anypassword"}

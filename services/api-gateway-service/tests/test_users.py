@@ -1,7 +1,7 @@
 import pytest
 
 from models.models import User
-from routers.security import get_password_hash
+from support.security import get_password_hash
 
 
 # --------------------------------------------------------------------------------------

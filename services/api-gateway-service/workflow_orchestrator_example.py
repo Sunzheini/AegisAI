@@ -24,7 +24,6 @@ Migration Notes:
     - Replace in-memory stores with S3/DynamoDB for production
     - Replace simulated workers with Lambda/Step Functions for cloud
 """
-
 import os
 import json
 from typing import Dict, Any, TypedDict
@@ -68,9 +67,8 @@ async def get_redis():
 
 # ToDo:
 """
-refactor, start from db (abstract db then use either local or the one from playground)
-base exceptions only at the end after some specific ones, make error middleware
 use black and check with pylint
+base exceptions only at the end after some specific ones, make error middleware
 pull requests
 
 tell black uses 88 max line length and "", logging implemented, pylint used
@@ -101,6 +99,7 @@ app = FastAPI(title="Workflow Orchestrator Example", lifespan=lifespan)
 
 
 class MyState(TypedDict):
+    """State schema for the workflow graph."""
     job_id: str
     file_path: str
     content_type: str
@@ -201,11 +200,13 @@ class WorkflowOrchestrator:
                 }
             }
 
-    async def save_job_state_to_redis(self, redis_client, job_id: str, state: MyState):
+    @staticmethod
+    async def save_job_state_to_redis(redis_client, job_id: str, state: MyState):
         """Persist job state to Redis as JSON."""
         await redis_client.set(f"job_state:{job_id}", json.dumps(dict(state)))
 
-    async def load_job_state_from_redis(self, redis_client, job_id: str) -> Optional[MyState]:
+    @staticmethod
+    async def load_job_state_from_redis(redis_client, job_id: str) -> Optional[MyState]:
         """Load job state from Redis as MyState."""
         data = await redis_client.get(f"job_state:{job_id}")
         if data:
@@ -216,6 +217,7 @@ class WorkflowOrchestrator:
         """
         Submit a new job to the orchestrator.
         Args:
+            redis_client : Redis client instance.
             job (IngestionJobRequest): Job request from API Gateway.
         Raises:
             ValueError: If job_id already exists.
@@ -278,7 +280,8 @@ class WorkflowOrchestrator:
         """Get job state from Redis as MyState."""
         return await self.load_job_state_from_redis(redis_client, job_id)
 
-    async def _worker_route_workflow(self, state: MyState) -> MyState:
+    @staticmethod
+    async def _worker_route_workflow(state: MyState) -> MyState:
         """
         Simulated routing worker.
         Uses content_type from IngestionJobRequest to decide the workflow branch (image, video, pdf).
@@ -290,6 +293,7 @@ class WorkflowOrchestrator:
         """
         print(f"[Worker:route_workflow] Job {state['job_id']} routing workflow...")
         await asyncio.sleep(0.2)
+
         # Simulate branch selection based on content_type
         content_type = state["content_type"]
         if "image" in content_type:

@@ -7,7 +7,7 @@ from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from jose import jwt, JWTError
 
 from db_management.db_manager import DataBaseManager
-from routers.security import verify_password, get_password_hash
+from support.security import verify_password, get_password_hash
 
 """
 THe flow is as follows:

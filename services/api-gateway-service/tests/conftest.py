@@ -13,7 +13,7 @@ from fastapi.testclient import TestClient
 from main import app
 from db_management.db_manager import DataBaseManager
 from models.models import User
-from routers.security import get_password_hash
+from support.security import get_password_hash
 from support.constants import LOG_FILE_PATH
 
 

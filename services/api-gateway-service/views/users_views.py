@@ -3,7 +3,7 @@ from starlette import status as H
 
 from models.models import User, UserCreate, UserUpdate
 from db_management.db_manager import DataBaseManager
-from routers.security import auth_required, get_password_hash
+from support.security import auth_required, get_password_hash
 
 
 class UsersViewsManager:
@@ -71,12 +71,7 @@ class UsersViewsManager:
             :param current_user: the currently authenticated user (used in the decorator)
             :return: the created user with assigned id
             """
-            # all_users = self.db.get_all_users()
-            # list_of_ids = [user.id for user in all_users]
-            # latest_id = max(list_of_ids) if list_of_ids else 0
-
             new_user = User(
-                # id=latest_id + 1,
                 name=new_item.name,
                 age=new_item.age,
                 city=new_item.city,

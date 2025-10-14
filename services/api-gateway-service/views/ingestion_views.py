@@ -31,7 +31,7 @@ from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Path, Request
 from starlette import status as H
 
-from routers.security import auth_required
+from support.security import auth_required
 from support.constants import ALLOWED_CONTENT_TYPES_SET, MAX_UPLOAD_BYTES_SIZE
 from support.support_functions import sanitize_filename
 from support.storage_abstraction import LocalFileStorage, InMemoryJobAssetStore

@@ -1,8 +1,8 @@
 import time
+import logging
 from typing import Callable
 
 from fastapi import Request, Response
-import logging
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from support.constants import APP_NAME

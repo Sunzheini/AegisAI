@@ -1,5 +1,5 @@
 from models.models import User
-from routers.security import get_password_hash
+from support.security import get_password_hash
 from db_management.db_settings import initialize_database, DB_SESSION_LOCAL, SQLAlchemyUser, pydantic_to_orm, \
     orm_to_pydantic
 from support.singleton_interface import SingletonInterface

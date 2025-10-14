@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Path, Query, Depends
 from starlette import status as H
 
 from models.models import User, UserCreate, UserUpdate
-from db_config.temp_db import DataBaseManager
+from db_management.db_manager import DataBaseManager
 from routers.security import auth_required, get_password_hash
 
 
@@ -27,7 +27,7 @@ class UsersViewsManager:
             :param current_user: the currently authenticated user (used in the decorator)
             :return: list of all users
             """
-            return self.db.users_db
+            return self.db.get_all_users()
 
         # GET 1 with path parameter @ http://127.0.0.1:8000/users/id/2
         @self.router.get("/id/{user_id}", status_code=H.HTTP_200_OK)
@@ -39,9 +39,9 @@ class UsersViewsManager:
             :param current_user: the currently authenticated user (used in the decorator)
             :return: the user with the specified id
             """
-            for user in self.db.users_db:
-                if user.id == user_id:
-                    return user
+            user = self.db.get_user_by_id(user_id)
+            if user:
+                return user
             raise HTTPException(status_code=404, detail="User not found with path parameter")
 
         # GET 1 with query parameter @ http://127.0.0.1:8000/users/list/city?city=Boston
@@ -54,7 +54,7 @@ class UsersViewsManager:
             :param current_user: the currently authenticated user (used in the decorator)
             :return: list of users in the specified city
             """
-            users_in_city = [user for user in self.db.users_db if user.city.lower() == city.lower()]
+            users_in_city = [user for user in self.db.get_all_users() if user.city.lower() == city.lower()]
             if not users_in_city:
                 raise HTTPException(status_code=404, detail="No users found in the specified city")
             return users_in_city
@@ -71,11 +71,12 @@ class UsersViewsManager:
             :param current_user: the currently authenticated user (used in the decorator)
             :return: the created user with assigned id
             """
-            list_of_ids = [user.id for user in self.db.users_db]
-            latest_id = max(list_of_ids) if list_of_ids else 0
+            # all_users = self.db.get_all_users()
+            # list_of_ids = [user.id for user in all_users]
+            # latest_id = max(list_of_ids) if list_of_ids else 0
 
             new_user = User(
-                id=latest_id + 1,
+                # id=latest_id + 1,
                 name=new_item.name,
                 age=new_item.age,
                 city=new_item.city,
@@ -83,8 +84,8 @@ class UsersViewsManager:
                 password_hash=get_password_hash(new_item.password)
             )
 
-            self.db.users_db.append(new_user)
-            return new_user
+            created_user = self.db.create_user(new_user)
+            return created_user
 
         # PUT @ http://127.0.0.1:8000/users/edit/1
         @self.router.put("/edit/{user_id}", status_code=H.HTTP_200_OK)
@@ -99,16 +100,17 @@ class UsersViewsManager:
             :param current_user: the currently authenticated user (used in the decorator)
             :return: the updated user (200 OK)
             """
-            for user in self.db.users_db:
-                if user.id == user_id:
-                    user.name = updated_item.name
-                    user.age = updated_item.age
-                    user.city = updated_item.city
-                    user.email = updated_item.email
-                    if updated_item.password:
-                        user.password_hash = get_password_hash(updated_item.password)
-                    return user
-
+            updated_data = {
+                "name": updated_item.name,
+                "age": updated_item.age,
+                "city": updated_item.city,
+                "email": updated_item.email
+            }
+            if updated_item.password:
+                updated_data["password_hash"] = get_password_hash(updated_item.password)
+            updated_user = self.db.update_user(user_id, updated_data)
+            if updated_user:
+                return updated_user
             raise HTTPException(status_code=404, detail="User not found with path parameter")
 
         # DELETE @ http://127.0.0.1:8000/users/delete/3
@@ -121,9 +123,7 @@ class UsersViewsManager:
             :param current_user: the currently authenticated user (used in the decorator)
             :return: {"deleted": true, "id": <user_id>} (200 OK)
             """
-            for user in self.db.users_db:
-                if user.id == user_id:
-                    self.db.users_db.remove(user)
-                    return {"deleted": True, "id": user_id}
-
+            deleted = self.db.delete_user_by_id(user_id)
+            if deleted:
+                return {"deleted": True, "id": user_id}
             raise HTTPException(status_code=404, detail="User not found with path parameter")

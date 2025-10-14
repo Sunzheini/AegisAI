@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from db_config.temp_db import DataBaseManager
+from db_management.db_manager import DataBaseManager
 from views.users_views import UsersViewsManager
 from routers.auth import get_current_user
 

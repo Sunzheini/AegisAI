@@ -21,6 +21,7 @@ import asyncio
 from datetime import datetime, timezone
 from typing import Dict, Any, TypedDict, Optional
 
+
 class MyState(TypedDict):
     job_id: str
     file_path: str
@@ -33,6 +34,7 @@ class MyState(TypedDict):
     step: str
     branch: str
     metadata: Optional[dict]
+
 
 async def validate_file_worker(state: MyState) -> MyState:
     """
@@ -48,5 +50,7 @@ async def validate_file_worker(state: MyState) -> MyState:
     state["status"] = "validate_in_progress"
     state["step"] = "validate_file"
     state["updated_at"] = datetime.now(timezone.utc).isoformat()
-    print(f"[Worker:validate_file] Job {state['job_id']} validation done. State: {state}")
+    print(
+        f"[Worker:validate_file] Job {state['job_id']} validation done. State: {state}"
+    )
     return state

@@ -13,4 +13,4 @@ MAX_UPLOAD_BYTES_SIZE = 50 * 1024 * 1024
 RATE_LIMIT_PER_MINUTE = 60
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-LOG_FILE_PATH = os.path.join(BASE_DIR, 'app.log')
+LOG_FILE_PATH = os.path.join(BASE_DIR, "app.log")

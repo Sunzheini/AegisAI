@@ -54,11 +54,13 @@ def auth_token(client, database):
         age=30,
         city="Boston",
         email=f"testuser_{unique_str}@example.com",
-        password_hash=get_password_hash("testpassword")
+        password_hash=get_password_hash("testpassword"),
     )
     created_user = database.create_user(test_user)
 
-    resp = client.post("/auth/login", data={"username": created_user.name, "password": "testpassword"})
+    resp = client.post(
+        "/auth/login", data={"username": created_user.name, "password": "testpassword"}
+    )
     assert resp.status_code == 200, f"Login failed: {resp.json()}"
     return resp.json()["access_token"]
 
@@ -77,6 +79,7 @@ REDIS_URL = os.getenv("TEST_REDIS_URL", "redis://localhost:6379/2")
 def event_loop():
     """Create event loop for async tests."""
     import asyncio
+
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
@@ -127,8 +130,8 @@ def delete_log_file():
                 else:
                     # Try to just clear the content instead
                     try:
-                        with open(LOG_FILE_PATH, 'w') as f:
-                            f.write('')
+                        with open(LOG_FILE_PATH, "w") as f:
+                            f.write("")
                     except:
                         pass
 
@@ -138,14 +141,14 @@ def close_all_log_handlers():
     for logger_name in logging.Logger.manager.loggerDict:
         logger = logging.getLogger(logger_name)
         for handler in logger.handlers[:]:
-            if hasattr(handler, 'close'):
+            if hasattr(handler, "close"):
                 handler.close()
             logger.removeHandler(handler)
 
     # Also close root logger handlers
     root_logger = logging.getLogger()
     for handler in root_logger.handlers[:]:
-        if hasattr(handler, 'close'):
+        if hasattr(handler, "close"):
             handler.close()
         root_logger.removeHandler(handler)
 

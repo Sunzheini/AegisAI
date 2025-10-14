@@ -27,6 +27,7 @@ import asyncio
 from datetime import datetime, timezone
 from typing import Dict, Any, TypedDict, Optional
 
+
 class MyState(TypedDict):
     job_id: str
     file_path: str
@@ -39,6 +40,7 @@ class MyState(TypedDict):
     step: str
     branch: str
     metadata: Optional[dict]
+
 
 async def extract_metadata_worker(state: MyState) -> MyState:
     """
@@ -55,8 +57,11 @@ async def extract_metadata_worker(state: MyState) -> MyState:
     state["step"] = "extract_metadata"
     state["updated_at"] = datetime.now(timezone.utc).isoformat()
     state["metadata"] = {"dummy": "metadata"}
-    print(f"[Worker:extract_metadata] Job {state['job_id']} metadata extraction done. State: {state}")
+    print(
+        f"[Worker:extract_metadata] Job {state['job_id']} metadata extraction done. State: {state}"
+    )
     return state
+
 
 async def generate_thumbnails_worker(state: MyState) -> MyState:
     """
@@ -67,13 +72,18 @@ async def generate_thumbnails_worker(state: MyState) -> MyState:
     Returns:
         MyState: Updated job state after thumbnail generation.
     """
-    print(f"[Worker:generate_thumbnails] Job {state['job_id']} generating thumbnails...")
+    print(
+        f"[Worker:generate_thumbnails] Job {state['job_id']} generating thumbnails..."
+    )
     await asyncio.sleep(0.3)
     state["status"] = "thumbnails_generated"
     state["step"] = "generate_thumbnails"
     state["updated_at"] = datetime.now(timezone.utc).isoformat()
-    print(f"[Worker:generate_thumbnails] Job {state['job_id']} thumbnails done. State: {state}")
+    print(
+        f"[Worker:generate_thumbnails] Job {state['job_id']} thumbnails done. State: {state}"
+    )
     return state
+
 
 async def extract_audio_worker(state: MyState) -> MyState:
     """
@@ -89,8 +99,11 @@ async def extract_audio_worker(state: MyState) -> MyState:
     state["status"] = "audio_extracted"
     state["step"] = "extract_audio"
     state["updated_at"] = datetime.now(timezone.utc).isoformat()
-    print(f"[Worker:extract_audio] Job {state['job_id']} audio extraction done. State: {state}")
+    print(
+        f"[Worker:extract_audio] Job {state['job_id']} audio extraction done. State: {state}"
+    )
     return state
+
 
 async def transcribe_audio_worker(state: MyState) -> MyState:
     """
@@ -106,8 +119,11 @@ async def transcribe_audio_worker(state: MyState) -> MyState:
     state["status"] = "audio_transcribed"
     state["step"] = "transcribe_audio"
     state["updated_at"] = datetime.now(timezone.utc).isoformat()
-    print(f"[Worker:transcribe_audio] Job {state['job_id']} audio transcription done. State: {state}")
+    print(
+        f"[Worker:transcribe_audio] Job {state['job_id']} audio transcription done. State: {state}"
+    )
     return state
+
 
 async def generate_video_summary_worker(state: MyState) -> MyState:
     """
@@ -118,10 +134,14 @@ async def generate_video_summary_worker(state: MyState) -> MyState:
     Returns:
         MyState: Updated job state after video summarization.
     """
-    print(f"[Worker:generate_video_summary] Job {state['job_id']} generating video summary...")
+    print(
+        f"[Worker:generate_video_summary] Job {state['job_id']} generating video summary..."
+    )
     await asyncio.sleep(0.4)
     state["status"] = "video_summary_generated"
     state["step"] = "generate_video_summary"
     state["updated_at"] = datetime.now(timezone.utc).isoformat()
-    print(f"[Worker:generate_video_summary] Job {state['job_id']} video summary done. State: {state}")
+    print(
+        f"[Worker:generate_video_summary] Job {state['job_id']} video summary done. State: {state}"
+    )
     return state

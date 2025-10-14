@@ -7,6 +7,7 @@ http://localhost:5050/
 user: admin@admin.com, pass: admin
 -> fastapi_db -> Schema -> public -> Tables -> Users -> Right click -> View/Edit Data
 """
+
 import os
 
 from sqlalchemy import create_engine, Column, Integer, String
@@ -40,7 +41,7 @@ def create_database_if_not_exists() -> bool:
             user=DB_USER,
             password=DB_PASSWORD,
             host=DB_HOST,
-            port=DB_PORT
+            port=DB_PORT,
         )
         conn.autocommit = True  # Enable autocommit to allow CREATE DATABASE
 
@@ -56,7 +57,9 @@ def create_database_if_not_exists() -> bool:
                 print(f"Database '{DB_NAME}' already exists.")
         conn.close()
     except Exception as e:
-        print(f"Error: Could not connect to PostgreSQL or create database. Make sure PostgreSQL is running.")
+        print(
+            f"Error: Could not connect to PostgreSQL or create database. Make sure PostgreSQL is running."
+        )
         print(f"Details: {e}")
         return False
 
@@ -66,9 +69,15 @@ def create_database_if_not_exists() -> bool:
 # ----------------------------------------------------------------------------------------------------
 # SQLAlchemy for ORM and DB management
 # ----------------------------------------------------------------------------------------------------
-BASE = declarative_base()   # Base class for ORM models, other models will inherit from this!
-DB_ENGINE = create_engine(DATABASE_URL, echo=True)     # SQLAlchemy engine for ORM operations
-DB_SESSION_LOCAL = sessionmaker(autocommit=False, autoflush=False, bind=DB_ENGINE)  # Session factory for DB sessions
+BASE = (
+    declarative_base()
+)  # Base class for ORM models, other models will inherit from this!
+DB_ENGINE = create_engine(
+    DATABASE_URL, echo=True
+)  # SQLAlchemy engine for ORM operations
+DB_SESSION_LOCAL = sessionmaker(
+    autocommit=False, autoflush=False, bind=DB_ENGINE
+)  # Session factory for DB sessions
 
 
 # -----------------------------------------------------------------------------------------------------
@@ -77,7 +86,8 @@ DB_SESSION_LOCAL = sessionmaker(autocommit=False, autoflush=False, bind=DB_ENGIN
 # SQLAlchemy ORM model
 class SQLAlchemyUser(BASE):
     """SQLAlchemy ORM model corresponding to the pydantic User model."""
-    __tablename__ = 'users'     # Table name in the database, also this is used to know where to insert the new record
+
+    __tablename__ = "users"  # Table name in the database, also this is used to know where to insert the new record
     id = Column(Integer, primary_key=True, autoincrement=True)  # Let DB handle IDs
     name = Column(String, nullable=False, unique=True)
     age = Column(Integer, nullable=False)
@@ -94,7 +104,7 @@ def pydantic_to_orm(user_model: User) -> SQLAlchemyUser:
         age=user_model.age,
         city=user_model.city,
         email=user_model.email,
-        password_hash=user_model.password_hash
+        password_hash=user_model.password_hash,
     )
 
 
@@ -106,7 +116,7 @@ def orm_to_pydantic(orm_user: SQLAlchemyUser) -> User:
         age=orm_user.age,
         city=orm_user.city,
         email=orm_user.email,
-        password_hash=orm_user.password_hash
+        password_hash=orm_user.password_hash,
     )
 
 

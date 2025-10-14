@@ -24,8 +24,8 @@ responds with an appropriate error (e.g., 401 Unauthorized).
 
 
 router = APIRouter(
-    prefix='/auth',
-    tags=['auth'],
+    prefix="/auth",
+    tags=["auth"],
 )
 
 # ✅ Get secret key from environment variables (secure)
@@ -36,8 +36,10 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")  # for token authent
 
 
 async def get_current_user(
-        token: str = Depends(oauth2_scheme      # automatically extracts the token from the request
-    )):
+    token: str = Depends(
+        oauth2_scheme  # automatically extracts the token from the request
+    ),
+):
     """
     Dependency to get the current authenticated user from the JWT token
     """
@@ -64,7 +66,9 @@ async def get_current_user(
 
 
 @router.post("/login")
-async def authenticate_user_and_return_token(form_data: OAuth2PasswordRequestForm = Depends()):
+async def authenticate_user_and_return_token(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+):
     """
     Authenticate user and return JWT token
 
@@ -84,7 +88,9 @@ async def authenticate_user_and_return_token(form_data: OAuth2PasswordRequestFor
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    if not hasattr(user, 'password_hash') or not verify_password(form_data.password, user.password_hash):
+    if not hasattr(user, "password_hash") or not verify_password(
+        form_data.password, user.password_hash
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -92,17 +98,15 @@ async def authenticate_user_and_return_token(form_data: OAuth2PasswordRequestFor
         )
 
     access_token = create_access_token(
-        username=user.name,
-        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        username=user.name, expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
 
-    return {
-        "access_token": access_token,
-        "token_type": "bearer"
-    }
+    return {"access_token": access_token, "token_type": "bearer"}
 
 
-def create_access_token(username: str, expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(
+    username: str, expires_delta: Optional[timedelta] = None
+) -> str:
     """
     Create a JWT access token
 
@@ -163,4 +167,6 @@ async def logout():
     """
     Logout endpoint for client-side logout. Instructs the client to delete the JWT token.
     """
-    return {"message": "Successfully logged out. Please delete the token on the client side."}
+    return {
+        "message": "Successfully logged out. Please delete the token on the client side."
+    }

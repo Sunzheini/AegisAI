@@ -24,6 +24,7 @@ Migration Notes:
     - Replace in-memory stores with S3/DynamoDB for production
     - Replace simulated workers with Lambda/Step Functions for cloud
 """
+
 import os
 import json
 from typing import Dict, Any, TypedDict
@@ -44,12 +45,12 @@ from media_processing_worker_example import (
     generate_thumbnails_worker,
     extract_audio_worker,
     transcribe_audio_worker,
-    generate_video_summary_worker
+    generate_video_summary_worker,
 )
 from ai_worker_example import (
     analyze_image_with_ai_worker,
     extract_text_worker,
-    summarize_document_worker
+    summarize_document_worker,
 )
 
 
@@ -67,7 +68,8 @@ async def get_redis():
 
 # ToDo:
 """
-use black and check with pylint
+this: fix pylint errors
+frontend: refactor, use black and check with pylint
 base exceptions only at the end after some specific ones, make error middleware
 pull requests
 
@@ -91,7 +93,9 @@ async def lifespan(app):
         print("[Orchestrator] Shutting down Redis listener.")
         task.cancel()
     else:
-        print("[Orchestrator] Redis listener mode disabled. Only direct HTTP submission will be processed.")
+        print(
+            "[Orchestrator] Redis listener mode disabled. Only direct HTTP submission will be processed."
+        )
         yield
 
 
@@ -100,6 +104,7 @@ app = FastAPI(title="Workflow Orchestrator Example", lifespan=lifespan)
 
 class MyState(TypedDict):
     """State schema for the workflow graph."""
+
     job_id: str
     file_path: str
     content_type: str
@@ -119,6 +124,7 @@ class WorkflowOrchestrator:
     Each step is a simulated async worker.
     Replace with real workers/cloud services for production.
     """
+
     def __init__(self):
         self.jobs: Dict[str, Dict[str, Any]] = {}
         self.logger = logging.getLogger("orchestrator")
@@ -129,7 +135,9 @@ class WorkflowOrchestrator:
         print("[Orchestrator] Building workflow graph...")
         # Use LangGraph StateGraph if available, else use dict
         if StateGraph:
-            print("[Orchestrator] Using LangGraph StateGraph with state_schema=MyState.")
+            print(
+                "[Orchestrator] Using LangGraph StateGraph with state_schema=MyState."
+            )
             graph = StateGraph(state_schema=MyState)
 
             # Nodes
@@ -160,8 +168,8 @@ class WorkflowOrchestrator:
                 {
                     "image_branch": "generate_thumbnails",
                     "video_branch": "extract_audio",
-                    "pdf_branch": "extract_text"
-                }
+                    "pdf_branch": "extract_text",
+                },
             )
 
             # Define branch flows
@@ -180,24 +188,32 @@ class WorkflowOrchestrator:
 
             # Add visualization to see graph
             try:
-                compiled_graph.get_graph().draw_mermaid_png(output_file_path='workflow_graph.png')
-                print("[Orchestrator] Workflow graph visualization saved to workflow_graph.png")
+                compiled_graph.get_graph().draw_mermaid_png(
+                    output_file_path="workflow_graph.png"
+                )
+                print(
+                    "[Orchestrator] Workflow graph visualization saved to workflow_graph.png"
+                )
             except Exception as e:
                 print(f"[Orchestrator] Could not generate graph visualization: {e}")
 
             return compiled_graph
 
         else:
-            print("[Orchestrator] LangGraph not available, using fallback graph structure.")
+            print(
+                "[Orchestrator] LangGraph not available, using fallback graph structure."
+            )
             return {
-                "nodes": [
-                    "validate_file", "extract_metadata", "route_workflow"
-                ],
+                "nodes": ["validate_file", "extract_metadata", "route_workflow"],
                 "branches": {
                     "image": ["generate_thumbnails", "analyze_image_with_ai"],
-                    "video": ["extract_audio", "transcribe_audio", "generate_video_summary"],
+                    "video": [
+                        "extract_audio",
+                        "transcribe_audio",
+                        "generate_video_summary",
+                    ],
                     "pdf": ["extract_text", "summarize_document"],
-                }
+                },
             }
 
     @staticmethod
@@ -240,7 +256,7 @@ class WorkflowOrchestrator:
             updated_at=datetime.now(timezone.utc).isoformat(),
             step="queued",
             branch="",  # will be set by route_workflow
-            metadata=None
+            metadata=None,
         )
 
         self.jobs[job.job_id] = state
@@ -308,7 +324,9 @@ class WorkflowOrchestrator:
         state["status"] = f"routed_to_{state['branch']}"
         state["step"] = "route_workflow"
         state["updated_at"] = datetime.now(timezone.utc).isoformat()
-        print(f"[Worker:route_workflow] Job {state['job_id']} routed to {state['branch']} branch. State: {state}")
+        print(
+            f"[Worker:route_workflow] Job {state['job_id']} routed to {state['branch']} branch. State: {state}"
+        )
         return state
 
 
@@ -316,7 +334,9 @@ orchestrator = WorkflowOrchestrator()
 
 
 @app.post("/jobs", status_code=status.HTTP_202_ACCEPTED)
-async def submit_job(job: IngestionJobRequest, request: Request, redis_client=Depends(get_redis)):
+async def submit_job(
+    job: IngestionJobRequest, request: Request, redis_client=Depends(get_redis)
+):
     """
     Submit a new job to the orchestrator via HTTP POST.
     Args:
@@ -331,12 +351,18 @@ async def submit_job(job: IngestionJobRequest, request: Request, redis_client=De
     try:
         await orchestrator.submit_job(redis_client, job)
     except ValueError as e:
-        print(f"[Orchestrator] Duplicate job_id {job.job_id} received via HTTP. Skipping.")
+        print(
+            f"[Orchestrator] Duplicate job_id {job.job_id} received via HTTP. Skipping."
+        )
         raise HTTPException(status_code=409, detail=str(e))
     return {"job_id": job.job_id, "status": "queued"}
 
 
-@app.get("/jobs/{job_id}", status_code=status.HTTP_200_OK, response_model=IngestionJobStatusResponse)
+@app.get(
+    "/jobs/{job_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=IngestionJobStatusResponse,
+)
 async def get_job_status(job_id: str, redis_client=Depends(get_redis)):
     """
     Returns the current status and metadata for a job.
@@ -359,7 +385,7 @@ async def get_job_status(job_id: str, redis_client=Depends(get_redis)):
         file_path=job["file_path"],
         content_type=job["content_type"],
         checksum_sha256=job["checksum_sha256"],
-        submitted_by=job.get("submitted_by")
+        submitted_by=job.get("submitted_by"),
     )
 
 
@@ -382,14 +408,20 @@ async def redis_listener():
             if message["type"] == "message":
                 event = json.loads(message["data"])
                 if event.get("event") == "JOB_CREATED":
-                    print(f"[Orchestrator] Received JOB_CREATED event for job_id: {event['job_id']}")
+                    print(
+                        f"[Orchestrator] Received JOB_CREATED event for job_id: {event['job_id']}"
+                    )
 
                     # Use IngestionJobRequest to reconstruct job from event
-                    job = IngestionJobRequest(**{k: v for k, v in event.items() if k != "event"})
+                    job = IngestionJobRequest(
+                        **{k: v for k, v in event.items() if k != "event"}
+                    )
                     try:
                         await orchestrator.submit_job(redis_client, job)
                     except ValueError:
-                        print(f"[Orchestrator] Duplicate job_id {event['job_id']} received from Redis. Skipping.")
+                        print(
+                            f"[Orchestrator] Duplicate job_id {event['job_id']} received from Redis. Skipping."
+                        )
     except asyncio.CancelledError:
         await pubsub.unsubscribe("command_queue")
         await pubsub.close()

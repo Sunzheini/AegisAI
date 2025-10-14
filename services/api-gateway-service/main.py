@@ -18,6 +18,7 @@ App State:
 Health Endpoint:
     - GET /health: Returns service status
 """
+
 import traceback
 
 import logging
@@ -37,10 +38,10 @@ from routers import redis_router
 logging.getLogger().handlers.clear()
 logging.basicConfig(
     filename=LOG_FILE_PATH,
-    filemode='a',
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    filemode="a",
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.DEBUG,
-    force=True
+    force=True,
 )
 logger = logging.getLogger(APP_NAME)
 logger.info("Starting API Gateway Microservice...")
@@ -63,13 +64,15 @@ async def universal_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={
             "error": "Internal server error",
-            "detail": "Something went wrong on our end"
-        }
+            "detail": "Something went wrong on our end",
+        },
     )
 
 
 # Middleware
-app.add_middleware(InMemoryRateLimiter, requests_per_minute=60)     # Local-only rate limiting middleware (fixed window). Bypassed during tests.
+app.add_middleware(
+    InMemoryRateLimiter, requests_per_minute=60
+)  # Local-only rate limiting middleware (fixed window). Bypassed during tests.
 app.add_middleware(CustomLogger)
 
 

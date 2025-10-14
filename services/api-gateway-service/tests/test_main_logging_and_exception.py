@@ -22,9 +22,14 @@ def test_global_exception_handler_logs_and_returns_500():
         test_exception = ValueError("Test error")
 
         # Use asyncio.run to execute the async function
-        response = asyncio.run(universal_exception_handler(mock_request, test_exception))
+        response = asyncio.run(
+            universal_exception_handler(mock_request, test_exception)
+        )
 
         assert response.status_code == 500
         # Update this line to match your actual response:
-        assert response.body == b'{"error":"Internal server error","detail":"Something went wrong on our end"}'
+        assert (
+            response.body
+            == b'{"error":"Internal server error","detail":"Something went wrong on our end"}'
+        )
         assert mock_log_error.called

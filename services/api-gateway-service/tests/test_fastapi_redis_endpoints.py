@@ -21,10 +21,7 @@ class TestRedisRouterEndpoints:
         """Test the publish endpoint."""
         response = client.post(
             "/redis/publish",
-            params={
-                "channel": "test:channel",
-                "message": "test message"
-            }
+            params={"channel": "test:channel", "message": "test message"},
         )
 
         if response.status_code == 200:
@@ -40,15 +37,13 @@ class TestRedisRouterEndpoints:
         """Test publish endpoint validation."""
         # Test empty channel
         response = client.post(
-            "/redis/publish",
-            params={"channel": "", "message": "test"}
+            "/redis/publish", params={"channel": "", "message": "test"}
         )
         assert response.status_code == 400
 
         # Test empty message
         response = client.post(
-            "/redis/publish",
-            params={"channel": "test", "message": ""}
+            "/redis/publish", params={"channel": "test", "message": ""}
         )
         assert response.status_code == 400
 
@@ -67,8 +62,8 @@ class TestRedisRouterEndpoints:
         async def listener():
             try:
                 async for message in pubsub.listen():
-                    if message['type'] == 'message':
-                        messages_received.append(message['data'])
+                    if message["type"] == "message":
+                        messages_received.append(message["data"])
                         break
             except Exception:
                 pass

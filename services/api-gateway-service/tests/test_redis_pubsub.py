@@ -12,7 +12,9 @@ class TestRedisPubSubIntegration:
         """Test that we're connected to the correct database."""
         # Get current database info
         client_info = await redis_client.client_info()
-        assert client_info['db'] == 2, f"Should be connected to database 2, but got {client_info['db']}"
+        assert (
+            client_info["db"] == 2
+        ), f"Should be connected to database 2, but got {client_info['db']}"
 
         # Test basic operations to verify database isolation
         await redis_client.set("test_key", "test_value")
@@ -35,8 +37,8 @@ class TestRedisPubSubIntegration:
             try:
                 async with async_timeout.timeout(2):
                     async for message in pubsub.listen():
-                        if message['type'] == 'message':
-                            messages_received.append(message['data'])
+                        if message["type"] == "message":
+                            messages_received.append(message["data"])
                             return  # Exit after first message
             except asyncio.TimeoutError:
                 pass
@@ -76,7 +78,7 @@ class TestRedisPubSubIntegration:
         test_data = {
             "user_id": 123,
             "action": "login",
-            "timestamp": "2024-01-01T00:00:00Z"
+            "timestamp": "2024-01-01T00:00:00Z",
         }
 
         messages_received = []
@@ -89,8 +91,8 @@ class TestRedisPubSubIntegration:
             try:
                 async with async_timeout.timeout(2):
                     async for message in pubsub.listen():
-                        if message['type'] == 'message':
-                            messages_received.append(message['data'])
+                        if message["type"] == "message":
+                            messages_received.append(message["data"])
                             return  # Exit after first message
             except asyncio.TimeoutError:
                 pass
@@ -141,8 +143,8 @@ class TestRedisWithAuthentication:
             try:
                 async with async_timeout.timeout(2):
                     async for message in pubsub.listen():
-                        if message['type'] == 'message':
-                            messages_received.append(message['data'])
+                        if message["type"] == "message":
+                            messages_received.append(message["data"])
                             return  # Exit after first message
             except asyncio.TimeoutError:
                 pass

@@ -44,6 +44,7 @@ class FileStorage(ABC):
     Abstract base class for file storage operations.
     Implementations can provide local or cloud storage (e.g., filesystem, S3).
     """
+
     async def save_file(self, file_obj, filename: str) -> str:
         """
         Save a file object to storage under the given filename.

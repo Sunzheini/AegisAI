@@ -24,6 +24,7 @@ import asyncio
 from datetime import datetime, timezone
 from typing import Dict, Any, TypedDict, Optional
 
+
 class MyState(TypedDict):
     job_id: str
     file_path: str
@@ -37,6 +38,7 @@ class MyState(TypedDict):
     branch: str
     metadata: Optional[dict]
 
+
 async def analyze_image_with_ai_worker(state: MyState) -> MyState:
     """
     Analyzes an image using AI models.
@@ -48,13 +50,18 @@ async def analyze_image_with_ai_worker(state: MyState) -> MyState:
     Returns:
         MyState: Updated job state after image analysis.
     """
-    print(f"[Worker:analyze_image_with_ai] Job {state['job_id']} analyzing image with AI...")
+    print(
+        f"[Worker:analyze_image_with_ai] Job {state['job_id']} analyzing image with AI..."
+    )
     await asyncio.sleep(0.4)
     state["status"] = "image_analyzed"
     state["step"] = "analyze_image_with_ai"
     state["updated_at"] = datetime.now(timezone.utc).isoformat()
-    print(f"[Worker:analyze_image_with_ai] Job {state['job_id']} image analysis done. State: {state}")
+    print(
+        f"[Worker:analyze_image_with_ai] Job {state['job_id']} image analysis done. State: {state}"
+    )
     return state
+
 
 async def extract_text_worker(state: MyState) -> MyState:
     """
@@ -72,8 +79,11 @@ async def extract_text_worker(state: MyState) -> MyState:
     state["status"] = "text_extracted"
     state["step"] = "extract_text"
     state["updated_at"] = datetime.now(timezone.utc).isoformat()
-    print(f"[Worker:extract_text] Job {state['job_id']} text extraction done. State: {state}")
+    print(
+        f"[Worker:extract_text] Job {state['job_id']} text extraction done. State: {state}"
+    )
     return state
+
 
 async def summarize_document_worker(state: MyState) -> MyState:
     """
@@ -91,5 +101,7 @@ async def summarize_document_worker(state: MyState) -> MyState:
     state["status"] = "document_summarized"
     state["step"] = "summarize_document"
     state["updated_at"] = datetime.now(timezone.utc).isoformat()
-    print(f"[Worker:summarize_document] Job {state['job_id']} document summary done. State: {state}")
+    print(
+        f"[Worker:summarize_document] Job {state['job_id']} document summary done. State: {state}"
+    )
     return state

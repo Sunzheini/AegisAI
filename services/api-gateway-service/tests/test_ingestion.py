@@ -75,7 +75,9 @@ def test_upload_and_processing_success(client, auth_headers):
     if is_redis_publish_enabled():
         pytest.skip("Skipping: Redis publish mode does not process jobs locally.")
     if is_orchestrator_enabled():
-        pytest.skip("Skipping: orchestrator mode does not process jobs locally in test client.")
+        pytest.skip(
+            "Skipping: orchestrator mode does not process jobs locally in test client."
+        )
     content = b"\x89PNG\r\n\x1a\n" + b"0" * 128
     files = {"file": ("tiny.png", io.BytesIO(content), "image/png")}
     response = client.post("/v1/upload", files=files, headers=auth_headers)
@@ -146,6 +148,7 @@ def test_unsupported_media_type(client, auth_headers):
 def test_upload_too_large_with_monkeypatch(client, auth_headers, monkeypatch):
     """Test upload exceeding max size returns 413."""
     import views.ingestion_views as iv
+
     monkeypatch.setattr(iv, "MAX_UPLOAD_BYTES", 1024)
     big_content = b"A" * 2048
     files = {"file": ("big.png", io.BytesIO(big_content), "image/png")}
@@ -168,10 +171,17 @@ def test_concurrent_uploads_show_parallel_processing(client, auth_headers, monke
     if is_redis_publish_enabled():
         pytest.skip("Skipping: Redis publish mode does not process jobs locally.")
     if is_orchestrator_enabled():
-        pytest.skip("Skipping: orchestrator mode does not process jobs locally in test client.")
+        pytest.skip(
+            "Skipping: orchestrator mode does not process jobs locally in test client."
+        )
     import views.ingestion_views as iv
-    ingestion_manager = getattr(getattr(client.app, "state", None), "ingestion_manager", None)
-    assert ingestion_manager is not None, "IngestionViewsManager instance not found in app.state.ingestion_manager"
+
+    ingestion_manager = getattr(
+        getattr(client.app, "state", None), "ingestion_manager", None
+    )
+    assert (
+        ingestion_manager is not None
+    ), "IngestionViewsManager instance not found in app.state.ingestion_manager"
     original_process = IVM._process_job
     lock = threading.Lock()
     counters = {"current": 0, "max": 0}
@@ -227,7 +237,9 @@ def test_concurrent_uploads_show_parallel_processing(client, auth_headers, monke
 
 def test_upload_submits_to_orchestrator(client, auth_headers, orchestrator_env):
     if is_redis_publish_enabled():
-        pytest.skip("Skipping: Redis publish mode does not submit jobs directly to orchestrator.")
+        pytest.skip(
+            "Skipping: Redis publish mode does not submit jobs directly to orchestrator."
+        )
     """Test that upload submits job to orchestrator and returns correct status."""
     content = b"\x89PNG\r\n\x1a\n" + b"0" * 128
     files = {"file": ("tiny.png", io.BytesIO(content), "image/png")}
@@ -237,9 +249,11 @@ def test_upload_submits_to_orchestrator(client, auth_headers, orchestrator_env):
         assert url.endswith("/orchestrator/jobs")
         assert json["file_path"].endswith("tiny.png")
         job_id_holder["job_id"] = json["job_id"]
+
         class Resp:
             def raise_for_status(self):
                 pass
+
         return Resp()
 
     with patch("requests.post", side_effect=fake_post):
@@ -253,7 +267,9 @@ def test_upload_submits_to_orchestrator(client, auth_headers, orchestrator_env):
 
 def test_upload_orchestrator_error(client, auth_headers, orchestrator_env):
     if is_redis_publish_enabled():
-        pytest.skip("Skipping: Redis publish mode does not submit jobs directly to orchestrator.")
+        pytest.skip(
+            "Skipping: Redis publish mode does not submit jobs directly to orchestrator."
+        )
     """Test upload returns error if orchestrator is unavailable."""
     content = b"\x89PNG\r\n\x1a\n" + b"0" * 128
     files = {"file": ("tiny.png", io.BytesIO(content), "image/png")}
@@ -274,7 +290,9 @@ def test_upload_and_redis_job_processing(client, auth_headers):
     This test requires the orchestrator service to be running as a real process with its Redis listener active.
     """
     if not is_redis_publish_enabled():
-        print("[SKIP] test_upload_and_redis_job_processing: Redis publish mode is not enabled.")
+        print(
+            "[SKIP] test_upload_and_redis_job_processing: Redis publish mode is not enabled."
+        )
         pytest.skip("Skipping: Redis publish mode is not enabled.")
     # Upload a valid PNG file
     content = b"\x89PNG\r\n\x1a\n" + b"0" * 128
@@ -298,5 +316,9 @@ def test_upload_and_redis_job_processing(client, auth_headers):
                 break
         time.sleep(0.2)
     else:
-        print(f"[SKIP] test_upload_and_redis_job_processing: Job {job_id} was not processed. Orchestrator service may not be running.")
-        pytest.skip(f"Skipping: Job {job_id} was not processed via Redis event-driven mode. Orchestrator service may not be running.")
+        print(
+            f"[SKIP] test_upload_and_redis_job_processing: Job {job_id} was not processed. Orchestrator service may not be running."
+        )
+        pytest.skip(
+            f"Skipping: Job {job_id} was not processed via Redis event-driven mode. Orchestrator service may not be running."
+        )

@@ -5,7 +5,7 @@ import pytest
 async def test_redis_is_clean_between_tests(redis_client):
     """Test that Redis is clean between test runs."""
     # This should be empty if cleanup worked
-    keys = await redis_client.keys('*')
+    keys = await redis_client.keys("*")
     print(f"Keys in Redis after cleanup: {keys}")
     assert len(keys) == 0, f"Redis not clean! Found keys: {keys}"
 

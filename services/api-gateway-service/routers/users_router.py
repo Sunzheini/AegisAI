@@ -6,8 +6,8 @@ from routers.auth_router import get_current_user
 
 
 router = APIRouter(
-    prefix='/users',
-    tags=['users'],
+    prefix="/users",
+    tags=["users"],
 )
 
 db_manager = DataBaseManager()

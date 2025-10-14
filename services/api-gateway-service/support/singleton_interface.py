@@ -1,5 +1,6 @@
 class SingletonInterface:
     """A singleton interface to ensure only one instance of a class is created."""
+
     _INSTANCE = None
     _INITIALIZED = False
 

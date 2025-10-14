@@ -8,8 +8,8 @@ from redis.exceptions import RedisError
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/2")
 
 router = APIRouter(
-    prefix='/redis',
-    tags=['redis'],
+    prefix="/redis",
+    tags=["redis"],
 )
 
 
@@ -20,10 +20,7 @@ async def get_redis():
         await redis.ping()  # Test connection immediately
         yield redis
     except RedisError as e:
-        raise HTTPException(
-            status_code=503,
-            detail=f"Redis unavailable: {str(e)}"
-        )
+        raise HTTPException(status_code=503, detail=f"Redis unavailable: {str(e)}")
     finally:
         await redis.aclose()
 
@@ -37,8 +34,8 @@ async def redis_health(redis: Redis = Depends(get_redis)):
         return {
             "status": "healthy",
             "redis": "connected",
-            "database": client_info['db'],
-            "server_version": redis_info['redis_version']
+            "database": client_info["db"],
+            "server_version": redis_info["redis_version"],
         }
     except RedisError as e:
         raise HTTPException(status_code=503, detail=f"Redis unavailable: {str(e)}")
@@ -46,16 +43,13 @@ async def redis_health(redis: Redis = Depends(get_redis)):
 
 @router.post("/publish")
 async def publish_message(
-        channel: str,
-        message: str,
-        redis: Redis = Depends(get_redis)
+    channel: str, message: str, redis: Redis = Depends(get_redis)
 ):
     """Publish a message to a Redis channel."""
     try:
         if not channel or not message:
             raise HTTPException(
-                status_code=400,
-                detail="Channel and message are required"
+                status_code=400, detail="Channel and message are required"
             )
 
         subscribers = await redis.publish(channel, message)
@@ -65,7 +59,7 @@ async def publish_message(
             "channel": channel,
             "message": message,
             "subscribers": subscribers,
-            "database": 2
+            "database": 2,
         }
 
     except RedisError as e:

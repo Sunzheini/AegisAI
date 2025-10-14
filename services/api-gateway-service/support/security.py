@@ -35,8 +35,9 @@ def get_password_hash(password: str) -> str:
 def auth_required(func):
     @wraps(func)
     async def wrapper(*args, **kwargs):
-        current_user = kwargs.get('current_user')
+        current_user = kwargs.get("current_user")
         if current_user is None:
             raise HTTPException(status_code=401, detail="Not authenticated")
         return await func(*args, **kwargs)
+
     return wrapper

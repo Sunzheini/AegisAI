@@ -39,10 +39,18 @@ from contracts.job_schemas import IngestionJobRequest
 
 
 load_dotenv()
-STORAGE_ROOT = os.getenv("STORAGE_ROOT", os.path.abspath(os.path.join(os.getcwd(), "storage")))
-RAW_DIR = os.getenv("RAW_DIR", os.path.join(STORAGE_ROOT, "raw"))  # Stores the original uploaded files before any processing
-PROCESSED_DIR = os.getenv("PROCESSED_DIR", os.path.join(STORAGE_ROOT, "processed"))  # Stores files after initial processing (e.g., validation, copying, basic transformation)
-TRANSCODED_DIR = os.getenv("TRANSCODED_DIR", os.path.join(STORAGE_ROOT, "transcoded"))  # Stores files after advanced processing, such as format conversion or transcoding
+STORAGE_ROOT = os.getenv(
+    "STORAGE_ROOT", os.path.abspath(os.path.join(os.getcwd(), "storage"))
+)
+RAW_DIR = os.getenv(
+    "RAW_DIR", os.path.join(STORAGE_ROOT, "raw")
+)  # Stores the original uploaded files before any processing
+PROCESSED_DIR = os.getenv(
+    "PROCESSED_DIR", os.path.join(STORAGE_ROOT, "processed")
+)  # Stores files after initial processing (e.g., validation, copying, basic transformation)
+TRANSCODED_DIR = os.getenv(
+    "TRANSCODED_DIR", os.path.join(STORAGE_ROOT, "transcoded")
+)  # Stores files after advanced processing, such as format conversion or transcoding
 
 ALLOWED_CONTENT_TYPES = ALLOWED_CONTENT_TYPES_SET
 MAX_UPLOAD_BYTES = MAX_UPLOAD_BYTES_SIZE  # 50 MB
@@ -82,8 +90,12 @@ class IngestionViewsManager:
     The orchestrator only needs the job metadata sent via the event (Redis), not the full local store.
     """
     # ToDo: If I later migrate to a cloud database or shared storage, refactor these to use a persistent backend (e.g., PostgreSQL, DynamoDB).
-    jobs_store: Dict[str, Dict[str, Any]] = {}      # job_id -> job_record, stores the ingestion jobs
-    assets_store: Dict[str, Dict[str, Any]] = {}    # asset_id -> asset_record, stores the processed assets
+    jobs_store: Dict[str, Dict[str, Any]] = (
+        {}
+    )  # job_id -> job_record, stores the ingestion jobs
+    assets_store: Dict[str, Dict[str, Any]] = (
+        {}
+    )  # asset_id -> asset_record, stores the processed assets
 
     def __init__(self, router: APIRouter, get_current_user):
         self.router = router
@@ -102,7 +114,9 @@ class IngestionViewsManager:
         os.makedirs(TRANSCODED_DIR, exist_ok=True)
 
     @staticmethod
-    def _copy_file_sync(src_path: str, dst_path: str, chunk_size: int = 1024 * 1024) -> None:
+    def _copy_file_sync(
+        src_path: str, dst_path: str, chunk_size: int = 1024 * 1024
+    ) -> None:
         """Copy a file using blocking I/O; intended for threadpool use."""
         with open(src_path, "rb") as rf, open(dst_path, "wb") as wf:
             while True:
@@ -135,8 +149,10 @@ class IngestionViewsManager:
         job = self.job_asset_store.get_job(job_id)
         if not job:
             return
-        self.job_asset_store.update_job(job_id, {
-            "status": "in_progress", "updated_at": datetime.utcnow().isoformat()})
+        self.job_asset_store.update_job(
+            job_id,
+            {"status": "in_progress", "updated_at": datetime.utcnow().isoformat()},
+        )
 
         # Simulate processing delay
         await asyncio.sleep(0.2)
@@ -144,7 +160,14 @@ class IngestionViewsManager:
         src_path = job.get("file_path")
         logger.info(f"Processing file from: {src_path}")
         if not src_path or not os.path.exists(src_path):
-            self.job_asset_store.update_job(job_id, {"status": "failed", "error": "File not found", "updated_at": datetime.utcnow().isoformat()})
+            self.job_asset_store.update_job(
+                job_id,
+                {
+                    "status": "failed",
+                    "error": "File not found",
+                    "updated_at": datetime.utcnow().isoformat(),
+                },
+            )
             return
 
         asset_id = str(uuid.uuid4())
@@ -157,7 +180,14 @@ class IngestionViewsManager:
         try:
             await asyncio.to_thread(self.file_storage.copy_file, src_path, dst_path)
         except Exception as e:
-            self.job_asset_store.update_job(job_id, {"status": "failed", "error": str(e), "updated_at": datetime.utcnow().isoformat()})
+            self.job_asset_store.update_job(
+                job_id,
+                {
+                    "status": "failed",
+                    "error": str(e),
+                    "updated_at": datetime.utcnow().isoformat(),
+                },
+            )
             return
         asset = {
             "asset_id": asset_id,
@@ -169,7 +199,14 @@ class IngestionViewsManager:
             "created_at": datetime.utcnow().isoformat(),
         }
         self.job_asset_store.create_asset(asset)
-        self.job_asset_store.update_job(job_id, {"status": "completed", "asset_id": asset_id, "updated_at": datetime.utcnow().isoformat()})
+        self.job_asset_store.update_job(
+            job_id,
+            {
+                "status": "completed",
+                "asset_id": asset_id,
+                "updated_at": datetime.utcnow().isoformat(),
+            },
+        )
         logger.info(f"Job {job_id} completed, asset at: {dst_path}")
 
     @staticmethod
@@ -187,12 +224,14 @@ class IngestionViewsManager:
                     logger.error(f"File too large: {total_size_in_bytes} bytes")
                     raise HTTPException(
                         status_code=413,
-                        detail="Uploaded file is larger than the maximum allowed size"
+                        detail="Uploaded file is larger than the maximum allowed size",
                     )
                 hasher.update(chunk)
                 await asyncio.to_thread(out.write, chunk)
         await file.close()
-        logger.info(f"Finished streaming upload to: {destination_path}, size: {total_size_in_bytes}")
+        logger.info(
+            f"Finished streaming upload to: {destination_path}, size: {total_size_in_bytes}"
+        )
         return total_size_in_bytes, hasher
 
     def register_views(self) -> None:
@@ -207,10 +246,17 @@ class IngestionViewsManager:
         logger.info(f"RAW_DIR: {RAW_DIR}")
         logger.info(f"PROCESSED_DIR: {PROCESSED_DIR}")
         logger.info(f"TRANSCODED_DIR: {TRANSCODED_DIR}")
+
         # POST @ http://127.0.0.1:8000/v1/upload
-        @self.router.post("/upload", status_code=H.HTTP_202_ACCEPTED, summary="Upload media (v1)")
+        @self.router.post(
+            "/upload", status_code=H.HTTP_202_ACCEPTED, summary="Upload media (v1)"
+        )
         @auth_required
-        async def upload_media(request: Request, file: UploadFile = File(...), current_user=Depends(self.get_current_user)) -> Dict[str, Any]:
+        async def upload_media(
+            request: Request,
+            file: UploadFile = File(...),
+            current_user=Depends(self.get_current_user),
+        ) -> Dict[str, Any]:
             """
             Uploads a file and creates an ingestion job.
 
@@ -229,18 +275,22 @@ class IngestionViewsManager:
                 HTTPException: On validation or processing errors
             """
             import os  # Ensure we get the latest env vars
-            USE_ORCHESTRATOR = os.getenv("USE_ORCHESTRATOR", "false").lower() == "true"
-            ORCHESTRATOR_URL = os.getenv("ORCHESTRATOR_URL", "http://localhost:9000/jobs")
 
-            print(20 * '-')
+            USE_ORCHESTRATOR = os.getenv("USE_ORCHESTRATOR", "false").lower() == "true"
+            ORCHESTRATOR_URL = os.getenv(
+                "ORCHESTRATOR_URL", "http://localhost:9000/jobs"
+            )
+
+            print(20 * "-")
             print(f"file content_type: {file.content_type}")
             print(f"file filename: {file.filename}")
-            print(20 * '-')
+            print(20 * "-")
 
             if file.content_type not in ALLOWED_CONTENT_TYPES:
                 raise HTTPException(
                     status_code=415,
-                    detail="Supported content types: " + ", ".join(ALLOWED_CONTENT_TYPES)
+                    detail="Supported content types: "
+                    + ", ".join(ALLOWED_CONTENT_TYPES),
                 )
 
             job_id = str(uuid.uuid4())
@@ -248,7 +298,9 @@ class IngestionViewsManager:
             raw_filename = f"{job_id}_{safe_name}"
             destination_path = os.path.join(RAW_DIR, raw_filename)
 
-            total_size_in_bytes, hasher = await self._stream_file_to_disk(file, destination_path)
+            total_size_in_bytes, hasher = await self._stream_file_to_disk(
+                file, destination_path
+            )
 
             job_record = {
                 "job_id": job_id,
@@ -269,21 +321,25 @@ class IngestionViewsManager:
             # Mode 1: Event-driven architecture with Redis Pub/Sub
             # -------------------------------------------------------------------------------------------------
             if USE_REDIS_PUBLISH:
-                print(f"[upload_media] Publishing JOB_CREATED event for job_id: {job_id} to Redis")
+                print(
+                    f"[upload_media] Publishing JOB_CREATED event for job_id: {job_id} to Redis"
+                )
 
                 job_request = IngestionJobRequest(
                     job_id=job_id,
                     file_path=file.filename,
                     content_type=job_record.get("content_type", "unknown"),
                     checksum_sha256=job_record.get("checksum_sha256", "unknown"),
-                    submitted_by=getattr(current_user, "name", None)
+                    submitted_by=getattr(current_user, "name", None),
                 )
 
-                await redis.publish("command_queue", json.dumps({
-                    "event": "JOB_CREATED",
-                    **job_request.model_dump()
-                }))
-                print(f"[upload_media] Published JOB_CREATED event for job_id: {job_id}")
+                await redis.publish(
+                    "command_queue",
+                    json.dumps({"event": "JOB_CREATED", **job_request.model_dump()}),
+                )
+                print(
+                    f"[upload_media] Published JOB_CREATED event for job_id: {job_id}"
+                )
                 return {"job_id": job_id, "status": "published_to_redis"}
 
             # -------------------------------------------------------------------------------------------------
@@ -303,15 +359,23 @@ class IngestionViewsManager:
                             submitted_by=getattr(current_user, "name", None),
                         ).model_dump()
                         resp = requests.post(
-                            ORCHESTRATOR_URL,
-                            json=job_payload,
-                            timeout=5
+                            ORCHESTRATOR_URL, json=job_payload, timeout=5
                         )
 
                         resp.raise_for_status()
                     except Exception as e:
-                        self.job_asset_store.update_job(job_id, {"status": "failed", "error": str(e), "updated_at": datetime.utcnow().isoformat()})
-                        raise HTTPException(status_code=502, detail=f"Failed to submit job to orchestrator: {e}")
+                        self.job_asset_store.update_job(
+                            job_id,
+                            {
+                                "status": "failed",
+                                "error": str(e),
+                                "updated_at": datetime.utcnow().isoformat(),
+                            },
+                        )
+                        raise HTTPException(
+                            status_code=502,
+                            detail=f"Failed to submit job to orchestrator: {e}",
+                        )
 
                     return {"job_id": job_id, "status": "submitted_to_orchestrator"}
 
@@ -324,9 +388,14 @@ class IngestionViewsManager:
                     return {"job_id": job_id, "status": "accepted"}
 
         # GET @ http://127.0.0.1:8000/v1/jobs/{job_id}
-        @self.router.get("/jobs/{job_id}", status_code=H.HTTP_200_OK, summary="Get job status (v1)")
+        @self.router.get(
+            "/jobs/{job_id}", status_code=H.HTTP_200_OK, summary="Get job status (v1)"
+        )
         @auth_required
-        async def get_job_status(job_id: str = Path(..., min_length=1), current_user=Depends(self.get_current_user)) -> Dict[str, Any]:
+        async def get_job_status(
+            job_id: str = Path(..., min_length=1),
+            current_user=Depends(self.get_current_user),
+        ) -> Dict[str, Any]:
             """
             Returns job status for the given job_id.
             Args:
@@ -343,9 +412,16 @@ class IngestionViewsManager:
             return job
 
         # GET @ http://127.0.0.1:8000/v1/assets/{asset_id}
-        @self.router.get("/assets/{asset_id}", status_code=H.HTTP_200_OK, summary="Get asset metadata (v1)")
+        @self.router.get(
+            "/assets/{asset_id}",
+            status_code=H.HTTP_200_OK,
+            summary="Get asset metadata (v1)",
+        )
         @auth_required
-        async def get_asset(asset_id: str = Path(..., min_length=1), current_user=Depends(self.get_current_user)) -> Dict[str, Any]:
+        async def get_asset(
+            asset_id: str = Path(..., min_length=1),
+            current_user=Depends(self.get_current_user),
+        ) -> Dict[str, Any]:
             """
             Returns asset metadata for the given asset_id.
             Args:

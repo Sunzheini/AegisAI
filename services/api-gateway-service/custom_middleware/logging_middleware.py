@@ -43,4 +43,4 @@ class CustomLogger(BaseHTTPMiddleware):
                 f"(took {process_time:.3f}s)"
             )
 
-            raise   # Re-raise the exception so FastAPI can handle it
+            raise  # Re-raise the exception so FastAPI can handle it

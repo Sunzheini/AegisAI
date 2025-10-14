@@ -25,6 +25,7 @@ Usage
 
 This module documents the middleware and its trade-offs for the local-first phase described in WORK_PLAN.md.
 """
+
 import time
 from typing import Callable, Dict, Tuple
 
@@ -46,7 +47,9 @@ class InMemoryRateLimiter(BaseHTTPMiddleware):
         super().__init__(app)
         self.limit = int(requests_per_minute)
         self.window_seconds = RATE_LIMIT_PER_MINUTE
-        self._buckets: Dict[str, Tuple[int, int]] = {}  # identity -> (window_start_timestamp, count)
+        self._buckets: Dict[str, Tuple[int, int]] = (
+            {}
+        )  # identity -> (window_start_timestamp, count)
 
     @staticmethod
     def _get_identity(request: Request) -> str:

@@ -13,12 +13,15 @@ class SetUserNameMiddleware(BaseHTTPMiddleware):
     We add this middleware OUTERMOST (after adding the rate limiter), so it executes
     first and the rate limiter can read request.state.user_name for identity.
     """
+
     async def dispatch(self, request: Request, call_next):
         request.state.user_name = request.headers.get("X-User")
         return await call_next(request)
 
 
-def make_test_app(limit: int = 3, testing: bool = False, set_user_mw: bool = False) -> FastAPI:
+def make_test_app(
+    limit: int = 3, testing: bool = False, set_user_mw: bool = False
+) -> FastAPI:
     app = FastAPI()
 
     # Core route to exercise the limiter
@@ -51,6 +54,7 @@ def test_exceed_limit_returns_429(monkeypatch):
 
     # Freeze time at a fixed base so all calls are in the same window
     import custom_middleware.rate_limiting_middleware as rl
+
     base = 1_700_000_000
     monkeypatch.setattr(rl.time, "time", lambda: base)
 
@@ -93,6 +97,7 @@ def test_identity_uses_user_name_over_ip(monkeypatch):
 
     # Keep all calls in the same window
     import custom_middleware.rate_limiting_middleware as rl
+
     base = 1_700_000_000
     monkeypatch.setattr(rl.time, "time", lambda: base)
 

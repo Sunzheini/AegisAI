@@ -1,12 +1,18 @@
 from models.models import User
 from support.security import get_password_hash
-from db_management.db_settings import initialize_database, DB_SESSION_LOCAL, SQLAlchemyUser, pydantic_to_orm, \
-    orm_to_pydantic
+from db_management.db_settings import (
+    initialize_database,
+    DB_SESSION_LOCAL,
+    SQLAlchemyUser,
+    pydantic_to_orm,
+    orm_to_pydantic,
+)
 from support.singleton_interface import SingletonInterface
 
 
 class DataBaseManager(SingletonInterface):
     """A database manager for user data using PostgreSQL and SQLAlchemy."""
+
     def _initialize(self):
         """Initialization logic that runs only once."""
         initialize_database()
@@ -24,17 +30,37 @@ class DataBaseManager(SingletonInterface):
     def _load_initial_data(session):
         """Load initial user data into the database."""
         users = [
-            User(name="Alice", age=30, city="New York", email="alice@example.com",
-                 password_hash=get_password_hash("pass1")),
-            User(name="Bob", age=25, city="Boston", email="bob@example.com",
-                 password_hash=get_password_hash("pass2")),
-            User(name="Charlie", age=35, city="Chicago", email="charlie@example.com",
-                 password_hash=get_password_hash("pass3")),
-            User(name="Bubka", age=43, city="Svishtov", email="bubka@example.com",
-                 password_hash=get_password_hash("pass4")),
+            User(
+                name="Alice",
+                age=30,
+                city="New York",
+                email="alice@example.com",
+                password_hash=get_password_hash("pass1"),
+            ),
+            User(
+                name="Bob",
+                age=25,
+                city="Boston",
+                email="bob@example.com",
+                password_hash=get_password_hash("pass2"),
+            ),
+            User(
+                name="Charlie",
+                age=35,
+                city="Chicago",
+                email="charlie@example.com",
+                password_hash=get_password_hash("pass3"),
+            ),
+            User(
+                name="Bubka",
+                age=43,
+                city="Svishtov",
+                email="bubka@example.com",
+                password_hash=get_password_hash("pass4"),
+            ),
         ]
 
-        orm_users = [pydantic_to_orm(u) for u in users]   # convert to ORM models
+        orm_users = [pydantic_to_orm(u) for u in users]  # convert to ORM models
         session.add_all(orm_users)
         session.commit()
 
@@ -46,7 +72,7 @@ class DataBaseManager(SingletonInterface):
             return [orm_to_pydantic(u) for u in orm_users]
 
     @staticmethod
-    def get_user_by_username(username: str) -> SQLAlchemyUser  | None:
+    def get_user_by_username(username: str) -> SQLAlchemyUser | None:
         """Retrieve a user by their username from the database."""
         with DB_SESSION_LOCAL() as session:
             return session.query(SQLAlchemyUser).filter_by(name=username).first()
@@ -79,7 +105,7 @@ class DataBaseManager(SingletonInterface):
             session.commit()
             session.refresh(orm_user)
 
-        created_user = orm_to_pydantic(orm_user)    # Convert back to Pydantic
+        created_user = orm_to_pydantic(orm_user)  # Convert back to Pydantic
         return created_user
 
     @staticmethod

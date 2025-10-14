@@ -16,11 +16,11 @@ def clear_users_before_test(database):
 @pytest.fixture
 def sample_user_data(database):
     new_user_data = {
-        'name': 'Alice36',
-        'age': 33,
-        'city': 'New York',
-        'email': 'alice33@example.com',
-        'password': 'testpassword123'  # Added password for user creation
+        "name": "Alice36",
+        "age": 33,
+        "city": "New York",
+        "email": "alice33@example.com",
+        "password": "testpassword123",  # Added password for user creation
     }
     return new_user_data
 
@@ -65,7 +65,7 @@ def test_get_user_by_id(client, auth_headers, database):
             age=30,
             city="Boston",
             email="testuser@example.com",
-            password_hash=get_password_hash("testpassword")
+            password_hash=get_password_hash("testpassword"),
         )
         database.create_user(user)
         user_id = user.id
@@ -88,7 +88,7 @@ def test_get_users_by_city(client, auth_headers, database):
             age=25,
             city="Boston",
             email="alice@example.com",
-            password_hash=get_password_hash("alicepass")
+            password_hash=get_password_hash("alicepass"),
         )
         database.create_user(user)
 
@@ -108,15 +108,22 @@ def test_edit_user(client, auth_headers, database):
             age=40,
             city="Chicago",
             email="bob@example.com",
-            password_hash=get_password_hash("bobpass")
+            password_hash=get_password_hash("bobpass"),
         )
         database.create_user(user)
         user_id = user.id
     else:
         user_id = all_users[0].id
 
-    update_data = {"name": "Bob2", "age": 41, "city": "Chicago", "email": "bob2@example.com"}
-    response = client.put(f"/users/edit/{user_id}", json=update_data, headers=auth_headers)
+    update_data = {
+        "name": "Bob2",
+        "age": 41,
+        "city": "Chicago",
+        "email": "bob2@example.com",
+    }
+    response = client.put(
+        f"/users/edit/{user_id}", json=update_data, headers=auth_headers
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["id"] == user_id
@@ -136,7 +143,7 @@ def test_delete_user(client, auth_headers, database):
             age=40,
             city="DeleteCity",
             email="deleteuser@example.com",
-            password_hash=get_password_hash("deletepassword")
+            password_hash=get_password_hash("deletepassword"),
         )
         database.create_user(user_to_delete)
         user_id = user_to_delete.id
@@ -155,14 +162,16 @@ def test_delete_user(client, auth_headers, database):
 def test_login_success(client, database):
     # Setup
     database.clear_users()
-    database.create_user(User(
-        id=1,
-        name="testuser",
-        age=30,
-        city="Boston",
-        email="test@example.com",
-        password_hash=get_password_hash("correctpassword")
-    ))
+    database.create_user(
+        User(
+            id=1,
+            name="testuser",
+            age=30,
+            city="Boston",
+            email="test@example.com",
+            password_hash=get_password_hash("correctpassword"),
+        )
+    )
 
     # Test successful login
     login_data = {"username": "testuser", "password": "correctpassword"}
@@ -177,14 +186,16 @@ def test_login_success(client, database):
 def test_login_wrong_password(client, database):
     # Setup
     database.clear_users()
-    database.create_user(User(
-        id=1,
-        name="testuser",
-        age=30,
-        city="Boston",
-        email="test@example.com",
-        password_hash=get_password_hash("correctpassword")
-    ))
+    database.create_user(
+        User(
+            id=1,
+            name="testuser",
+            age=30,
+            city="Boston",
+            email="test@example.com",
+            password_hash=get_password_hash("correctpassword"),
+        )
+    )
 
     # Test wrong password
     login_data = {"username": "testuser", "password": "wrongpassword"}

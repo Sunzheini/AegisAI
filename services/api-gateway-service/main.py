@@ -34,7 +34,6 @@ from routers.users import get_current_user
 from routers import redis_router
 
 
-
 # Logger setup
 logging.getLogger().handlers.clear()
 logging.basicConfig(

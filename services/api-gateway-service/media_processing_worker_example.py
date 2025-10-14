@@ -25,10 +25,11 @@ Returns:
 
 import asyncio
 from datetime import datetime, timezone
-from typing import Dict, Any, TypedDict, Optional
+from typing import TypedDict, Optional
 
 
 class MyState(TypedDict):
+    """State dictionary for media processing jobs."""
     job_id: str
     file_path: str
     content_type: str

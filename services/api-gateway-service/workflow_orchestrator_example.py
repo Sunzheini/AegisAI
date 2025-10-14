@@ -59,6 +59,7 @@ USE_REDIS_LISTENER = os.getenv("USE_REDIS_LISTENER", "true").lower() == "true"
 
 
 async def get_redis():
+    """Dependency to get a Redis client."""
     redis_client = aioredis.from_url(REDIS_URL, decode_responses=True)
     try:
         yield redis_client
@@ -81,11 +82,14 @@ later: add user stories use jira
 # ToDo: 1. workers + redis
 # ToDo: 2. refactor
 # ToDo: 3. move incl. tests to work there
-# ToDo: 4. when moving Give the workflow orchestrator direct access to the storage via shared folder, it is better to pass only the file path and metadata in the job request, not the file content itself.
+# ToDo: 4. when moving Give the workflow orchestrator direct access to the storage via shared
+#  folder, it is better to pass only the file path and metadata in the job request, not the
+#  file content itself.
 
 
 @asynccontextmanager
 async def lifespan(app):
+    """Lifespan context manager to start/stop Redis listener if enabled."""
     if USE_REDIS_LISTENER:
         print("[Orchestrator] Redis listener mode enabled. Starting Redis listener...")
         task = asyncio.create_task(redis_listener())
@@ -94,7 +98,8 @@ async def lifespan(app):
         task.cancel()
     else:
         print(
-            "[Orchestrator] Redis listener mode disabled. Only direct HTTP submission will be processed."
+            "[Orchestrator] Redis listener mode disabled. Only direct HTTP submission will "
+            "be processed."
         )
         yield
 
@@ -300,7 +305,8 @@ class WorkflowOrchestrator:
     async def _worker_route_workflow(state: MyState) -> MyState:
         """
         Simulated routing worker.
-        Uses content_type from IngestionJobRequest to decide the workflow branch (image, video, pdf).
+        Uses content_type from IngestionJobRequest to decide the workflow branch
+        (image, video, pdf).
         In production, replace with a real routing service or logic.
         Args:
             job_id (str): The job identifier.
@@ -325,7 +331,8 @@ class WorkflowOrchestrator:
         state["step"] = "route_workflow"
         state["updated_at"] = datetime.now(timezone.utc).isoformat()
         print(
-            f"[Worker:route_workflow] Job {state['job_id']} routed to {state['branch']} branch. State: {state}"
+            f"[Worker:route_workflow] Job {state['job_id']} routed to {state['branch']} "
+            f"branch. State: {state}"
         )
         return state
 
@@ -420,7 +427,8 @@ async def redis_listener():
                         await orchestrator.submit_job(redis_client, job)
                     except ValueError:
                         print(
-                            f"[Orchestrator] Duplicate job_id {event['job_id']} received from Redis. Skipping."
+                            f"[Orchestrator] Duplicate job_id {event['job_id']} received from "
+                            f"Redis. Skipping."
                         )
     except asyncio.CancelledError:
         await pubsub.unsubscribe("command_queue")

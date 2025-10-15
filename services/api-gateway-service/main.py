@@ -18,10 +18,8 @@ App State:
 Health Endpoint:
     - GET /health: Returns service status
 """
-
 import logging
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI
 
 from custom_middleware.logging_middleware import CustomLogger
 from custom_middleware.rate_limiting_middleware import InMemoryRateLimiter
@@ -81,9 +79,3 @@ async def health_check():
         dict: Service status
     """
     return {"status": "ok"}
-
-
-# Test-only endpoint to trigger error middleware
-@app.get("/raise-error")
-def raise_error():
-    raise ValueError("Test error")

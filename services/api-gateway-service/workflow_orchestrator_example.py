@@ -79,11 +79,13 @@ later: add user stories use jira, pull requests how to see progress in github
 """
 
 
-# ToDo: 1. workers + redis
-# ToDo: 2. when moving Give the workflow orchestrator direct access to the storage via shared
+# ToDo: Refactor validation worker 2 x files
+# ToDo: Redis manager with common logic from both services and the val worker
+# ToDo: Other workers 1 by 1
+# ToDo: when moving Give the workflow orchestrator direct access to the storage via shared
 #  folder, it is better to pass only the file path and metadata in the job request, not the
 #  file content itself.
-# ToDo: 3. move incl. tests to work there
+# ToDo: Move incl. tests to work there
 
 
 @asynccontextmanager

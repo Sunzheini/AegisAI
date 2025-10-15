@@ -1,4 +1,7 @@
-reset_css = '''
+"""
+This module provides a CSS reset specifically tailored for NiceGUI applications.
+"""
+RESET_CSS = """
         <style>
         /* Reset CSS for NiceGUI */
         html, body, div, span, applet, object, iframe,
@@ -66,4 +69,4 @@ reset_css = '''
             box-sizing: border-box;
         }
         </style>
-        '''
+        """

@@ -1,7 +1,6 @@
 """
 Middleware for logging request and response details in FastAPI.
 """
-
 import time
 import logging
 from typing import Callable

@@ -285,7 +285,7 @@ class WorkflowOrchestrator:
             final_state = await self.graph.ainvoke(state)
             self.jobs[job_id] = final_state
             await self.save_job_state_to_redis(redis_client, job_id, final_state)
-        # Can raise various exceptions, including those from async workers, graph logic, or dependencies
+        # Can raise various exceptions, including those from async workers, graph logic, or deps
         except Exception as e:
             # Get the current state and update it
             state = self.jobs[job_id]

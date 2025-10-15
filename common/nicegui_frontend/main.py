@@ -16,14 +16,12 @@ class MainApp:
         self._spinner = None
         self._access_token = None
         self._form_is_visible = False
+        self.uploaded_file_info = None
 
-        # Add these for polling management
         self._polling_active = False
         self._polling_job_id = None
 
         self.create_app()
-
-        self.uploaded_file_info = None
 
     # region general methods ----------------------------------------------------------------------
     def _disable_buttons(self, disable: bool) -> None:

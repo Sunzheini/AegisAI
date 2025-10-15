@@ -19,14 +19,13 @@ Health Endpoint:
     - GET /health: Returns service status
 """
 
-import traceback
-
 import logging
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from custom_middleware.logging_middleware import CustomLogger
 from custom_middleware.rate_limiting_middleware import InMemoryRateLimiter
+from custom_middleware.error_middleware import ErrorMiddleware
 from support.constants import LOG_FILE_PATH, APP_NAME
 from views.ingestion_views import IngestionViewsManager
 from routers import auth_router, users_router, v1_router, redis_router
@@ -50,32 +49,12 @@ logger.info("Starting API Gateway Microservice...")
 app = FastAPI(title="api-gateway-microservice", version="1.0.0")
 
 
-# Global exception handler
-@app.exception_handler(Exception)
-async def universal_exception_handler(request: Request, exc: Exception):
-    """Global exception handler to catch unhandled exceptions and log them."""
-
-    # Lazy evaluation: The string formatting only happens if the message will actually be logged
-    logger.error("Uncaught exception for %s %s:", request.method, request.url)
-    logger.error("Exception type: %s", type(exc).__name__)
-    logger.error("Exception message: %s", str(exc))
-    logger.error("Traceback: %s", traceback.format_exc())
-
-    # Return a generic error to the client
-    return JSONResponse(
-        status_code=500,
-        content={
-            "error": "Internal server error",
-            "detail": "Something went wrong on our end",
-        },
-    )
-
-
 # Middleware
 app.add_middleware(
     InMemoryRateLimiter, requests_per_minute=60
 )  # Local-only rate limiting middleware (fixed window). Bypassed during tests.
 app.add_middleware(CustomLogger)
+app.add_middleware(ErrorMiddleware)
 
 
 # Include routers
@@ -102,3 +81,9 @@ async def health_check():
         dict: Service status
     """
     return {"status": "ok"}
+
+
+# Test-only endpoint to trigger error middleware
+@app.get("/raise-error")
+def raise_error():
+    raise ValueError("Test error")

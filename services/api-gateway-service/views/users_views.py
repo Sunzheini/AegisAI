@@ -1,6 +1,7 @@
 """
 Defines user-related views (endpoints) for the FastAPI application.
 """
+
 from fastapi import APIRouter, HTTPException, Path, Query, Depends
 from starlette import status as H
 

@@ -24,7 +24,9 @@ async def get_redis():
         await redis.ping()  # Test connection immediately
         yield redis
     except RedisError as e:
-        raise HTTPException(status_code=503, detail=f"Redis unavailable: {str(e)}") from e
+        raise HTTPException(
+            status_code=503, detail=f"Redis unavailable: {str(e)}"
+        ) from e
     finally:
         await redis.aclose()
 
@@ -42,7 +44,9 @@ async def redis_health(redis: Redis = Depends(get_redis)):
             "server_version": redis_info["redis_version"],
         }
     except RedisError as e:
-        raise HTTPException(status_code=503, detail=f"Redis unavailable: {str(e)}") from e
+        raise HTTPException(
+            status_code=503, detail=f"Redis unavailable: {str(e)}"
+        ) from e
 
 
 @router.post("/publish")

@@ -1,4 +1,5 @@
 """Security utilities for password hashing and authentication."""
+
 import hashlib
 import secrets
 from functools import wraps
@@ -35,6 +36,7 @@ def get_password_hash(password: str) -> str:
 
 def auth_required(func):
     """Decorator to ensure the user is authenticated before accessing the endpoint."""
+
     @wraps(func)
     async def wrapper(*args, **kwargs):
         current_user = kwargs.get("current_user")

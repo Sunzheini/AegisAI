@@ -90,7 +90,9 @@ DB_SESSION_LOCAL = sessionmaker(
 class SQLAlchemyUser(BASE):
     """SQLAlchemy ORM model corresponding to the pydantic User model."""
 
-    __tablename__ = "users"  # Table name in the database, also this is used to know where to
+    __tablename__ = (
+        "users"  # Table name in the database, also this is used to know where to
+    )
     # insert the new record
     id = Column(Integer, primary_key=True, autoincrement=True)  # Let DB handle IDs
     name = Column(String, nullable=False, unique=True)

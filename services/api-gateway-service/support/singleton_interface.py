@@ -1,6 +1,8 @@
 """
 A singleton interface to ensure only one instance of a class is created.
 """
+
+
 class SingletonInterface:
     """A singleton interface to ensure only one instance of a class is created."""
 

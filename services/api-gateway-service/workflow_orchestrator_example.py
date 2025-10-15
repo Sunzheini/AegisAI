@@ -51,6 +51,7 @@ from ai_worker_example import (
     extract_text_worker,
     summarize_document_worker,
 )
+from custom_middleware.error_middleware import ErrorMiddleware
 
 
 REDIS_URL = os.getenv("TEST_REDIS_URL", "redis://localhost:6379/2")
@@ -68,7 +69,6 @@ async def get_redis():
 
 # ToDo:
 """
-this: fix pylint errors
 frontend: refactor, use black and check with pylint
 base exceptions only at the end after some specific ones, make error middleware
 pull requests
@@ -104,6 +104,7 @@ async def lifespan(app):
 
 
 app = FastAPI(title="Workflow Orchestrator Example", lifespan=lifespan)
+app.add_middleware(ErrorMiddleware)
 
 
 class MyState(TypedDict):

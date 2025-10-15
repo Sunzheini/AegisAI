@@ -30,8 +30,8 @@ async def test_worker_validate_file():
         "submitted_by": "TestUser",
     }
     result = await validate_file_worker(state.copy())
-    assert result["status"] == "validate_in_progress"
-    assert result["step"] == "validate_file"
+    assert result["status"] == "success"
+    assert result["step"] == "validate_file_done"
     assert "updated_at" in result
 
 

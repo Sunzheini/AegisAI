@@ -57,6 +57,10 @@ from custom_middleware.error_middleware import ErrorMiddleware
 REDIS_URL = os.getenv("TEST_REDIS_URL", "redis://localhost:6379/2")
 USE_REDIS_LISTENER = os.getenv("USE_REDIS_LISTENER", "true").lower() == "true"
 
+# For validation worker communication
+VALIDATION_QUEUE = "validation_queue"
+VALIDATION_CALLBACK_QUEUE = "validation_callback_queue"
+
 
 async def get_redis():
     """Dependency to get a Redis client."""
@@ -119,6 +123,36 @@ class MyState(TypedDict):
     metadata: Optional[dict]
 
 
+async def validate_file_worker_redis(state: MyState) -> MyState:
+    """
+    Publishes validation task to Redis and waits for result.
+    """
+    redis_client = aioredis.from_url(REDIS_URL, decode_responses=True)
+    job_id = state["job_id"]
+
+    # Publish validation task
+    await redis_client.publish(VALIDATION_QUEUE, json.dumps(state))
+    print(f"[Orchestrator] Published validation task for job_id: {job_id}")
+
+    # Listen for callback result
+    pubsub = redis_client.pubsub()
+    await pubsub.subscribe(VALIDATION_CALLBACK_QUEUE)
+    try:
+        async for message in pubsub.listen():
+            if message["type"] == "message":
+                result = json.loads(message["data"])
+                if result.get("job_id") == job_id:
+                    print(f"[Orchestrator] Received validation result for job_id: {job_id}")
+                    await pubsub.unsubscribe(VALIDATION_CALLBACK_QUEUE)
+                    await pubsub.close()
+                    await redis_client.close()
+                    return result["result"]
+    finally:
+        await pubsub.unsubscribe(VALIDATION_CALLBACK_QUEUE)
+        await pubsub.close()
+        await redis_client.close()
+
+
 class WorkflowOrchestrator:
     """
     Orchestrates ingestion jobs using a workflow graph.
@@ -142,7 +176,7 @@ class WorkflowOrchestrator:
             graph = StateGraph(state_schema=MyState)
 
             # Nodes
-            graph.add_node("validate_file", validate_file_worker)
+            graph.add_node("validate_file", validate_file_worker_redis)
             graph.add_node("extract_metadata", extract_metadata_worker)
             graph.add_node("route_workflow", self._worker_route_workflow)
             graph.add_node("generate_thumbnails", generate_thumbnails_worker)
@@ -154,8 +188,17 @@ class WorkflowOrchestrator:
             graph.add_node("summarize_document", summarize_document_worker)
             print("[Orchestrator] Added all nodes to graph.")
 
-            # Edges
-            graph.add_edge("validate_file", "extract_metadata")
+            # Conditional edge after validation
+            def after_validation(state: MyState):
+                if state.get("status") == "failed":
+                    return "END"
+                return "extract_metadata"
+            graph.add_conditional_edges(
+                "validate_file",
+                after_validation,
+                {"END": END, "extract_metadata": "extract_metadata"}
+            )
+
             graph.add_edge("extract_metadata", "route_workflow")
             print("[Orchestrator] Added main edges.")
 

@@ -347,6 +347,7 @@ class IngestionViewsManager:
                     submitted_by=getattr(current_user, "name", None),
                 )
 
+                # Job published to Redis (command_queue channel) as a JSON event (JOB_CREATED).
                 await redis.publish(
                     "command_queue",
                     json.dumps({"event": "JOB_CREATED", **job_request.model_dump()}),

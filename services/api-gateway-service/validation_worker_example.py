@@ -49,10 +49,23 @@ async def validate_file_worker(state: MyState) -> MyState:
     """
     print(f"[Worker:validate_file] Job {state['job_id']} validating...")
     await asyncio.sleep(0.5)
-    state["status"] = "validate_in_progress"
-    state["step"] = "validate_file"
+    errors = []
+
+    # Example validation: file type must be pdf, image, or video
+    allowed_types = ["application/pdf", "image/jpeg", "image/png", "video/mp4"]
+    if state["content_type"] not in allowed_types:
+        errors.append(f"Unsupported file type: {state['content_type']}")
+    # Example checksum validation (simulate failure if checksum ends with '0')
+    if state["checksum_sha256"].endswith("0"):
+        errors.append("Checksum validation failed.")
+    if errors:
+        state["status"] = "failed"
+        state["step"] = "validate_file_failed"
+        state["metadata"] = {"errors": errors}
+    else:
+        state["status"] = "success"
+        state["step"] = "validate_file_done"
+        state["metadata"] = {"validation": "passed"}
     state["updated_at"] = datetime.now(timezone.utc).isoformat()
-    print(
-        f"[Worker:validate_file] Job {state['job_id']} validation done. State: {state}"
-    )
+    print(f"[Worker:validate_file] Job {state['job_id']} validation done. State: {state}")
     return state

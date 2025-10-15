@@ -281,9 +281,10 @@ class WorkflowOrchestrator:
         try:
             state = self.jobs[job_id]
             print(f"[DEBUG] Before graph.ainvoke: {state}")
-            final_state = await self.graph.ainvoke(state)
+            final_state = await self.graph.ainvoke(state)   # Call the graph
             self.jobs[job_id] = final_state
             await self.save_job_state_to_redis(redis_client, job_id, final_state)
+
         # Can raise various exceptions, including those from async workers, graph logic, or deps
         except Exception as e:
             # Get the current state and update it
@@ -348,6 +349,7 @@ async def submit_job(
     Args:
         job (IngestionJobRequest): Job request from API Gateway.
         request (Request): FastAPI request object.
+        redis_client : Redis client instance.
     Returns:
         dict: Job ID and status if accepted.
     Raises:
@@ -371,6 +373,7 @@ async def submit_job(
 )
 async def get_job_status(job_id: str, redis_client=Depends(get_redis)):
     """
+    The frontend polls this endpoint to get job status updates.
     Returns the current status and metadata for a job.
     Args:
         job_id (str): The job identifier.

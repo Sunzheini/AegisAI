@@ -79,3 +79,9 @@ async def health_check():
         dict: Service status
     """
     return {"status": "ok"}
+
+
+@app.get("/raise-error")
+async def raise_error():
+    """Endpoint to intentionally raise an error for testing error middleware (needed in tests)."""
+    raise RuntimeError("Intentional error for testing error middleware")

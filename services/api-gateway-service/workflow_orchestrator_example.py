@@ -69,12 +69,9 @@ async def get_redis():
 
 # ToDo:
 """
-frontend: refactor, use black and check with pylint
-base exceptions only at the end after some specific ones, make error middleware
-pull requests
-
-tell black uses 88 max line length and "", logging implemented, pylint used
-later: add user stories use jira
+status: black uses 88 max line length and "", logging implemented, pylint used, error middleware 
+    and reviewed broad exceptions
+later: add user stories use jira, pull requests how to see progress in github
 """
 
 

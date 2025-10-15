@@ -27,12 +27,11 @@ Migration Notes:
 
 import os
 import json
-from typing import Dict, Any, TypedDict
+from typing import Dict, Any, TypedDict, Optional
 from datetime import datetime, timezone
 import asyncio
 import logging
 from contextlib import asynccontextmanager
-from typing import Optional
 
 import redis.asyncio as aioredis
 from langgraph.graph import StateGraph, END
@@ -199,6 +198,8 @@ class WorkflowOrchestrator:
                 print(
                     "[Orchestrator] Workflow graph visualization saved to workflow_graph.png"
                 )
+            # The visualization code could fail for various reasons (e.g., file I/O errors,
+            # missing dependencies, graph rendering issues)
             except Exception as e:
                 print(f"[Orchestrator] Could not generate graph visualization: {e}")
 
@@ -286,6 +287,7 @@ class WorkflowOrchestrator:
             final_state = await self.graph.ainvoke(state)
             self.jobs[job_id] = final_state
             await self.save_job_state_to_redis(redis_client, job_id, final_state)
+        # Can raise various exceptions, including those from async workers, graph logic, or dependencies
         except Exception as e:
             # Get the current state and update it
             state = self.jobs[job_id]
@@ -295,7 +297,7 @@ class WorkflowOrchestrator:
             state["updated_at"] = datetime.now(timezone.utc).isoformat()
             self.jobs[job_id] = state
             await self.save_job_state_to_redis(redis_client, job_id, state)
-            self.logger.error(f"Workflow failed for job {job_id}: {e}")
+            self.logger.error("Workflow failed for job %s: %s", job_id, e)
 
     async def get_job(self, redis_client, job_id: str) -> Optional[MyState]:
         """Get job state from Redis as MyState."""
@@ -361,7 +363,7 @@ async def submit_job(
         print(
             f"[Orchestrator] Duplicate job_id {job.job_id} received via HTTP. Skipping."
         )
-        raise HTTPException(status_code=409, detail=str(e))
+        raise HTTPException(status_code=409, detail=str(e)) from e
     return {"job_id": job.job_id, "status": "queued"}
 
 

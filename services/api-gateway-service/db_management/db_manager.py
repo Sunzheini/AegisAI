@@ -1,5 +1,10 @@
+"""
+Database manager for user data using PostgreSQL and SQLAlchemy.
+"""
+
 from models.models import User
 from support.security import get_password_hash
+from support.singleton_interface import SingletonInterface
 from db_management.db_settings import (
     initialize_database,
     DB_SESSION_LOCAL,
@@ -7,7 +12,6 @@ from db_management.db_settings import (
     pydantic_to_orm,
     orm_to_pydantic,
 )
-from support.singleton_interface import SingletonInterface
 
 
 class DataBaseManager(SingletonInterface):
@@ -91,7 +95,8 @@ class DataBaseManager(SingletonInterface):
         """
         Create a new user record in the database's table.
 
-        user = User(name="John", age=25, city="NYC", email="john@example.com", password_hash="hash123")
+        user = User(name="John", age=25, city="NYC", email="john@example.com",
+        password_hash="hash123")
         created_user = create_user_record_in_a_existing_table(user)
 
         :param user_data: User data as a Pydantic model

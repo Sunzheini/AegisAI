@@ -1,3 +1,7 @@
+"""
+Pydantic models for user data validation and serialization.
+"""
+
 from typing import Optional
 
 from fastapi import Form
@@ -46,6 +50,7 @@ class User(BaseModel):
             ..., min_length=8, description="User's password"
         ),
     ) -> "User":
+        """Enable form data parsing for the User model."""
 
         return cls(name=name, age=age, city=city, email=email, password_hash=password)
 

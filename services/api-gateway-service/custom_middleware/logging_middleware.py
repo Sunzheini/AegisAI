@@ -1,3 +1,7 @@
+"""
+Middleware for logging request and response details in FastAPI.
+"""
+
 import time
 import logging
 from typing import Callable
@@ -19,7 +23,7 @@ class CustomLogger(BaseHTTPMiddleware):
         start_time = time.time()
 
         # Log when the request is received
-        logger.info(f"Request received: {request.method} {request.url}")
+        logger.info("Request received: %s %s", request.method, request.url)
 
         try:
             # Process the request
@@ -30,8 +34,11 @@ class CustomLogger(BaseHTTPMiddleware):
 
             # Log when the response is sent
             logger.info(
-                f"Response sent: {response.status_code} for {request.method} {request.url} "
-                f"(took {process_time:.3f}s)"
+                "Response sent: %d for %s %s (took %.3fs)",
+                response.status_code,
+                request.method,
+                request.url,
+                process_time,
             )
 
             return response
@@ -39,8 +46,11 @@ class CustomLogger(BaseHTTPMiddleware):
         except Exception as e:
             process_time = time.time() - start_time
             logger.error(
-                f"Error processing {request.method} {request.url}: {str(e)} "
-                f"(took {process_time:.3f}s)"
+                "Error processing %s %s: %s (took %.3fs)",
+                request.method,
+                request.url,
+                str(e),
+                process_time,
             )
 
             raise  # Re-raise the exception so FastAPI can handle it

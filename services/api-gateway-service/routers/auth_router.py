@@ -1,3 +1,7 @@
+"""
+Authentication and Authorization using JWT tokens with FastAPI
+"""
+
 import os
 from datetime import timedelta, datetime, timezone
 from typing import Dict, Any, Optional
@@ -144,7 +148,8 @@ async def hash_password(password: str):
 @router.get("/verify-token")
 async def verify_token(token: str):
     """
-    Verify if a JWT token is valid, e.g. eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9, which is received by login
+    Verify if a JWT token is valid, e.g. eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9, which is received
+    by login
     """
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -155,11 +160,11 @@ async def verify_token(token: str):
                 detail="Invalid token",
             )
         return {"username": username, "valid": True}
-    except JWTError:
+    except JWTError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token",
-        )
+        ) from exc
 
 
 @router.post("/logout")

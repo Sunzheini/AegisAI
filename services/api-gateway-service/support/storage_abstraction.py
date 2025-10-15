@@ -50,21 +50,18 @@ class FileStorage(ABC):
         Save a file object to storage under the given filename.
         Returns the path or identifier of the saved file.
         """
-        pass
 
     @abstractmethod
     def get_file_path(self, filename: str) -> str:
         """
         Get the full path or identifier for a stored file by filename.
         """
-        pass
 
     @abstractmethod
     async def copy_file(self, src: str, dst: str) -> None:
         """
         Copy a file from src to dst within the storage backend.
         """
-        pass
 
 
 class LocalFileStorage(FileStorage):
@@ -98,7 +95,7 @@ class LocalFileStorage(FileStorage):
         """
         return os.path.join(self.root_dir, filename)
 
-    def copy_file(self, src: str, dst: str) -> None:
+    async def copy_file(self, src: str, dst: str) -> None:
         """
         Synchronously copy a file from src to dst on the local filesystem.
         This method is intended to be called via asyncio.to_thread for async compatibility.
@@ -117,35 +114,30 @@ class JobAssetStore(ABC):
         """
         Store a new job record.
         """
-        pass
 
     @abstractmethod
     def get_job(self, job_id: str) -> Optional[Dict[str, Any]]:
         """
         Retrieve a job record by job_id.
         """
-        pass
 
     @abstractmethod
     def update_job(self, job_id: str, updates: Dict[str, Any]) -> None:
         """
         Update fields of an existing job record.
         """
-        pass
 
     @abstractmethod
     def create_asset(self, asset_data: Dict[str, Any]) -> None:
         """
         Store a new asset record.
         """
-        pass
 
     @abstractmethod
     def get_asset(self, asset_id: str) -> Optional[Dict[str, Any]]:
         """
         Retrieve an asset record by asset_id.
         """
-        pass
 
 
 class InMemoryJobAssetStore(JobAssetStore):

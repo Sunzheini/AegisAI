@@ -1,3 +1,6 @@
+"""
+A singleton interface to ensure only one instance of a class is created.
+"""
 class SingletonInterface:
     """A singleton interface to ensure only one instance of a class is created."""
 
@@ -18,4 +21,3 @@ class SingletonInterface:
 
     def _initialize(self, *args, **kwargs):
         """Override this method in subclasses for initialization logic."""
-        pass

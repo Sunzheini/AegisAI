@@ -12,13 +12,14 @@ import os
 
 from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.exc import SQLAlchemyError
 import psycopg2
 
 from models.models import User
 
-# ----------------------------------------------------------------------------------------------------
+# ---------------------------------------------------------------------------------------------
 # General Settings
-# ----------------------------------------------------------------------------------------------------
+# ---------------------------------------------------------------------------------------------
 DB_NAME = os.getenv("DB_NAME", "fastapi_db")  # Target database name
 DB_USER = os.getenv("DB_USER", "postgres_user")  # DB username
 DB_PASSWORD = os.getenv("DB_PASSWORD", "password")  # DB password
@@ -29,11 +30,12 @@ DB_PORT = os.getenv("DB_PORT", "5432")  # DB port (default 5432)
 DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 
-# ----------------------------------------------------------------------------------------------------
+# ---------------------------------------------------------------------------------------------
 # Function to create the database if it doesn't exist with psycopg2
-# ----------------------------------------------------------------------------------------------------
+# ---------------------------------------------------------------------------------------------
 def create_database_if_not_exists() -> bool:
-    """Create the database if it doesn't exist. Returns True if DB exists or was created, False on failure."""
+    """Create the database if it doesn't exist. Returns True if DB exists or was created,
+    False on failure."""
     try:
         # Use psycopg2 to connect to the default 'postgres' database with autocommit
         conn = psycopg2.connect(
@@ -58,7 +60,8 @@ def create_database_if_not_exists() -> bool:
         conn.close()
     except Exception as e:
         print(
-            f"Error: Could not connect to PostgreSQL or create database. Make sure PostgreSQL is running."
+            f"Error: Could not connect to PostgreSQL or create database. Make sure PostgreSQL is "
+            f"running."
         )
         print(f"Details: {e}")
         return False
@@ -66,9 +69,9 @@ def create_database_if_not_exists() -> bool:
     return True
 
 
-# ----------------------------------------------------------------------------------------------------
+# ---------------------------------------------------------------------------------------------
 # SQLAlchemy for ORM and DB management
-# ----------------------------------------------------------------------------------------------------
+# ---------------------------------------------------------------------------------------------
 BASE = (
     declarative_base()
 )  # Base class for ORM models, other models will inherit from this!
@@ -80,14 +83,15 @@ DB_SESSION_LOCAL = sessionmaker(
 )  # Session factory for DB sessions
 
 
-# -----------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------
 # ORM Models
-# -----------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------
 # SQLAlchemy ORM model
 class SQLAlchemyUser(BASE):
     """SQLAlchemy ORM model corresponding to the pydantic User model."""
 
-    __tablename__ = "users"  # Table name in the database, also this is used to know where to insert the new record
+    __tablename__ = "users"  # Table name in the database, also this is used to know where to
+    # insert the new record
     id = Column(Integer, primary_key=True, autoincrement=True)  # Let DB handle IDs
     name = Column(String, nullable=False, unique=True)
     age = Column(Integer, nullable=False)
@@ -125,14 +129,14 @@ def create_tables_from_models() -> None:
     BASE.metadata.create_all(bind=DB_ENGINE)
 
 
-# -----------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------
 # @App Startup - Initialize DB and create tables if needed
-# -----------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------
 def initialize_database() -> None:
     """Initialize database and tables."""
     try:
         if create_database_if_not_exists():
             create_tables_from_models()
             print("Database setup complete!")
-    except Exception as e:
+    except (psycopg2.Error, SQLAlchemyError) as e:
         print(f"Database initialization failed: {e}")

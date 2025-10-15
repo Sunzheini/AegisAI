@@ -2,11 +2,13 @@
 InMemoryRateLimiter middleware (local-only)
 
 Purpose
-- Provide a minimal, self-contained rate limiter for local development to simulate API Gateway throttling.
+- Provide a minimal, self-contained rate limiter for local development to simulate API
+Gateway throttling.
 - Uses a fixed 60-second window per identity to cap requests.
 
 Identity key
-- If a previous auth layer or dependency sets request.state.user_name, it uses that as the identity.
+- If a previous auth layer or dependency sets request.state.user_name, it uses that as
+the identity.
 - Otherwise it falls back to the client IP address (request.client.host).
 
 Behavior
@@ -15,7 +17,8 @@ Behavior
 - During tests, when app.state.testing is True, the middleware is bypassed to avoid flakiness.
 
 Important notes
-- Not production-safe: it stores counters in-process memory, per worker. Prefer API Gateway usage plans or a
+- Not production-safe: it stores counters in-process memory, per worker. Prefer API Gateway
+usage plans or a
   centralized store (e.g., Redis) for real deployments.
 - Stateless deployments with multiple workers will each have independent counters.
 
@@ -23,7 +26,8 @@ Usage
     from routers.rate_limit import InMemoryRateLimiter
     app.add_middleware(InMemoryRateLimiter, requests_per_minute=60)
 
-This module documents the middleware and its trade-offs for the local-first phase described in WORK_PLAN.md.
+This module documents the middleware and its trade-offs for the local-first phase
+described in WORK_PLAN.md.
 """
 
 import time
@@ -39,8 +43,8 @@ from support.constants import RATE_LIMIT_PER_MINUTE
 class InMemoryRateLimiter(BaseHTTPMiddleware):
     """A tiny fixed-window rate limiter for local development.
 
-    Limits requests per identity (user name if available via request.state.user_name, otherwise client IP).
-    Includes a test bypass when app.state.testing is True.
+    Limits requests per identity (user name if available via request.state.user_name,
+    otherwise client IP). Includes a test bypass when app.state.testing is True.
     """
 
     def __init__(self, app, requests_per_minute: int = RATE_LIMIT_PER_MINUTE):

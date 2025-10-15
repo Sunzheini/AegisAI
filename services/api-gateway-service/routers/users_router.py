@@ -1,3 +1,7 @@
+"""
+Router for user-related endpoints.
+"""
+
 from fastapi import APIRouter
 
 from db_management.db_manager import DataBaseManager

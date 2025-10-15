@@ -1,3 +1,7 @@
+"""
+Redis router for health checks and publishing messages.
+"""
+
 import os
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -20,7 +24,7 @@ async def get_redis():
         await redis.ping()  # Test connection immediately
         yield redis
     except RedisError as e:
-        raise HTTPException(status_code=503, detail=f"Redis unavailable: {str(e)}")
+        raise HTTPException(status_code=503, detail=f"Redis unavailable: {str(e)}") from e
     finally:
         await redis.aclose()
 
@@ -38,7 +42,7 @@ async def redis_health(redis: Redis = Depends(get_redis)):
             "server_version": redis_info["redis_version"],
         }
     except RedisError as e:
-        raise HTTPException(status_code=503, detail=f"Redis unavailable: {str(e)}")
+        raise HTTPException(status_code=503, detail=f"Redis unavailable: {str(e)}") from e
 
 
 @router.post("/publish")
@@ -63,4 +67,4 @@ async def publish_message(
         }
 
     except RedisError as e:
-        raise HTTPException(status_code=500, detail=f"Redis error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Redis error: {str(e)}") from e

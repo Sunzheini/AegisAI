@@ -1,3 +1,6 @@
+"""
+Defines user-related views (endpoints) for the FastAPI application.
+"""
 from fastapi import APIRouter, HTTPException, Path, Query, Depends
 from starlette import status as H
 
@@ -84,7 +87,8 @@ class UsersViewsManager:
             """
             Create a new user.
             request body (application/json)
-            {"name": "Alice3", "age": 30, "city": "New York", "email": "alice@example.com", "password": "password123"}
+            {"name": "Alice3", "age": 30, "city": "New York", "email": "alice@example.com",
+            "password": "password123"}
             :param new_item: the new user data as a UserCreate model
             :param current_user: the currently authenticated user (used in the decorator)
             :return: the created user with assigned id
@@ -111,7 +115,8 @@ class UsersViewsManager:
             """
             Edit user with given id.
             request body (application/json)
-            {"name": "Alice2", "age": 30, "city": "New York", "email": "alice@example.com", "password": "newpassword123"}
+            {"name": "Alice2", "age": 30, "city": "New York", "email": "alice@example.com",
+            "password": "newpassword123"}
             :param user_id: the user id to update
             :param updated_item: the updated user data (UserUpdate model)
             :param current_user: the currently authenticated user (used in the decorator)

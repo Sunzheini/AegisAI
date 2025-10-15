@@ -1,3 +1,7 @@
+"""
+This module defines constants used across the API Gateway Service.
+"""
+
 import os
 
 

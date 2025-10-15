@@ -27,6 +27,7 @@ from typing import TypedDict, Optional
 
 class MyState(TypedDict):
     """State dictionary for job processing."""
+
     job_id: str
     file_path: str
     content_type: str

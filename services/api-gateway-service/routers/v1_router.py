@@ -1,3 +1,7 @@
+"""
+This module defines the API router for version 1 (v1) of the API.
+"""
+
 from fastapi import APIRouter
 
 from views.ingestion_views import IngestionViewsManager

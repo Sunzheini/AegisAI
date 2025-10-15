@@ -21,11 +21,11 @@ import uuid
 import asyncio
 import hashlib
 import json
+import logging
 from typing import Dict, Any
 from datetime import datetime
 
 import requests
-import logging
 import redis.asyncio as aioredis
 from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Path, Request
@@ -85,11 +85,13 @@ class IngestionViewsManager:
 
     # In-memory stores (class-level so they persist for the app lifetime)
     """
-    jobs_store and assets_store are used for local metadata storage in the API Gateway & Ingestion Service.
-    They track uploaded jobs and assets, and are needed for endpoints like /v1/jobs/{job_id} and /v1/assets/{asset_id}.
-    The orchestrator only needs the job metadata sent via the event (Redis), not the full local store.
+    jobs_store and assets_store are used for local metadata storage in the API Gateway & 
+    Ingestion Service. They track uploaded jobs and assets, and are needed for endpoints 
+    like /v1/jobs/{job_id} and /v1/assets/{asset_id}. The orchestrator only needs the 
+    job metadata sent via the event (Redis), not the full local store.
     """
-    # ToDo: If I later migrate to a cloud database or shared storage, refactor these to use a persistent backend (e.g., PostgreSQL, DynamoDB).
+    # ToDo: If I later migrate to a cloud database or shared storage, refactor these to
+    #  use a persistent backend (e.g., PostgreSQL, DynamoDB).
     jobs_store: Dict[str, Dict[str, Any]] = (
         {}
     )  # job_id -> job_record, stores the ingestion jobs
@@ -126,21 +128,31 @@ class IngestionViewsManager:
                 wf.write(chunk)
 
     async def _process_job(self, job_id: str) -> None:
-        logger.info(f"Processing job: {job_id}")
+        logger.info("Processing job: %s", job_id)
         """
-        Takes a pending job, copies the uploaded file to the processed directory, creates asset
-        metadata, and updates the job status accordingly. It handles errors gracefully and ensures all operations
-        are tracked in memory.
+        Takes a pending job, copies the uploaded file to the processed directory, creates 
+        asset metadata, and updates the job status accordingly. It handles errors gracefully 
+        and ensures all operations are tracked in memory.
 
-        1. Fetches the Job: It retrieves the job record from the in-memory jobs_store using the provided job_id.
+        1. Fetches the Job: It retrieves the job record from the in-memory jobs_store using 
+        the provided job_id.
         2. Updates Job Status:  Sets the job status to "in_progress" and updates the timestamp.
-        3. Simulates Processing Delay: Waits for 0.2 seconds to simulate a processing delay (useful for testing concurrency and async behavior).
-        4. Validates File Existence: Checks if the file path exists. If not, marks the job as "failed" and records the error.
-        5. Prepares Asset Metadata: Generates a new asset_id and builds the destination filename and path for the processed file.
-        6. Copies the File: Uses asyncio.to_thread to call the blocking _copy_file_sync method, which copies the file from the raw directory to the processed directory. This is done in a background thread to avoid blocking the event loop.
-        7. Handles Copy Errors: If an error occurs during copying, marks the job as "failed" and records the error.
-        8. Creates Asset Record: If successful, creates an asset record with metadata (asset_id, job_id, filename, content type, processed path, size, creation time) and stores it in assets_store.
-        9. Updates Job Status to Completed: Marks the job as "completed", links the asset_id, and updates the timestamp.
+        3. Simulates Processing Delay: Waits for 0.2 seconds to simulate a processing delay 
+        (useful for testing concurrency and async behavior).
+        4. Validates File Existence: Checks if the file path exists. If not, marks the job 
+        as "failed" and records the error.
+        5. Prepares Asset Metadata: Generates a new asset_id and builds the destination filename 
+        and path for the processed file.
+        6. Copies the File: Uses asyncio.to_thread to call the blocking _copy_file_sync method, 
+        which copies the file from the raw directory to the processed directory. This is done 
+        in a background thread to avoid blocking the event loop.
+        7. Handles Copy Errors: If an error occurs during copying, marks the job as "failed" 
+        and records the error.
+        8. Creates Asset Record: If successful, creates an asset record with metadata (asset_id, 
+        job_id, filename, content type, processed path, size, creation time) and stores it in 
+        assets_store.
+        9. Updates Job Status to Completed: Marks the job as "completed", links the asset_id, 
+        and updates the timestamp.
 
         :param job_id: The ID of the job to process
         :return: None
@@ -158,7 +170,7 @@ class IngestionViewsManager:
         await asyncio.sleep(0.2)
 
         src_path = job.get("file_path")
-        logger.info(f"Processing file from: {src_path}")
+        logger.info("Processing file from: %s", src_path)
         if not src_path or not os.path.exists(src_path):
             self.job_asset_store.update_job(
                 job_id,
@@ -173,13 +185,13 @@ class IngestionViewsManager:
         asset_id = str(uuid.uuid4())
         dst_filename = f"{asset_id}_{os.path.basename(src_path)}"
         dst_path = os.path.join(PROCESSED_DIR, dst_filename)
-        logger.info(f"Copying file to processed: {dst_path}")
+        logger.info("Copying file to processed: %s", dst_path)
 
         # Ensure processed directory exists before copying
         os.makedirs(PROCESSED_DIR, exist_ok=True)
         try:
             await asyncio.to_thread(self.file_storage.copy_file, src_path, dst_path)
-        except Exception as e:
+        except (OSError, FileNotFoundError) as e:
             self.job_asset_store.update_job(
                 job_id,
                 {
@@ -207,11 +219,11 @@ class IngestionViewsManager:
                 "updated_at": datetime.utcnow().isoformat(),
             },
         )
-        logger.info(f"Job {job_id} completed, asset at: {dst_path}")
+        logger.info("Job %s completed, asset at: %s", job_id, dst_path)
 
     @staticmethod
     async def _stream_file_to_disk(file, destination_path):
-        logger.info(f"Streaming upload to: {destination_path}")
+        logger.info("Streaming upload to: %s", destination_path)
         total_size_in_bytes = 0
         hasher = hashlib.sha256()
         with open(destination_path, "wb") as out:
@@ -221,7 +233,7 @@ class IngestionViewsManager:
                     break
                 total_size_in_bytes += len(chunk)
                 if total_size_in_bytes > MAX_UPLOAD_BYTES:
-                    logger.error(f"File too large: {total_size_in_bytes} bytes")
+                    logger.error("File too large: %d bytes", total_size_in_bytes)
                     raise HTTPException(
                         status_code=413,
                         detail="Uploaded file is larger than the maximum allowed size",
@@ -230,7 +242,9 @@ class IngestionViewsManager:
                 await asyncio.to_thread(out.write, chunk)
         await file.close()
         logger.info(
-            f"Finished streaming upload to: {destination_path}, size: {total_size_in_bytes}"
+            "Finished streaming upload to: %s, size: %d",
+            destination_path,
+            total_size_in_bytes,
         )
         return total_size_in_bytes, hasher
 
@@ -242,10 +256,10 @@ class IngestionViewsManager:
             - GET /v1/jobs/{job_id}: Get job status
             - GET /v1/assets/{asset_id}: Get asset metadata
         """
-        logger.info(f"STORAGE_ROOT: {STORAGE_ROOT}")
-        logger.info(f"RAW_DIR: {RAW_DIR}")
-        logger.info(f"PROCESSED_DIR: {PROCESSED_DIR}")
-        logger.info(f"TRANSCODED_DIR: {TRANSCODED_DIR}")
+        logger.info("STORAGE_ROOT: %s", STORAGE_ROOT)
+        logger.info("RAW_DIR: %s", RAW_DIR)
+        logger.info("PROCESSED_DIR: %s", PROCESSED_DIR)
+        logger.info("TRANSCODED_DIR: %s", TRANSCODED_DIR)
 
         # POST @ http://127.0.0.1:8000/v1/upload
         @self.router.post(
@@ -317,9 +331,9 @@ class IngestionViewsManager:
             }
             self.job_asset_store.create_job(job_record)
 
-            # -------------------------------------------------------------------------------------------------
+            # -----------------------------------------------------------------------------------
             # Mode 1: Event-driven architecture with Redis Pub/Sub
-            # -------------------------------------------------------------------------------------------------
+            # -----------------------------------------------------------------------------------
             if USE_REDIS_PUBLISH:
                 print(
                     f"[upload_media] Publishing JOB_CREATED event for job_id: {job_id} to Redis"
@@ -342,9 +356,9 @@ class IngestionViewsManager:
                 )
                 return {"job_id": job_id, "status": "published_to_redis"}
 
-            # -------------------------------------------------------------------------------------------------
+            # -----------------------------------------------------------------------------------
             # Mode 2: Direct submission to orchestrator or local processing
-            # -------------------------------------------------------------------------------------------------
+            # -----------------------------------------------------------------------------------
             else:
                 print(f"[upload_media] Submitting job directly for job_id: {job_id}")
 
@@ -375,7 +389,7 @@ class IngestionViewsManager:
                         raise HTTPException(
                             status_code=502,
                             detail=f"Failed to submit job to orchestrator: {e}",
-                        )
+                        ) from e
 
                     return {"job_id": job_id, "status": "submitted_to_orchestrator"}
 

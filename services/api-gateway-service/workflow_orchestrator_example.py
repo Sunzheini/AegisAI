@@ -84,10 +84,11 @@ async def lifespan(app):
 
     # Create orchestrator and inject RedisManager
     orchestrator = WorkflowOrchestrator()
-    ResolveNeedsManager.resolve_needs(orchestrator)  # This injects redis_manager
+    ResolveNeedsManager.resolve_needs(orchestrator)
 
     # Store orchestrator in app.state so routes can access it
     app.state.orchestrator = orchestrator
+
     # Also store redis_manager for cleanup
     app.state.redis_manager = redis_manager
 

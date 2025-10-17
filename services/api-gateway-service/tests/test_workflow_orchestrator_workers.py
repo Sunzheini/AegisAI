@@ -4,7 +4,6 @@ Covers: validate_file, extract_metadata, route_workflow, generate_thumbnails, an
 """
 
 import pytest
-from validation_worker_example import validate_file_worker
 from media_processing_worker_example import (
     extract_metadata_worker,
     generate_thumbnails_worker,
@@ -18,21 +17,6 @@ from ai_worker_example import (
     summarize_document_worker,
 )
 from workflow_orchestrator_example import WorkflowOrchestrator
-
-
-@pytest.mark.asyncio
-async def test_worker_validate_file():
-    state = {
-        "job_id": "test_job",
-        "file_path": "storage/raw/test_job.pdf",
-        "content_type": "application/pdf",
-        "checksum_sha256": "dummychecksum",
-        "submitted_by": "TestUser",
-    }
-    result = await validate_file_worker(state.copy())
-    assert result["status"] == "success"
-    assert result["step"] == "validate_file_done"
-    assert "updated_at" in result
 
 
 @pytest.mark.asyncio

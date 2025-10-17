@@ -39,7 +39,6 @@ from fastapi import FastAPI, HTTPException, status, Request
 from contracts.job_schemas import IngestionJobRequest, IngestionJobStatusResponse, WorkflowGraphState
 from needs.INeedRedisManager import INeedRedisManagerInterface
 from needs.ResolveNeedsManager import ResolveNeedsManager
-from validation_worker_example import validate_file_worker_redis
 from media_processing_worker_example import (
     extract_metadata_worker,
     generate_thumbnails_worker,
@@ -53,7 +52,7 @@ from ai_worker_example import (
     summarize_document_worker,
 )
 from custom_middleware.error_middleware import ErrorMiddleware
-
+from worker_clients.validation_worker_client import validate_file_worker_redis
 
 USE_REDIS_LISTENER = os.getenv("USE_REDIS_LISTENER", "true").lower() == "true"
 
@@ -108,6 +107,7 @@ async def lifespan(app):
     else:
         print("[Orchestrator] Redis listener mode disabled. Only direct HTTP submission will be processed.")
         yield
+
 
 app = FastAPI(title="Workflow Orchestrator Example", lifespan=lifespan)
 app.add_middleware(ErrorMiddleware)

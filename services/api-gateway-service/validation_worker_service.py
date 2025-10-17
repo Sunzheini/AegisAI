@@ -73,7 +73,8 @@ class ValidationService(INeedRedisManagerInterface):
                 "updated_at": self._current_timestamp()
             }
 
-    async def _validate_file_worker(self, state: WorkflowGraphState) -> WorkflowGraphState:
+    @staticmethod
+    async def _validate_file_worker(state: WorkflowGraphState) -> WorkflowGraphState:
         """
         Validates the file type, size, and integrity for an ingestion job.
         Updates the job state with validation results.
@@ -109,7 +110,8 @@ class ValidationService(INeedRedisManagerInterface):
         print(f"[Worker:validate_file] Job {state['job_id']} validation done. State: {state}")
         return state
 
-    def _current_timestamp(self):
+    @staticmethod
+    def _current_timestamp():
         from datetime import datetime, timezone
         return datetime.now(timezone.utc).isoformat()
 

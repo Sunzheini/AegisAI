@@ -13,7 +13,7 @@ import asyncio
 
 from contracts.job_schemas import WorkflowGraphState
 from needs.INeedRedisManager import INeedRedisManagerInterface
-
+from redis_management.redis_manager import RedisManager
 
 # Configuration
 VALIDATION_QUEUE = os.getenv("VALIDATION_QUEUE", "validation_queue")
@@ -33,7 +33,11 @@ class ValidationWorkerClient(INeedRedisManagerInterface):
         Returns:
             Updated job state with validation results
         """
-        redis_client = await self.redis_manager.get_redis_client()
+        # redis_client = await self.redis_manager.get_redis_client()
+
+        redis_manager = RedisManager()
+        redis_client = await redis_manager.get_redis_client()
+
         job_id = state["job_id"]
 
         try:

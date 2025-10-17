@@ -33,9 +33,8 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-import redis.asyncio as aioredis
 from langgraph.graph import StateGraph, END
-from fastapi import FastAPI, HTTPException, status, Request, Depends
+from fastapi import FastAPI, HTTPException, status, Request
 
 from contracts.job_schemas import IngestionJobRequest, IngestionJobStatusResponse, WorkflowGraphState
 from needs.INeedRedisManager import INeedRedisManagerInterface
@@ -56,17 +55,7 @@ from ai_worker_example import (
 from custom_middleware.error_middleware import ErrorMiddleware
 
 
-REDIS_URL = os.getenv("TEST_REDIS_URL", "redis://localhost:6379/2")
 USE_REDIS_LISTENER = os.getenv("USE_REDIS_LISTENER", "true").lower() == "true"
-
-
-async def get_redis():
-    """Dependency to get a Redis client."""
-    redis_client = aioredis.from_url(REDIS_URL, decode_responses=True)
-    try:
-        yield redis_client
-    finally:
-        await redis_client.close()
 
 
 # ToDo:
@@ -89,19 +78,32 @@ later: add user stories use jira, pull requests how to see progress in github
 @asynccontextmanager
 async def lifespan(app):
     """Lifespan context manager to start/stop Redis listener if enabled."""
+    # Create RedisManager instance
+    from redis_management.redis_manager import RedisManager
+    redis_manager = RedisManager()
+
+    # Create orchestrator and inject RedisManager
+    orchestrator = WorkflowOrchestrator()
+    ResolveNeedsManager.resolve_needs(orchestrator)  # This injects redis_manager
+
+    # Store orchestrator in app.state so routes can access it
+    app.state.orchestrator = orchestrator
+    # Also store redis_manager for cleanup
+    app.state.redis_manager = redis_manager
+
     if USE_REDIS_LISTENER:
         print("[Orchestrator] Redis listener mode enabled. Starting Redis listener...")
-        task = asyncio.create_task(redis_listener())
+        # Pass orchestrator to redis_listener
+        task = asyncio.create_task(redis_listener(orchestrator))
         yield
         print("[Orchestrator] Shutting down Redis listener.")
         task.cancel()
-    else:
-        print(
-            "[Orchestrator] Redis listener mode disabled. Only direct HTTP submission will "
-            "be processed."
-        )
-        yield
 
+        # Close RedisManager connection - NOW IT EXISTS!
+        await app.state.redis_manager.close()
+    else:
+        print("[Orchestrator] Redis listener mode disabled. Only direct HTTP submission will be processed.")
+        yield
 
 app = FastAPI(title="Workflow Orchestrator Example", lifespan=lifespan)
 app.add_middleware(ErrorMiddleware)
@@ -216,31 +218,17 @@ class WorkflowOrchestrator(INeedRedisManagerInterface):
                 },
             }
 
-    @staticmethod
-    async def save_job_state_to_redis(redis_client, job_id: str, state: WorkflowGraphState):
-        """Persist job state to Redis as JSON."""
-        await redis_client.set(f"job_state:{job_id}", json.dumps(dict(state)))
-
-    @staticmethod
-    async def load_job_state_from_redis(redis_client, job_id: str) -> Optional[WorkflowGraphState]:
-        """Load job state from Redis as MyState."""
-        data = await redis_client.get(f"job_state:{job_id}")
-        if data:
-            return WorkflowGraphState(**json.loads(data))
-        return None
-
-    async def submit_job(self, redis_client, job: IngestionJobRequest):
+    async def submit_job(self, job: IngestionJobRequest):
         """
         Submit a new job to the orchestrator.
         Args:
-            redis_client : Redis client instance.
             job (IngestionJobRequest): Job request from API Gateway.
         Raises:
             ValueError: If job_id already exists.
         """
         print(f"[Orchestrator] Received job submission: {job.job_id}")
         # Check Redis for existing job
-        existing_state = await self.load_job_state_from_redis(redis_client, job.job_id)
+        existing_state = await self.redis_manager.load_job_state_from_redis(job.job_id)
         if existing_state:
             print(f"[Orchestrator] Job {job.job_id} already exists!")
             raise ValueError("Job already exists")
@@ -260,14 +248,14 @@ class WorkflowOrchestrator(INeedRedisManagerInterface):
         )
 
         self.jobs[job.job_id] = state
-        await self.save_job_state_to_redis(redis_client, job.job_id, state)
+        await self.redis_manager.save_job_state_to_redis(job.job_id, state)
         print(f"[Orchestrator] Job {job.job_id} queued. Initial state: {state}")
         print(f"Jon content type: {job.content_type}")
 
         # Start workflow in background
-        asyncio.create_task(self._run_workflow(redis_client, job.job_id))
+        asyncio.create_task(self._run_workflow(job.job_id))
 
-    async def _run_workflow(self, redis_client, job_id: str) -> None:
+    async def _run_workflow(self, job_id: str) -> None:
         """
         Runs the workflow for a given job_id.
         Updates job state in self.jobs and Redis.
@@ -280,7 +268,7 @@ class WorkflowOrchestrator(INeedRedisManagerInterface):
             print(f"[DEBUG] Before graph.ainvoke: {state}")
             final_state = await self.graph.ainvoke(state)   # Call the graph
             self.jobs[job_id] = final_state
-            await self.save_job_state_to_redis(redis_client, job_id, final_state)
+            await self.redis_manager.save_job_state_to_redis(job_id, final_state)
 
         # Can raise various exceptions, including those from async workers, graph logic, or deps
         except Exception as e:
@@ -291,12 +279,12 @@ class WorkflowOrchestrator(INeedRedisManagerInterface):
             state["step"] = f"failed_at_{current_step}"
             state["updated_at"] = datetime.now(timezone.utc).isoformat()
             self.jobs[job_id] = state
-            await self.save_job_state_to_redis(redis_client, job_id, state)
+            await self.redis_manager.save_job_state_to_redis(job_id, state)
             self.logger.error("Workflow failed for job %s: %s", job_id, e)
 
-    async def get_job(self, redis_client, job_id: str) -> Optional[WorkflowGraphState]:
+    async def get_job(self, job_id: str) -> Optional[WorkflowGraphState]:
         """Get job state from Redis as MyState."""
-        return await self.load_job_state_from_redis(redis_client, job_id)
+        return await self.redis_manager.load_job_state_from_redis(job_id)
 
     @staticmethod
     async def _worker_route_workflow(state: WorkflowGraphState) -> WorkflowGraphState:
@@ -334,28 +322,22 @@ class WorkflowOrchestrator(INeedRedisManagerInterface):
         return state
 
 
-orchestrator = WorkflowOrchestrator()
-ResolveNeedsManager.resolve_needs(orchestrator)
-
-
 @app.post("/jobs", status_code=status.HTTP_202_ACCEPTED)
-async def submit_job(
-    job: IngestionJobRequest, request: Request, redis_client=Depends(get_redis)
-):
+async def submit_job(job: IngestionJobRequest, request: Request):
     """
     Submit a new job to the orchestrator via HTTP POST.
     Args:
         job (IngestionJobRequest): Job request from API Gateway.
         request (Request): FastAPI request object.
-        redis_client : Redis client instance.
     Returns:
         dict: Job ID and status if accepted.
     Raises:
         HTTPException: If job_id already exists.
     """
+    orchestrator = request.app.state.orchestrator  # Get from app.state
     print(f"[Orchestrator] Received direct job submission for job_id: {job.job_id}")
     try:
-        await orchestrator.submit_job(redis_client, job)
+        await orchestrator.submit_job(job)
     except ValueError as e:
         print(
             f"[Orchestrator] Duplicate job_id {job.job_id} received via HTTP. Skipping."
@@ -369,18 +351,20 @@ async def submit_job(
     status_code=status.HTTP_200_OK,
     response_model=IngestionJobStatusResponse,
 )
-async def get_job_status(job_id: str, redis_client=Depends(get_redis)):
+async def get_job_status(job_id: str, request: Request):
     """
     The frontend polls this endpoint to get job status updates.
     Returns the current status and metadata for a job.
     Args:
         job_id (str): The job identifier.
+        request (Request): FastAPI request object.
     Returns:
         IngestionJobStatusResponse: Job metadata if found.
     Raises:
         HTTPException: If job not found.
     """
-    job = await orchestrator.get_job(redis_client, job_id)
+    orchestrator = request.app.state.orchestrator  # Get from app.state
+    job = await orchestrator.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return IngestionJobStatusResponse(
@@ -399,15 +383,14 @@ async def get_job_status(job_id: str, redis_client=Depends(get_redis)):
 # ----------------------------------------------------------------------------------------------
 # Redis listener to subscribe to command_queue and process JOB_CREATED events
 # ----------------------------------------------------------------------------------------------
-async def redis_listener():
+async def redis_listener(orchestrator_instance):
     """
     Redis listener for JOB_CREATED events.
     Subscribes to the 'command_queue' channel and processes new jobs.
     Reconstructs jobs using IngestionJobRequest and submits them to the workflow orchestrator.
     Skips duplicate jobs.
     """
-    pubsub = aioredis.from_url(REDIS_URL, decode_responses=True).pubsub()
-    redis_client = aioredis.from_url(REDIS_URL, decode_responses=True)
+    pubsub = await orchestrator_instance.redis_manager.get_pubsub()
     try:
         await pubsub.subscribe("command_queue")
         print("[Orchestrator] Listening for JOB_CREATED events on Redis...")
@@ -424,7 +407,7 @@ async def redis_listener():
                         **{k: v for k, v in event.items() if k != "event"}
                     )
                     try:
-                        await orchestrator.submit_job(redis_client, job)
+                        await orchestrator_instance.submit_job(job)
                     except ValueError:
                         print(
                             f"[Orchestrator] Duplicate job_id {event['job_id']} received from "
@@ -432,5 +415,3 @@ async def redis_listener():
                         )
     except asyncio.CancelledError:
         await pubsub.unsubscribe("command_queue")
-        await pubsub.close()
-        await redis_client.close()

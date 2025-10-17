@@ -85,8 +85,7 @@ async def lifespan(app):
     orchestrator = WorkflowOrchestrator()
     ResolveNeedsManager.resolve_needs(orchestrator)
 
-    # Create validation worker client and inject RedisManager
-    from worker_clients import validation_worker_client
+    from worker_clients.validation_worker_client import validation_worker_client
     ResolveNeedsManager.resolve_needs(validation_worker_client)
 
     # Store orchestrator in app.state so routes can access it

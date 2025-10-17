@@ -38,7 +38,9 @@ from langgraph.graph import StateGraph, END
 from fastapi import FastAPI, HTTPException, status, Request, Depends
 
 from contracts.job_schemas import IngestionJobRequest, IngestionJobStatusResponse, WorkflowGraphState
-from validation_worker_example import validate_file_worker, validate_file_worker_redis
+from needs.INeedRedisManager import INeedRedisManagerInterface
+from needs.ResolveNeedsManager import ResolveNeedsManager
+from validation_worker_example import validate_file_worker_redis
 from media_processing_worker_example import (
     extract_metadata_worker,
     generate_thumbnails_worker,
@@ -105,8 +107,7 @@ app = FastAPI(title="Workflow Orchestrator Example", lifespan=lifespan)
 app.add_middleware(ErrorMiddleware)
 
 
-
-class WorkflowOrchestrator:
+class WorkflowOrchestrator(INeedRedisManagerInterface):
     """
     Orchestrates ingestion jobs using a workflow graph.
     Each step is a simulated async worker.
@@ -334,6 +335,7 @@ class WorkflowOrchestrator:
 
 
 orchestrator = WorkflowOrchestrator()
+ResolveNeedsManager.resolve_needs(orchestrator)
 
 
 @app.post("/jobs", status_code=status.HTTP_202_ACCEPTED)

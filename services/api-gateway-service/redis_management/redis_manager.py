@@ -13,7 +13,6 @@ class RedisManager:
     """Manages Redis interactions for publishing job events."""
     def __init__(self):
         self.redis_url = os.getenv("TEST_REDIS_URL", "redis://localhost:6379/2")
-        self.redis = aioredis.from_url(self.redis_url, decode_responses=True)
 
     async def publish_message_to_redis(self, job_id: str, job_record: dict, file, current_user):
         """
@@ -34,11 +33,11 @@ class RedisManager:
             submitted_by=getattr(current_user, "name", None),
         )
 
-        # Job published to Redis (command_queue channel) as a JSON event (JOB_CREATED).
-        await self.redis.publish(
-            "command_queue",
-            json.dumps({"event": "JOB_CREATED", **job_request.model_dump()}),
-        )
-        print(f"[upload_media] Published JOB_CREATED event for job_id: {job_id}")
-
-        return {"job_id": job_id, "status": "published_to_redis"}
+        # aioredis client can be used as async context manager
+        async with aioredis.from_url(self.redis_url, decode_responses=True) as redis:
+            await redis.publish(
+                "command_queue",
+                json.dumps({"event": "JOB_CREATED", **job_request.model_dump()}),
+            )
+            print(f"[upload_media] Published JOB_CREATED event for job_id: {job_id}")
+            return {"job_id": job_id, "status": "published_to_redis"}

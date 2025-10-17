@@ -31,6 +31,7 @@ from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Path, Request
 from starlette import status as H
 
+from needs.INeedRedisManager import INeedRedisManagerInterface
 from support.security import auth_required
 from support.constants import ALLOWED_CONTENT_TYPES_SET, MAX_UPLOAD_BYTES_SIZE
 from support.support_functions import sanitize_filename
@@ -68,7 +69,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ingestion")
 
 
-class IngestionViewsManager:
+class IngestionViewsManager(INeedRedisManagerInterface):
     """
     Registers versioned ingestion endpoints under /v1 on the provided router.
 
@@ -335,27 +336,31 @@ class IngestionViewsManager:
             # Mode 1: Event-driven architecture with Redis Pub/Sub
             # -----------------------------------------------------------------------------------
             if USE_REDIS_PUBLISH:
-                print(
-                    f"[upload_media] Publishing JOB_CREATED event for job_id: {job_id} to Redis"
-                )
+                # print(
+                #     f"[upload_media] Publishing JOB_CREATED event for job_id: {job_id} to Redis"
+                # )
+                #
+                # job_request = IngestionJobRequest(
+                #     job_id=job_id,
+                #     file_path=file.filename,
+                #     content_type=job_record.get("content_type", "unknown"),
+                #     checksum_sha256=job_record.get("checksum_sha256", "unknown"),
+                #     submitted_by=getattr(current_user, "name", None),
+                # )
+                #
+                # # Job published to Redis (command_queue channel) as a JSON event (JOB_CREATED).
+                # await redis.publish(
+                #     "command_queue",
+                #     json.dumps({"event": "JOB_CREATED", **job_request.model_dump()}),
+                # )
+                # print(
+                #     f"[upload_media] Published JOB_CREATED event for job_id: {job_id}"
+                # )
+                # return {"job_id": job_id, "status": "published_to_redis"}
 
-                job_request = IngestionJobRequest(
-                    job_id=job_id,
-                    file_path=file.filename,
-                    content_type=job_record.get("content_type", "unknown"),
-                    checksum_sha256=job_record.get("checksum_sha256", "unknown"),
-                    submitted_by=getattr(current_user, "name", None),
+                return await self.redis_manager.publish_message_to_redis(
+                    job_id, job_record, file, current_user
                 )
-
-                # Job published to Redis (command_queue channel) as a JSON event (JOB_CREATED).
-                await redis.publish(
-                    "command_queue",
-                    json.dumps({"event": "JOB_CREATED", **job_request.model_dump()}),
-                )
-                print(
-                    f"[upload_media] Published JOB_CREATED event for job_id: {job_id}"
-                )
-                return {"job_id": job_id, "status": "published_to_redis"}
 
             # -----------------------------------------------------------------------------------
             # Mode 2: Direct submission to orchestrator or local processing

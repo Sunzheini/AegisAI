@@ -27,7 +27,7 @@ Migration Notes:
 
 import os
 import json
-from typing import Dict, Any, TypedDict, Optional
+from typing import Dict, Any, Optional
 from datetime import datetime, timezone
 import asyncio
 import logging
@@ -37,8 +37,8 @@ import redis.asyncio as aioredis
 from langgraph.graph import StateGraph, END
 from fastapi import FastAPI, HTTPException, status, Request, Depends
 
-from contracts.job_schemas import IngestionJobRequest, IngestionJobStatusResponse
-from validation_worker_example import validate_file_worker
+from contracts.job_schemas import IngestionJobRequest, IngestionJobStatusResponse, WorkflowGraphState
+from validation_worker_example import validate_file_worker, validate_file_worker_redis
 from media_processing_worker_example import (
     extract_metadata_worker,
     generate_thumbnails_worker,
@@ -57,10 +57,6 @@ from custom_middleware.error_middleware import ErrorMiddleware
 REDIS_URL = os.getenv("TEST_REDIS_URL", "redis://localhost:6379/2")
 USE_REDIS_LISTENER = os.getenv("USE_REDIS_LISTENER", "true").lower() == "true"
 
-# For validation worker communication
-VALIDATION_QUEUE = "validation_queue"
-VALIDATION_CALLBACK_QUEUE = "validation_callback_queue"
-
 
 async def get_redis():
     """Dependency to get a Redis client."""
@@ -73,13 +69,13 @@ async def get_redis():
 
 # ToDo:
 """
-status: black uses 88 max line length and "", logging implemented, pylint used, error middleware 
+status: black uses 88 max line length and "", logging implemented, pylint used, error middleware
     and reviewed broad exceptions
 later: add user stories use jira, pull requests how to see progress in github
 """
 
 
-# ToDo: Refactor validation worker 2 x files
+# ToDo: Finish and Refactor validation worker 2 x files
 # ToDo: Redis manager with common logic from both services and the val worker
 # ToDo: Other workers 1 by 1
 # ToDo: when moving Give the workflow orchestrator direct access to the storage via shared
@@ -109,51 +105,6 @@ app = FastAPI(title="Workflow Orchestrator Example", lifespan=lifespan)
 app.add_middleware(ErrorMiddleware)
 
 
-class MyState(TypedDict):
-    """State schema for the workflow graph."""
-
-    job_id: str
-    file_path: str
-    content_type: str
-    checksum_sha256: str
-    submitted_by: str
-    status: str
-    created_at: str
-    updated_at: str
-    step: str
-    branch: str
-    metadata: Optional[dict]
-
-
-async def validate_file_worker_redis(state: MyState) -> MyState:
-    """
-    Publishes validation task to Redis and waits for result.
-    """
-    redis_client = aioredis.from_url(REDIS_URL, decode_responses=True)
-    job_id = state["job_id"]
-
-    # Publish validation task
-    await redis_client.publish(VALIDATION_QUEUE, json.dumps(state))
-    print(f"[Orchestrator] Published validation task for job_id: {job_id}")
-
-    # Listen for callback result
-    pubsub = redis_client.pubsub()
-    await pubsub.subscribe(VALIDATION_CALLBACK_QUEUE)
-    try:
-        async for message in pubsub.listen():
-            if message["type"] == "message":
-                result = json.loads(message["data"])
-                if result.get("job_id") == job_id:
-                    print(f"[Orchestrator] Received validation result for job_id: {job_id}")
-                    await pubsub.unsubscribe(VALIDATION_CALLBACK_QUEUE)
-                    await pubsub.close()
-                    await redis_client.close()
-                    return result["result"]
-    finally:
-        await pubsub.unsubscribe(VALIDATION_CALLBACK_QUEUE)
-        await pubsub.close()
-        await redis_client.close()
-
 
 class WorkflowOrchestrator:
     """
@@ -175,7 +126,7 @@ class WorkflowOrchestrator:
             print(
                 "[Orchestrator] Using LangGraph StateGraph with state_schema=MyState."
             )
-            graph = StateGraph(state_schema=MyState)
+            graph = StateGraph(state_schema=WorkflowGraphState)
 
             # Nodes
             graph.add_node("validate_file", validate_file_worker_redis)
@@ -190,8 +141,8 @@ class WorkflowOrchestrator:
             graph.add_node("summarize_document", summarize_document_worker)
             print("[Orchestrator] Added all nodes to graph.")
 
-            # Conditional edge after validation
-            def after_validation(state: MyState):
+            # Conditional edge after validation: if failed, go to END
+            def after_validation(state: WorkflowGraphState):
                 if state.get("status") == "failed":
                     return "END"
                 return "extract_metadata"
@@ -205,7 +156,7 @@ class WorkflowOrchestrator:
             print("[Orchestrator] Added main edges.")
 
             # Conditional routing based on content type
-            def route_workflow(state: MyState):
+            def route_workflow(state: WorkflowGraphState):
                 return state["branch"]
 
             graph.add_conditional_edges(
@@ -265,16 +216,16 @@ class WorkflowOrchestrator:
             }
 
     @staticmethod
-    async def save_job_state_to_redis(redis_client, job_id: str, state: MyState):
+    async def save_job_state_to_redis(redis_client, job_id: str, state: WorkflowGraphState):
         """Persist job state to Redis as JSON."""
         await redis_client.set(f"job_state:{job_id}", json.dumps(dict(state)))
 
     @staticmethod
-    async def load_job_state_from_redis(redis_client, job_id: str) -> Optional[MyState]:
+    async def load_job_state_from_redis(redis_client, job_id: str) -> Optional[WorkflowGraphState]:
         """Load job state from Redis as MyState."""
         data = await redis_client.get(f"job_state:{job_id}")
         if data:
-            return MyState(**json.loads(data))
+            return WorkflowGraphState(**json.loads(data))
         return None
 
     async def submit_job(self, redis_client, job: IngestionJobRequest):
@@ -293,7 +244,7 @@ class WorkflowOrchestrator:
             print(f"[Orchestrator] Job {job.job_id} already exists!")
             raise ValueError("Job already exists")
 
-        state = MyState(
+        state = WorkflowGraphState(
             job_id=job.job_id,
             file_path=job.file_path,
             content_type=job.content_type,
@@ -342,12 +293,12 @@ class WorkflowOrchestrator:
             await self.save_job_state_to_redis(redis_client, job_id, state)
             self.logger.error("Workflow failed for job %s: %s", job_id, e)
 
-    async def get_job(self, redis_client, job_id: str) -> Optional[MyState]:
+    async def get_job(self, redis_client, job_id: str) -> Optional[WorkflowGraphState]:
         """Get job state from Redis as MyState."""
         return await self.load_job_state_from_redis(redis_client, job_id)
 
     @staticmethod
-    async def _worker_route_workflow(state: MyState) -> MyState:
+    async def _worker_route_workflow(state: WorkflowGraphState) -> WorkflowGraphState:
         """
         Simulated routing worker.
         Uses content_type from IngestionJobRequest to decide the workflow branch

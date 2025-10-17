@@ -1,3 +1,6 @@
+"""
+Contains the RedisManager class responsible for managing Redis interactions.
+"""
 import json
 import os
 
@@ -6,16 +9,22 @@ import redis.asyncio as aioredis
 from contracts.job_schemas import IngestionJobRequest
 
 
-REDIS_URL = os.getenv("TEST_REDIS_URL", "redis://localhost:6379/2")
-USE_REDIS_PUBLISH = os.getenv("USE_REDIS_PUBLISH", "false").lower() == "true"
-redis = aioredis.from_url(REDIS_URL, decode_responses=True)
-
-
 class RedisManager:
+    """Manages Redis interactions for publishing job events."""
+    def __init__(self):
+        self.redis_url = os.getenv("TEST_REDIS_URL", "redis://localhost:6379/2")
+        self.redis = aioredis.from_url(self.redis_url, decode_responses=True)
+
     async def publish_message_to_redis(self, job_id: str, job_record: dict, file, current_user):
-        print(
-            f"[upload_media] Publishing JOB_CREATED event for job_id: {job_id} to Redis"
-        )
+        """
+        Publishes a JOB_CREATED event to Redis for the given job.
+        :param job_id: The unique identifier for the job.
+        :param job_record: A dictionary containing job metadata.
+        :param file: The uploaded file object.
+        :param current_user: The user who submitted the job.
+        :return: A dictionary indicating the job ID and publication status.
+        """
+        print(f"[upload_media] Publishing JOB_CREATED event for job_id: {job_id} to Redis")
 
         job_request = IngestionJobRequest(
             job_id=job_id,
@@ -26,11 +35,10 @@ class RedisManager:
         )
 
         # Job published to Redis (command_queue channel) as a JSON event (JOB_CREATED).
-        await redis.publish(
+        await self.redis.publish(
             "command_queue",
             json.dumps({"event": "JOB_CREATED", **job_request.model_dump()}),
         )
-        print(
-            f"[upload_media] Published JOB_CREATED event for job_id: {job_id}"
-        )
+        print(f"[upload_media] Published JOB_CREATED event for job_id: {job_id}")
+
         return {"job_id": job_id, "status": "published_to_redis"}

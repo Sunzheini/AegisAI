@@ -20,13 +20,11 @@ import os
 import uuid
 import asyncio
 import hashlib
-import json
 import logging
 from typing import Dict, Any
 from datetime import datetime
 
 import requests
-import redis.asyncio as aioredis
 from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Path, Request
 from starlette import status as H
@@ -55,11 +53,7 @@ TRANSCODED_DIR = os.getenv(
 
 ALLOWED_CONTENT_TYPES = ALLOWED_CONTENT_TYPES_SET
 MAX_UPLOAD_BYTES = MAX_UPLOAD_BYTES_SIZE  # 50 MB
-
-REDIS_URL = os.getenv("TEST_REDIS_URL", "redis://localhost:6379/2")
 USE_REDIS_PUBLISH = os.getenv("USE_REDIS_PUBLISH", "false").lower() == "true"
-redis = aioredis.from_url(REDIS_URL, decode_responses=True)
-
 
 # ToDo: Instantiate abstractions for local usage, change to AWS later
 file_storage = LocalFileStorage(RAW_DIR)
@@ -336,28 +330,6 @@ class IngestionViewsManager(INeedRedisManagerInterface):
             # Mode 1: Event-driven architecture with Redis Pub/Sub
             # -----------------------------------------------------------------------------------
             if USE_REDIS_PUBLISH:
-                # print(
-                #     f"[upload_media] Publishing JOB_CREATED event for job_id: {job_id} to Redis"
-                # )
-                #
-                # job_request = IngestionJobRequest(
-                #     job_id=job_id,
-                #     file_path=file.filename,
-                #     content_type=job_record.get("content_type", "unknown"),
-                #     checksum_sha256=job_record.get("checksum_sha256", "unknown"),
-                #     submitted_by=getattr(current_user, "name", None),
-                # )
-                #
-                # # Job published to Redis (command_queue channel) as a JSON event (JOB_CREATED).
-                # await redis.publish(
-                #     "command_queue",
-                #     json.dumps({"event": "JOB_CREATED", **job_request.model_dump()}),
-                # )
-                # print(
-                #     f"[upload_media] Published JOB_CREATED event for job_id: {job_id}"
-                # )
-                # return {"job_id": job_id, "status": "published_to_redis"}
-
                 return await self.redis_manager.publish_message_to_redis(
                     job_id, job_record, file, current_user
                 )

@@ -65,6 +65,8 @@ later: add user stories use jira, pull requests how to see progress in github
 """
 
 
+# ToDo: Logging (LoggingManager?)
+# ToDo: tests for validation worker client and service
 # ToDo: Finish validation worker real validation logic and tests
 # ToDo: Other workers 1 by 1 similar to the validation worker with client and service
 # ToDo: when moving Give the workflow orchestrator direct access to the storage via shared

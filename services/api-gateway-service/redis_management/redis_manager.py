@@ -50,7 +50,7 @@ class RedisManager:
     # ---------------------------------------------------------------------------------
     # For Orchestrator (state management)
     # ---------------------------------------------------------------------------------
-    async def _get_redis_client(self) -> aioredis.Redis:
+    async def get_redis_client(self) -> aioredis.Redis:
         """Get or create Redis client for orchestrator (connection pooling)."""
         if self._redis_client is None:
             self._redis_client = aioredis.from_url(self.redis_url, decode_responses=True)
@@ -58,12 +58,12 @@ class RedisManager:
 
     async def save_job_state_to_redis(self, job_id: str, state: WorkflowGraphState) -> None:
         """Persist job state to Redis as JSON."""
-        redis_client = await self._get_redis_client()
+        redis_client = await self.get_redis_client()
         await redis_client.set(f"job_state:{job_id}", json.dumps(dict(state)))
 
     async def load_job_state_from_redis(self, job_id: str) -> Optional[WorkflowGraphState]:
         """Load job state from Redis as WorkflowGraphState."""
-        redis_client = await self._get_redis_client()
+        redis_client = await self.get_redis_client()
         data = await redis_client.get(f"job_state:{job_id}")
         if data:
             return WorkflowGraphState(**json.loads(data))
@@ -72,7 +72,7 @@ class RedisManager:
     # For Orchestrator (pub/sub listening)
     async def get_pubsub(self) -> aioredis.client.PubSub:
         """Get pubsub for Redis listening (orchestrator pattern)."""
-        redis = await self._get_redis_client()
+        redis = await self.get_redis_client()
         return redis.pubsub()
 
     async def close(self) -> None:

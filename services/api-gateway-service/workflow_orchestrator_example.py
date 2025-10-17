@@ -65,7 +65,7 @@ later: add user stories use jira, pull requests how to see progress in github
 """
 
 
-# ToDo: Finish validation worker 2 x files
+# ToDo: Finish validation worker real validation logic and tests
 # ToDo: Other workers 1 by 1 similar to the validation worker with client and service
 # ToDo: when moving Give the workflow orchestrator direct access to the storage via shared
 #  folder, it is better to pass only the file path and metadata in the job request, not the
@@ -84,6 +84,7 @@ async def lifespan(app):
     orchestrator = WorkflowOrchestrator()
     ResolveNeedsManager.resolve_needs(orchestrator)
 
+    # Resolve ValidationWorkerClient dependency
     from worker_clients.validation_worker_client import validation_worker_client
     ResolveNeedsManager.resolve_needs(validation_worker_client)
 

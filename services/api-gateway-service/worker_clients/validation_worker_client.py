@@ -21,11 +21,6 @@ VALIDATION_CALLBACK_QUEUE = os.getenv("VALIDATION_CALLBACK_QUEUE", "validation_c
 
 class ValidationWorkerClient(INeedRedisManagerInterface):
     """Client for interacting with the validation service."""
-    def __init__(self):
-        self._redis_manager = None
-        print(f"[DEBUG] INeedRedisManagerInterface in MRO: {INeedRedisManagerInterface in self.__class__.__mro__}")
-        print(f"[DEBUG] MRO: {[cls.__name__ for cls in self.__class__.__mro__]}")
-
     async def validate_file(self, state: WorkflowGraphState, timeout: int = 30) -> WorkflowGraphState:
         """
         Submit validation task to validation service and wait for result.

@@ -18,10 +18,12 @@ App State:
 Health Endpoint:
     - GET /health: Returns service status
 """
+import sys
 import logging
+from logging.handlers import RotatingFileHandler
 from fastapi import FastAPI
 
-from custom_middleware.logging_middleware import CustomLogger
+from custom_middleware.logging_middleware import CustomLogger, SlowRequestFilter
 from custom_middleware.rate_limiting_middleware import InMemoryRateLimiter
 from custom_middleware.error_middleware import ErrorMiddleware
 from support.constants import LOG_FILE_PATH, APP_NAME
@@ -31,16 +33,48 @@ from routers.users_router import get_current_user
 
 
 # Logger setup
-logging.getLogger().handlers.clear()
-logging.basicConfig(
-    filename=LOG_FILE_PATH,
-    filemode="a",
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.DEBUG,
-    force=True,
-)
-logger = logging.getLogger(APP_NAME)
-logger.info("Starting API Gateway Microservice...")
+def setup_logging():
+    logging.getLogger().handlers.clear()
+
+    # Create formatters
+    detailed_formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S"
+    )
+    simple_formatter = logging.Formatter(
+        "%(asctime)s - %(levelname)s - %(message)s",
+        datefmt="%H:%M:%S"
+    )
+
+    # File handler with rotation
+    file_handler = RotatingFileHandler(
+        filename=LOG_FILE_PATH,
+        maxBytes=10 * 1024 * 1024,  # 10MB
+        backupCount=5,
+        encoding='utf-8'
+    )
+    file_handler.setFormatter(detailed_formatter)
+    file_handler.setLevel(logging.DEBUG)
+
+    # Console handler
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(simple_formatter)
+    console_handler.setLevel(logging.INFO)
+
+    # Setup root logger
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.DEBUG)
+    root_logger.addHandler(file_handler)
+    root_logger.addHandler(console_handler)
+
+    # Reduce noise from third-party libraries
+    logging.getLogger("uvicorn").setLevel(logging.WARNING)
+    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+
+    return logging.getLogger(APP_NAME)
+
+
+logger = setup_logging()
 
 
 # FastAPI app setup
@@ -53,6 +87,8 @@ app.add_middleware(
 )  # Local-only rate limiting middleware (fixed window). Bypassed during tests.
 app.add_middleware(CustomLogger)
 app.add_middleware(ErrorMiddleware)
+
+logger.addFilter(SlowRequestFilter(slow_threshold=2.0))  # Alert on requests > 2s
 
 
 # Include routers

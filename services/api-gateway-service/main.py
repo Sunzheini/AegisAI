@@ -27,20 +27,15 @@ from support.constants import LOG_FILE_PATH, APP_NAME
 from views.ingestion_views import IngestionViewsManager
 from routers import auth_router, users_router, v1_router, redis_router
 from routers.users_router import get_current_user
-
-
-
-
 from logging_management import LoggingManager
 from custom_middleware.logging_middleware import EnhancedLoggingMiddleware
 
-# Logger setup - now much simpler!
+
 logger = LoggingManager.setup_logging(
     service_name=APP_NAME,
     log_file_path=LOG_FILE_PATH,
     log_level=logging.DEBUG
 )
-
 
 
 # FastAPI app setup

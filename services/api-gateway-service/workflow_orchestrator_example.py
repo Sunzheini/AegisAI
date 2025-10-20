@@ -39,6 +39,8 @@ from fastapi import FastAPI, HTTPException, status, Request
 from contracts.job_schemas import IngestionJobRequest, IngestionJobStatusResponse, WorkflowGraphState
 from needs.INeedRedisManager import INeedRedisManagerInterface
 from needs.ResolveNeedsManager import ResolveNeedsManager
+from logging_management import LoggingManager
+from custom_middleware.logging_middleware import EnhancedLoggingMiddleware
 from media_processing_worker_example import (
     extract_metadata_worker,
     generate_thumbnails_worker,
@@ -57,19 +59,11 @@ from worker_clients.validation_worker_client import validate_file_worker_redis
 USE_REDIS_LISTENER = os.getenv("USE_REDIS_LISTENER", "true").lower() == "true"
 
 
-
-
-from logging_management import LoggingManager
-from custom_middleware.logging_middleware import EnhancedLoggingMiddleware
-
 logger = LoggingManager.setup_logging(
     service_name="workflow-orchestrator",
     log_file_path="logs/workflow_orchestrator.log",
     log_level=logging.INFO
 )
-
-
-
 
 
 # ToDo:
@@ -133,13 +127,7 @@ async def lifespan(app):
 
 app = FastAPI(title="Workflow Orchestrator Example", lifespan=lifespan)
 app.add_middleware(ErrorMiddleware)
-
-
-
-
 app.add_middleware(EnhancedLoggingMiddleware, service_name="workflow-orchestrator")
-
-
 
 
 class WorkflowOrchestrator(INeedRedisManagerInterface):

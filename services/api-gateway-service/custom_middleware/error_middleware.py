@@ -2,31 +2,32 @@
 Custom error handling middleware for FastAPI apps.
 Catches unhandled exceptions, logs them, and returns a consistent JSON error response.
 """
-
 import logging
 import traceback
-from fastapi import Request, HTTPException, Response
-from fastapi.responses import JSONResponse
+from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
+
+from support.constants import APP_NAME
+
+
+logger = logging.getLogger(APP_NAME)
 
 
 class ErrorMiddleware(BaseHTTPMiddleware):
-    """Middleware to catch unhandled exceptions and return JSON error responses."""
+    """Middleware to catch unhandled exceptions and return 500 JSON response."""
 
     async def dispatch(self, request: Request, call_next) -> Response:
+        """Catch exceptions and return JSON error response."""
         try:
             return await call_next(request)
-        except HTTPException as exc:
-            # Let FastAPI handle HTTPExceptions as usual
-            raise exc
-        except Exception as exc:
-            logger = logging.getLogger()
-            logger.error("Unhandled error: %s", exc, exc_info=True)
+        except Exception as e:
+            # Log the error with traceback using your app logger
+            logger.error("Unhandled error: %s", str(e))
             logger.error("Traceback: %s", traceback.format_exc())
-            return JSONResponse(
+
+            # Return JSON error response
+            return Response(
+                content='{"error": "Internal server error", "detail": "Something went wrong on our end"}',
                 status_code=500,
-                content={
-                    "error": "Internal server error",
-                    "detail": "Something went wrong on our end",
-                },
+                media_type="application/json",
             )

@@ -4,6 +4,7 @@ import sys
 import time
 from pathlib import Path
 import uuid
+import glob
 
 import pytest
 import pytest_asyncio
@@ -14,8 +15,7 @@ from main import app
 from db_management.db_manager import DataBaseManager
 from models.models import User
 from support.security import get_password_hash
-from support.constants import LOG_FILE_PATH
-
+from support.constants import LOG_FILE_PATH, APP_NAME
 
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
@@ -116,28 +116,110 @@ async def pubsub_client(redis_client):
 
 
 # Logging ----------------------------------------------------------------------------------------------
-def delete_log_file():
-    """Helper function to delete log file if it exists with retry logic"""
+@pytest.fixture(autouse=True)
+def setup_test_logging():
+    """Setup test logging configuration for all tests."""
+    # Clear existing handlers
+    logging.getLogger().handlers.clear()
+
+    # Setup basic console logging for tests
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    console_handler.setFormatter(formatter)
+
+    # Configure root logger
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.DEBUG)
+    root_logger.addHandler(console_handler)
+
+    # Reduce third-party logging noise
+    logging.getLogger("uvicorn").setLevel(logging.WARNING)
+    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+
+
+@pytest.fixture
+def caplog(caplog):
+    """Enhanced caplog fixture that works with our structured logging."""
+    # Set level for our app logger
+    caplog.set_level(logging.DEBUG, logger=APP_NAME)
+    return caplog
+
+
+def get_all_log_files():
+    """Get all log files from the project and subdirectories."""
+    log_files = []
+
+    # Common log file patterns
+    log_patterns = [
+        "*.log",
+        "logs/*.log",
+        "**/*.log",
+        "*.txt",
+        "logs/*.txt",
+        "**/logs/*.log",
+        "**/logs/*.txt",
+    ]
+
+    # Search for log files in project root and subdirectories
+    project_root = Path(__file__).parent.parent
+
+    for pattern in log_patterns:
+        found_files = glob.glob(str(project_root / pattern), recursive=True)
+        log_files.extend(found_files)
+
+    # Also include the main log file path if it exists
     if os.path.exists(LOG_FILE_PATH):
-        max_retries = 3
-        for attempt in range(max_retries):
+        log_files.append(LOG_FILE_PATH)
+
+    # Remove duplicates and return
+    return list(set(log_files))
+
+
+def delete_log_files():
+    """Delete all log files with retry logic."""
+    log_files = get_all_log_files()
+
+    for log_file in log_files:
+        if os.path.exists(log_file):
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    os.remove(log_file)
+                    print(f"Deleted log file: {log_file}")
+                    break
+                except PermissionError:
+                    if attempt < max_retries - 1:
+                        time.sleep(0.5)
+                    else:
+                        # Try to just clear the content instead
+                        try:
+                            with open(log_file, "w") as f:
+                                f.write("")
+                            print(f"Cleared content of locked log file: {log_file}")
+                        except Exception as e:
+                            print(f"Could not clear log file {log_file}: {e}")
+
+
+def clear_log_file_content():
+    """Clear content of all log files without deleting them."""
+    log_files = get_all_log_files()
+
+    for log_file in log_files:
+        if os.path.exists(log_file):
             try:
-                os.remove(LOG_FILE_PATH)
-                break
-            except PermissionError:
-                if attempt < max_retries - 1:
-                    time.sleep(0.5)
-                else:
-                    # Try to just clear the content instead
-                    try:
-                        with open(LOG_FILE_PATH, "w") as f:
-                            f.write("")
-                    except:
-                        pass
+                with open(log_file, "w") as f:
+                    f.write("")
+                print(f"Cleared log file: {log_file}")
+            except Exception as e:
+                print(f"Could not clear log file {log_file}: {e}")
 
 
 def close_all_log_handlers():
-    """Close all logging handlers to release file handles"""
+    """Close all logging handlers to release file handles."""
+    # Close handlers for all loggers
     for logger_name in logging.Logger.manager.loggerDict:
         logger = logging.getLogger(logger_name)
         for handler in logger.handlers[:]:
@@ -153,13 +235,45 @@ def close_all_log_handlers():
         root_logger.removeHandler(handler)
 
 
+@pytest.fixture(scope="function", autouse=True)
+def cleanup_logs_before_test():
+    """Clear log files before each test to ensure clean state."""
+    close_all_log_handlers()
+    clear_log_file_content()
+    yield
+
+
 @pytest.fixture(scope="session", autouse=True)
-def cleanup_log_file_after_tests():
+def cleanup_all_log_files_after_tests():
     """
-    Automatically delete the log file after all tests are completed.
+    Automatically delete all log files after all tests are completed.
     This runs once at the end of the entire test session.
     """
     yield
 
+    # Final cleanup after all tests
     close_all_log_handlers()
-    delete_log_file()
+    delete_log_files()
+
+
+# Service-specific test clients -------------------------------------------------------------------------------
+@pytest.fixture
+def orchestrator_client():
+    """Test client for workflow orchestrator service."""
+    try:
+        from workflow_orchestrator_example import app as orchestrator_app
+        orchestrator_app.state.testing = True
+        return TestClient(orchestrator_app)
+    except ImportError:
+        pytest.skip("Workflow orchestrator service not available")
+
+
+@pytest.fixture
+def validation_client():
+    """Test client for validation service."""
+    try:
+        from validation_service_example import app as validation_app
+        validation_app.state.testing = True
+        return TestClient(validation_app)
+    except ImportError:
+        pytest.skip("Validation service not available")

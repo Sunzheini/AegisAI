@@ -4,7 +4,6 @@ Validation Service
 Standalone service that processes validation tasks.
 Uses RedisManager for consistent connection management.
 """
-
 import os
 import json
 import asyncio
@@ -18,6 +17,8 @@ from custom_middleware.error_middleware import ErrorMiddleware
 from needs.INeedRedisManager import INeedRedisManagerInterface
 from needs.ResolveNeedsManager import ResolveNeedsManager
 from redis_management.redis_manager import RedisManager
+from logging_management import LoggingManager
+from custom_middleware.logging_middleware import EnhancedLoggingMiddleware
 
 
 # Configuration
@@ -25,19 +26,11 @@ VALIDATION_QUEUE = os.getenv("VALIDATION_QUEUE", "validation_queue")
 VALIDATION_CALLBACK_QUEUE = os.getenv("VALIDATION_CALLBACK_QUEUE", "validation_callback_queue")
 
 
-
-
-from logging_management import LoggingManager
-from custom_middleware.logging_middleware import EnhancedLoggingMiddleware
-
 logger = LoggingManager.setup_logging(
     service_name="validation-service",
     log_file_path="logs/validation_service.log",
     log_level=logging.INFO
 )
-
-
-
 
 
 @asynccontextmanager
@@ -68,19 +61,7 @@ async def lifespan(app):
 
 app = FastAPI(title="Validation Service", lifespan=lifespan)
 app.add_middleware(ErrorMiddleware)
-
-
-
-
-
-
 app.add_middleware(EnhancedLoggingMiddleware, service_name="validation-service")
-
-
-
-
-
-
 
 
 class ValidationService(INeedRedisManagerInterface):

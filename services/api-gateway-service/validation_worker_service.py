@@ -25,9 +25,26 @@ VALIDATION_QUEUE = os.getenv("VALIDATION_QUEUE", "validation_queue")
 VALIDATION_CALLBACK_QUEUE = os.getenv("VALIDATION_CALLBACK_QUEUE", "validation_callback_queue")
 
 
+
+
+from logging_management import LoggingManager
+from custom_middleware.logging_middleware import EnhancedLoggingMiddleware
+
+logger = LoggingManager.setup_logging(
+    service_name="validation-service",
+    log_file_path="logs/validation_service.log",
+    log_level=logging.INFO
+)
+
+
+
+
+
 @asynccontextmanager
 async def lifespan(app):
     """Lifespan context manager to start/stop Redis listener."""
+    logger.info("Starting Validation Service...")
+
     # Create RedisManager
     redis_manager = RedisManager()
 
@@ -40,9 +57,11 @@ async def lifespan(app):
     app.state.redis_manager = redis_manager
 
     print("[ValidationService] Starting Redis listener...")
+    logger.info("Starting Redis listener...")
     task = asyncio.create_task(redis_listener(validation_service))
     yield
     print("[ValidationService] Shutting down Redis listener.")
+    logger.info("Shutting down Redis listener.")
     task.cancel()
     await app.state.redis_manager.close()
 
@@ -51,11 +70,24 @@ app = FastAPI(title="Validation Service", lifespan=lifespan)
 app.add_middleware(ErrorMiddleware)
 
 
+
+
+
+
+app.add_middleware(EnhancedLoggingMiddleware, service_name="validation-service")
+
+
+
+
+
+
+
+
 class ValidationService(INeedRedisManagerInterface):
     """Handles file validation tasks using shared RedisManager."""
 
     def __init__(self):
-        self.logger = logging.getLogger("validation_service")
+        self.logger = logging.getLogger("validation-service")
 
     async def process_validation_task(self, task_data: dict) -> dict:
         """Process validation task using shared Redis connection."""

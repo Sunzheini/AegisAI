@@ -57,6 +57,21 @@ from worker_clients.validation_worker_client import validate_file_worker_redis
 USE_REDIS_LISTENER = os.getenv("USE_REDIS_LISTENER", "true").lower() == "true"
 
 
+
+
+from logging_management import LoggingManager
+from custom_middleware.logging_middleware import EnhancedLoggingMiddleware
+
+logger = LoggingManager.setup_logging(
+    service_name="workflow-orchestrator",
+    log_file_path="logs/workflow_orchestrator.log",
+    log_level=logging.INFO
+)
+
+
+
+
+
 # ToDo:
 """
 status: black uses 88 max line length and "", logging implemented, pylint used, error middleware
@@ -79,6 +94,8 @@ later: add user stories use jira, pull requests how to see progress in github
 @asynccontextmanager
 async def lifespan(app):
     """Lifespan context manager to start/stop Redis listener if enabled."""
+    logger.info("Starting Workflow Orchestrator service...")
+
     # Create RedisManager instance
     from redis_management.redis_manager import RedisManager
     redis_manager = RedisManager()
@@ -98,21 +115,31 @@ async def lifespan(app):
 
     if USE_REDIS_LISTENER:
         print("[Orchestrator] Redis listener mode enabled. Starting Redis listener...")
+        logger.info("Redis listener mode enabled. Starting Redis listener...")
         # Pass orchestrator to redis_listener
         task = asyncio.create_task(redis_listener(orchestrator))
         yield
         print("[Orchestrator] Shutting down Redis listener.")
+        logger.info("Shutting down Redis listener.")
         task.cancel()
 
         # Close RedisManager connection - NOW IT EXISTS!
         await app.state.redis_manager.close()
     else:
         print("[Orchestrator] Redis listener mode disabled. Only direct HTTP submission will be processed.")
+        logger.info("Redis listener mode disabled. Only direct HTTP submission will be processed.")
         yield
 
 
 app = FastAPI(title="Workflow Orchestrator Example", lifespan=lifespan)
 app.add_middleware(ErrorMiddleware)
+
+
+
+
+app.add_middleware(EnhancedLoggingMiddleware, service_name="workflow-orchestrator")
+
+
 
 
 class WorkflowOrchestrator(INeedRedisManagerInterface):
@@ -124,7 +151,7 @@ class WorkflowOrchestrator(INeedRedisManagerInterface):
 
     def __init__(self):
         self.jobs: Dict[str, Dict[str, Any]] = {}
-        self.logger = logging.getLogger("orchestrator")
+        self.logger = logging.getLogger("workflow-orchestrator")
         # Define workflow graph structure
         self.graph = self._build_graph()
 

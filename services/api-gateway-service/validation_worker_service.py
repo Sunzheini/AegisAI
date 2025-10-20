@@ -100,15 +100,15 @@ class ValidationService(INeedRedisManagerInterface):
         await asyncio.sleep(0.5)
         errors = []
 
-        # Example validation: file type must be pdf, image, or video
+        # -------------------------------------------------------------------------------
+        # The real validation!
+        # -------------------------------------------------------------------------------
+        # File type must be pdf, image, or video
         allowed_types = ["application/pdf", "image/jpeg", "image/png", "video/mp4"]
         if state["content_type"] not in allowed_types:
             errors.append(f"Unsupported file type: {state['content_type']}")
 
-        # Example checksum validation (simulate failure if checksum ends with '0')
-        if state["checksum_sha256"].endswith("0"):
-            errors.append("Checksum validation failed.")
-
+        # -------------------------------------------------------------------------------
         if errors:
             state["status"] = "failed"
             state["step"] = "validate_file_failed"

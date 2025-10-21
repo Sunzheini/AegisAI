@@ -1,7 +1,7 @@
 """
-Media Processing Service
+Extract Metadata Service
 ------------------
-Standalone service that executes media processing tasks.
+Standalone service that executes extract metadata tasks.
 Uses RedisManager for consistent connection management.
 """
 import os
@@ -23,16 +23,16 @@ from custom_middleware.logging_middleware import EnhancedLoggingMiddleware
 
 
 # Configuration
-MEDIA_PROCESSING_QUEUE = os.getenv("MEDIA_PROCESSING_QUEUE", "media_processing_queue")
-MEDIA_PROCESSING_CALLBACK_QUEUE = os.getenv("MEDIA_PROCESSING_CALLBACK_QUEUE", "media_processing_callback_queue")
+EXTRACT_METADATA_QUEUE = os.getenv("EXTRACT_METADATA_QUEUE", "extract_metadata_queue")
+EXTRACT_METADATA_CALLBACK_QUEUE = os.getenv("EXTRACT_METADATA_CALLBACK_QUEUE", "extract_metadata_callback_queue")
 
 
-# Media processing constraints
+# Extract metadata constraints
 
 
 logger = LoggingManager.setup_logging(
-    service_name="media-processing-service",
-    log_file_path="logs/media_processing_service.log",
+    service_name="extract-metadata-service",
+    log_file_path="logs/extract_metadata_service.log",
     log_level=logging.INFO
 )
 
@@ -40,55 +40,55 @@ logger = LoggingManager.setup_logging(
 @asynccontextmanager
 async def lifespan(app):
     """Lifespan context manager to start/stop Redis listener."""
-    logger.info("Starting Media Processing Service...")
+    logger.info("Starting Extract Metadata Service...")
 
     # Create RedisManager
     redis_manager = RedisManager()
 
-    # Create media processing service and inject RedisManager
-    media_processing_service = MediaProcessingService()
-    ResolveNeedsManager.resolve_needs(media_processing_service)
+    # Create extract metadata service and inject RedisManager
+    extract_metadata_service = ExtractMetadataService()
+    ResolveNeedsManager.resolve_needs(extract_metadata_service)
 
     # Store in app.state
-    app.state.media_processing_service = media_processing_service
+    app.state.extract_metadata_service = extract_metadata_service
     app.state.redis_manager = redis_manager
 
-    print("[MediaProcessingService] Starting Redis listener...")
+    print("[ExtractMetadataService] Starting Redis listener...")
     logger.info("Starting Redis listener...")
-    task = asyncio.create_task(redis_listener(media_processing_service))
+    task = asyncio.create_task(redis_listener(extract_metadata_service))
     yield
-    print("[MediaProcessingService] Shutting down Redis listener.")
+    print("[ExtractMetadataService] Shutting down Redis listener.")
     logger.info("Shutting down Redis listener.")
     task.cancel()
     await app.state.redis_manager.close()
 
 
-app = FastAPI(title="Media Processing Service", lifespan=lifespan)
+app = FastAPI(title="Extract Metadata Service", lifespan=lifespan)
 app.add_middleware(ErrorMiddleware)
-app.add_middleware(EnhancedLoggingMiddleware, service_name="media-processing-service")
+app.add_middleware(EnhancedLoggingMiddleware, service_name="extract-metadata-service")
 
 
-class MediaProcessingService(INeedRedisManagerInterface):
-    """Handles file media processing tasks using shared RedisManager."""
+class ExtractMetadataService(INeedRedisManagerInterface):
+    """Handles file metadata extraction tasks using shared RedisManager."""
 
     def __init__(self):
-        self.logger = logging.getLogger("media-processing-service")
+        self.logger = logging.getLogger("extract-metadata-service")
 
         # Instance-level configuration
 
 
-    async def process_media_processing_task(self, task_data: dict) -> dict:
-        """Process media processing task using shared Redis connection."""
+    async def process_extract_metadata_task(self, task_data: dict) -> dict:
+        """Process extract metadata task using shared Redis connection."""
         try:
             state = WorkflowGraphState(**task_data)
-            result_state = await self._process_media_file_worker(state)
+            result_state = await self._process_extract_metadata_worker(state)
             return dict(result_state)
         except Exception as e:
-            self.logger.error(f"Media processing failed: {e}")
+            self.logger.error(f"Extract metadata failed: {e}")
             return {
                 "job_id": task_data.get("job_id"),
                 "status": "failed",
-                "step": "media_process_file_failed",
+                "step": "extract_metadata_from_file_failed",
                 "metadata": {"errors": [str(e)]},
                 "updated_at": self._current_timestamp()
             }
@@ -97,36 +97,36 @@ class MediaProcessingService(INeedRedisManagerInterface):
 
     # endregion
 
-    async def _process_media_file_worker(self, state: WorkflowGraphState) -> WorkflowGraphState:
+    async def _process_extract_metadata_worker(self, state: WorkflowGraphState) -> WorkflowGraphState:
         """
-        Media processes the file...
-        Updates the job state with the results of the media processing.
+        Extracting metadata from file.
+        Updates the job state with the results of the extracting metadata.
         Args:
             state (WorkflowGraphState): The job state dictionary containing file metadata and path.
         Returns:
-            WorkflowGraphState: Updated job state after media processing.
+            WorkflowGraphState: Updated job state after extracting metadata.
         """
-        print(f"[Worker:media_process_file] Job {state['job_id']} media processing...")
+        print(f"[Worker:extract_metadata_from_file] Job {state['job_id']} extracting metadata...")
         await asyncio.sleep(0.5)
         errors = []
 
         # -------------------------------------------------------------------------------
-        # The real media processing!
+        # The real metadata extraction!
         # -------------------------------------------------------------------------------
 
         # -------------------------------------------------------------------------------
         if errors:
             state["status"] = "failed"
-            state["step"] = "media_process_file_failed"
+            state["step"] = "extract_metadata_from_file_failed"
             state["metadata"] = {"errors": errors}
 
         else:
             state["status"] = "success"
-            state["step"] = "media_process_file_done"
-            state["metadata"] = {"media_processing": "passed"}
+            state["step"] = "extract_metadata_from_file_done"
+            state["metadata"] = {"extracting_metadata": "passed"}
 
         state["updated_at"] = datetime.now(timezone.utc).isoformat()
-        print(f"[Worker:media_process_file] Job {state['job_id']} media processing done. State: {state}")
+        print(f"[Worker:extract_metadata_from_file] Job {state['job_id']} extracting metadata done. State: {state}")
         return state
 
     @staticmethod
@@ -137,42 +137,42 @@ class MediaProcessingService(INeedRedisManagerInterface):
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "service": "media_processing"}
+    return {"status": "healthy", "service": "extracting_metadata"}
 
 
 # ----------------------------------------------------------------------------------------------
 # Redis listener to subscribe to validation tasks
 # ----------------------------------------------------------------------------------------------
-async def redis_listener(media_processing_service: MediaProcessingService):
+async def redis_listener(extract_metadata_service: ExtractMetadataService):
     """Redis listener using shared RedisManager."""
-    redis_client = await media_processing_service.redis_manager.get_redis_client()
+    redis_client = await extract_metadata_service.redis_manager.get_redis_client()
     pubsub = redis_client.pubsub()
 
     try:
-        await pubsub.subscribe(MEDIA_PROCESSING_QUEUE)
-        print(f"[MediaProcessingService] Listening on '{MEDIA_PROCESSING_QUEUE}'...")
+        await pubsub.subscribe(EXTRACT_METADATA_QUEUE)
+        print(f"[ExtractMetadataService] Listening on '{EXTRACT_METADATA_QUEUE}'...")
 
         async for message in pubsub.listen():
             if message["type"] == "message":
                 try:
                     task = json.loads(message["data"])
                     job_id = task.get("job_id", "unknown")
-                    print(f"[MediaProcessingService] Processing job: {job_id}")
+                    print(f"[ExtractMetadataService] Processing job: {job_id}")
 
-                    result = await media_processing_service.process_media_processing_task(task)
+                    result = await extract_metadata_service.process_extract_metadata_task(task)
 
                     # Use shared Redis connection to publish result
                     await redis_client.publish(
-                        MEDIA_PROCESSING_CALLBACK_QUEUE,
+                        EXTRACT_METADATA_CALLBACK_QUEUE,
                         json.dumps({"job_id": job_id, "result": result})
                     )
-                    print(f"[MediaProcessingService] Published result for: {job_id}")
+                    print(f"[ExtractMetadataService] Published result for: {job_id}")
 
                 except Exception as e:
-                    print(f"[MediaProcessingService] Error: {e}")
+                    print(f"[ExtractMetadataService] Error: {e}")
 
     except asyncio.CancelledError:
-        print("[MediaProcessingService] Listener cancelled")
+        print("[ExtractMetadataService] Listener cancelled")
     finally:
-        await pubsub.unsubscribe(MEDIA_PROCESSING_QUEUE)
+        await pubsub.unsubscribe(EXTRACT_METADATA_QUEUE)
         await pubsub.close()

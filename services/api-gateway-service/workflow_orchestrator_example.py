@@ -55,6 +55,8 @@ from ai_worker_example import (
 )
 from custom_middleware.error_middleware import ErrorMiddleware
 from worker_clients.validation_worker_client import validate_file_worker_redis
+from worker_clients.media_processing_worker_client import media_process_file_worker_redis
+
 
 USE_REDIS_LISTENER = os.getenv("USE_REDIS_LISTENER", "true").lower() == "true"
 
@@ -97,12 +99,15 @@ async def lifespan(app):
 
     # Resolve ValidationWorkerClient dependency
     from worker_clients.validation_worker_client import validation_worker_client
+    from worker_clients.media_processing_worker_client import media_processing_worker_client
     ResolveNeedsManager.resolve_needs(validation_worker_client)
+    ResolveNeedsManager.resolve_needs(media_processing_worker_client)
 
     # Store orchestrator in app.state so routes can access it
     app.state.orchestrator = orchestrator
     app.state.redis_manager = redis_manager
     app.state.validation_worker_client = validation_worker_client
+    app.state.media_processing_worker_client = media_processing_worker_client
 
     if USE_REDIS_LISTENER:
         print("[Orchestrator] Redis listener mode enabled. Starting Redis listener...")
@@ -151,7 +156,7 @@ class WorkflowOrchestrator(INeedRedisManagerInterface):
 
             # Nodes
             graph.add_node("validate_file", validate_file_worker_redis)
-            graph.add_node("extract_metadata", extract_metadata_worker)
+            graph.add_node("extract_metadata", media_process_file_worker_redis)
             graph.add_node("route_workflow", self._worker_route_workflow)
             graph.add_node("generate_thumbnails", generate_thumbnails_worker)
             graph.add_node("analyze_image_with_ai", analyze_image_with_ai_worker)

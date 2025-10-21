@@ -87,7 +87,7 @@ class ValidationService(INeedRedisManagerInterface):
     def __init__(self):
         self.logger = logging.getLogger("validation-service")
 
-        # Instance-level configuration - ADD THESE LINES
+        # Instance-level configuration
         self.MAX_FILE_SIZE = MAX_FILE_SIZE
         self.MAX_IMAGE_DIMENSION = MAX_IMAGE_DIMENSION
         self.MAX_VIDEO_DURATION = MAX_VIDEO_DURATION

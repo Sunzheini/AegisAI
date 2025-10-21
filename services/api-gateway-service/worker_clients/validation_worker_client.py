@@ -1,10 +1,8 @@
 """
-Validation Worker for Orchestrator
+Validation Worker Client for Orchestrator
 ----------------------------------
 Lightweight client that publishes validation tasks to Redis and waits for results.
 Used by the workflow orchestrator.
-
-This replaces the old validate_file_worker_redis function.
 """
 
 import os

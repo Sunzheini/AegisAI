@@ -35,7 +35,10 @@ We will split the monolith into highly cohesive, loosely coupled services.
 3. Specialized Worker Services (Python + SQS Consumers)
 These are the "muscle" that carry out the tasks defined by the LangGraph orchestrator. Each is a separate, scalable microservice.
    - Validation Worker: Validates file type, size, and integrity.
-   - Media Processing Worker: Uses ProcessPoolExecutor for CPU-bound tasks (FFmpeg for video, Pillow for images). You will include benchmarks comparing single-threaded vs. multi-process performance.
+   
+   - Media Processing Worker: Uses ProcessPoolExecutor for CPU-bound tasks (FFmpeg for video, Pillow for images). You will include 
+   - benchmarks comparing single-threaded vs. multi-process performance.
+   
    - AI Inference Worker (LangChain): This is where LangChain shines.
      - Purpose: Handles all AI interactions.
      - Implementation: Uses LangChain to create modular, reusable "chains" or "agents".

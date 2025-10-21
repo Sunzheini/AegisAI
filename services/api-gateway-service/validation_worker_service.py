@@ -26,6 +26,9 @@ from custom_middleware.logging_middleware import EnhancedLoggingMiddleware
 VALIDATION_QUEUE = os.getenv("VALIDATION_QUEUE", "validation_queue")
 VALIDATION_CALLBACK_QUEUE = os.getenv("VALIDATION_CALLBACK_QUEUE", "validation_callback_queue")
 
+# Add upload/raw storage location constant (configurable)
+UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "storage/raw")).resolve()
+
 # Validation constraints
 MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE", 100 * 1024 * 1024))  # 100MB default
 MAX_IMAGE_DIMENSION = int(os.getenv("MAX_IMAGE_DIMENSION", 10000))  # 10k pixels
@@ -172,7 +175,8 @@ class ValidationService(INeedRedisManagerInterface):
                 errors.append("File is empty")
 
             # Add file size to metadata for downstream processing
-            if "metadata" not in state:
+            # Ensure metadata exists and is a dictionary
+            if "metadata" not in state or state["metadata"] is None:
                 state["metadata"] = {}
             state["metadata"]["file_size"] = file_size
 
@@ -365,6 +369,59 @@ class ValidationService(INeedRedisManagerInterface):
         """
         print(f"[Worker:validate_file] Job {state['job_id']} validating...")
         await asyncio.sleep(0.5)
+
+
+
+
+        # -------------------------------------------------------------------------------
+
+        # Resolve file path: the ingestion prefixes files with {job_id}_{basename} and
+        # stores them under storage/raw. Try direct filename, job-prefixed, and glob fallback.
+        try:
+            job_id = state.get("job_id", "")
+            raw_path = state.get("file_path", "")
+            p = Path(raw_path)
+            resolved = None
+
+            if p.is_absolute():
+                resolved = p
+            else:
+                # direct candidate under UPLOAD_DIR
+                candidate = UPLOAD_DIR / p
+                if candidate.exists():
+                    resolved = candidate
+                else:
+                    # try job-prefixed filename
+                    prefixed = UPLOAD_DIR / f"{job_id}_{p.name}"
+                    if prefixed.exists():
+                        resolved = prefixed
+                    else:
+                        # glob fallback: any file ending with _basename
+                        matches = list(UPLOAD_DIR.glob(f"*_{p.name}"))
+                        if matches:
+                            resolved = matches[0]
+                        else:
+                            # fallback to candidate (may not exist) so validators will report a clear error
+                            resolved = candidate
+
+            try:
+                resolved = resolved.resolve()
+            except Exception:
+                # if resolve fails, keep the path as-is
+                pass
+
+            # replace state's file_path with resolved absolute/relative path string
+            state["file_path"] = str(resolved)
+            print(f"[Worker:validate_file] Resolved file path for job {job_id}: {state['file_path']}")
+        except Exception as e:
+            # If resolution itself fails, record the error and continue so validators catch it
+            print(f"[Worker:validate_file] Error resolving file path: {e}")
+
+        # -------------------------------------------------------------------------------
+
+
+
+
         errors = []
 
         # -------------------------------------------------------------------------------
@@ -450,3 +507,4 @@ async def redis_listener(validation_service: ValidationService):
     finally:
         await pubsub.unsubscribe(VALIDATION_QUEUE)
         await pubsub.close()
+

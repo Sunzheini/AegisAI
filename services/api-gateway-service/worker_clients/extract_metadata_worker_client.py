@@ -12,7 +12,7 @@ from worker_clients.base_worker_client import BaseWorkerClient
 
 # Specific Configuration
 EXTRACT_METADATA_WORKER_NAME = os.getenv("EXTRACT_METADATA_WORKER_NAME", "ExtractMetadataWorker")
-EXTRACT_METADATA_TASK_NAME = os.getenv("EXTRACT_METADATA_TASK_NAME", "extracting metadata")
+EXTRACT_METADATA_TASK_NAME = os.getenv("EXTRACT_METADATA_TASK_NAME", "extract metadata")
 EXTRACT_METADATA_QUEUE = os.getenv("EXTRACT_METADATA_QUEUE", "extract_metadata_queue")
 EXTRACT_METADATA_CALLBACK_QUEUE = os.getenv("EXTRACT_METADATA_CALLBACK_QUEUE", "extract_metadata_callback_queue")
 

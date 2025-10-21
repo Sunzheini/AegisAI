@@ -100,5 +100,5 @@ async def test_validate_file_timeout(redis_client):
         "metadata": {},
     }
 
-    with pytest.raises(TimeoutError):
-        await client.validate_file(state, timeout=1)
+    with pytest.raises(TimeoutError, match=f"Validation service timeout for job {state['job_id']}"):
+        await client.validate_file(state, timeout=0.1)  # 100ms timeout

@@ -231,13 +231,27 @@ class ExtractMetadataService(INeedRedisManagerInterface):
                     for key, value in reader.metadata.items():
                         # Clean up keys (remove leading '/')
                         clean_key = key.lstrip('/')
-                        doc_info[clean_key] = str(value) if value else ""
+                        # Handle different value types
+                        if hasattr(value, 'decode'):
+                            try:
+                                doc_info[clean_key] = value.decode('utf-8', errors='ignore')
+                            except:
+                                doc_info[clean_key] = str(value)
+                        else:
+                            doc_info[clean_key] = str(value) if value else ""
 
                     if doc_info:
                         metadata["document_info"] = doc_info
 
         except Exception as e:
-            metadata["pdf_metadata_error"] = str(e)
+            # Provide a more specific error message
+            error_msg = str(e)
+            if "EOF marker not found" in error_msg:
+                error_msg = "PDF appears to be truncated or corrupted"
+            elif "invalid literal for int()" in error_msg:
+                error_msg = "PDF structure appears to be invalid"
+
+            metadata["pdf_metadata_error"] = error_msg
 
         return metadata
 

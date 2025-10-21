@@ -70,7 +70,7 @@ async def test_validate_file_success(redis_client):
     await asyncio.sleep(0.05)
 
     # Call client validate_file which should wait for the callback
-    result_state = await client.validate_file(state, timeout=5)
+    result_state = await client.process_file_by_the_worker(state, timeout=5)
 
     # Cleanup
     await asyncio.wait_for(task, timeout=1)
@@ -101,4 +101,4 @@ async def test_validate_file_timeout(redis_client):
     }
 
     with pytest.raises(TimeoutError, match=f"Validation service timeout for job {state['job_id']}"):
-        await client.validate_file(state, timeout=0.1)  # 100ms timeout
+        await client.process_file_by_the_worker(state, timeout=0.1)  # 100ms timeout

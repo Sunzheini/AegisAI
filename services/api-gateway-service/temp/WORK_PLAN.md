@@ -35,7 +35,9 @@ We will split the monolith into highly cohesive, loosely coupled services.
 3. Specialized Worker Services (Python + SQS Consumers)
 These are the "muscle" that carry out the tasks defined by the LangGraph orchestrator. Each is a separate, scalable microservice.
    - Validation Worker: Validates file type, size, and integrity.
-   
+   - Extract Metadata Worker: Extracts basic metadata
+   - After the validation and metadata extraction, the workflow branches based on file type.
+    
    - Media Processing Worker: Uses ProcessPoolExecutor for CPU-bound tasks (FFmpeg for video, Pillow for images). You will include 
    - benchmarks comparing single-threaded vs. multi-process performance.
    

@@ -38,8 +38,10 @@ These are the "muscle" that carry out the tasks defined by the LangGraph orchest
    - Extract Metadata Worker: Extracts basic metadata
    - After the validation and metadata extraction, the workflow branches based on file type.
     
+
+
    - Media Processing Worker: Uses ProcessPoolExecutor for CPU-bound tasks (FFmpeg for video, Pillow for images). You will include 
-   - benchmarks comparing single-threaded vs. multi-process performance.
+   benchmarks comparing single-threaded vs. multi-process performance.
    
    - AI Inference Worker (LangChain): This is where LangChain shines.
      - Purpose: Handles all AI interactions.

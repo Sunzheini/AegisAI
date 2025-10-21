@@ -77,8 +77,10 @@ later: add user stories use jira, pull requests how to see progress in github
 """
 
 
-# ToDo: Extract metadata worker -> Worker Base
-# ToDo: Other workers 1 by 1 similar to the validation worker with client and service
+# ToDo: Worker Base
+# ToDo: Extraction Worker
+# ToDo: AI Summarization Worker
+
 # ToDo: when moving Give the workflow orchestrator direct access to the storage via shared
 #  folder, it is better to pass only the file path and metadata in the job request, not the
 #  file content itself.
@@ -160,11 +162,17 @@ class WorkflowOrchestrator(INeedRedisManagerInterface):
             graph.add_node("validate_file", validate_file_worker_redis)
             graph.add_node("extract_metadata", extract_metadata_from_file_worker_redis)
             graph.add_node("route_workflow", self._worker_route_workflow)
+
+            # Image branch
             graph.add_node("generate_thumbnails", generate_thumbnails_worker)
             graph.add_node("analyze_image_with_ai", analyze_image_with_ai_worker)
+
+            # Video branch
             graph.add_node("extract_audio", extract_audio_worker)
             graph.add_node("transcribe_audio", transcribe_audio_worker)
             graph.add_node("generate_video_summary", generate_video_summary_worker)
+
+            # PDF branch
             graph.add_node("extract_text", extract_text_worker)
             graph.add_node("summarize_document", summarize_document_worker)
             print("[Orchestrator] Added all nodes to graph.")

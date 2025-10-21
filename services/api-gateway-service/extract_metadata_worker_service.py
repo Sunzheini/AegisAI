@@ -93,8 +93,183 @@ class ExtractMetadataService(INeedRedisManagerInterface):
                 "updated_at": self._current_timestamp()
             }
 
-    # region Media Processing Methods
+    # region Extract Metadata Methods
+    @staticmethod
+    async def _extract_universal_metadata(state: WorkflowGraphState) -> dict:
+        """Extract metadata common to all file types."""
+        metadata = {}
+        file_path = state["file_path"]
 
+        try:
+            path = Path(file_path)
+            stat = path.stat()
+
+            metadata.update({
+                "file_size": stat.st_size,
+                "file_extension": path.suffix.lower(),
+                "created_timestamp": datetime.fromtimestamp(stat.st_ctime, timezone.utc).isoformat(),
+                "modified_timestamp": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
+                "magic_number_verified": await ExtractMetadataService._verify_magic_number(file_path,
+                                                                                              state["content_type"])
+            })
+
+        except Exception as e:
+            metadata["universal_metadata_error"] = str(e)
+
+        return metadata
+
+    @staticmethod
+    async def _extract_image_metadata(file_path: str) -> dict:
+        """Extract image-specific metadata using Pillow."""
+        metadata = {}
+
+        try:
+            from PIL import Image, ExifTags
+
+            with Image.open(file_path) as img:
+                metadata.update({
+                    "dimensions": {
+                        "width": img.width,
+                        "height": img.height,
+                        "aspect_ratio": f"{img.width}:{img.height}"
+                    },
+                    "color_info": {
+                        "mode": img.mode,
+                        "has_alpha": img.mode in ('RGBA', 'LA', 'P')
+                    },
+                    "format": img.format
+                })
+
+                # Extract EXIF data if available
+                exif_data = {}
+                if hasattr(img, '_getexif') and img._getexif():
+                    for tag, value in img._getexif().items():
+                        tag_name = ExifTags.TAGS.get(tag, tag)
+                        # Convert to string to avoid serialization issues
+                        exif_data[tag_name] = str(value)
+
+                if exif_data:
+                    metadata["exif_data"] = exif_data
+
+        except Exception as e:
+            metadata["image_metadata_error"] = str(e)
+
+        return metadata
+
+    @staticmethod
+    async def _extract_video_metadata(file_path: str) -> dict:
+        """Extract video metadata using ffprobe."""
+        metadata = {}
+
+        try:
+            import subprocess
+            import json
+
+            cmd = [
+                'ffprobe', '-v', 'quiet', '-print_format', 'json',
+                '-show_format', '-show_streams', file_path
+            ]
+
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                metadata["video_metadata_error"] = "ffprobe failed to analyze file"
+                return metadata
+
+            probe_data = json.loads(result.stdout)
+
+            # Extract basic format info
+            format_info = probe_data.get('format', {})
+            metadata.update({
+                "duration": float(format_info.get('duration', 0)),
+                "bitrate": int(format_info.get('bit_rate', 0)),
+                "format_name": format_info.get('format_name', 'unknown')
+            })
+
+            # Extract stream information
+            video_stream = next((s for s in probe_data.get('streams', []) if s.get('codec_type') == 'video'), None)
+            if video_stream:
+                metadata["video_stream"] = {
+                    "codec": video_stream.get('codec_name'),
+                    "width": video_stream.get('width'),
+                    "height": video_stream.get('height'),
+                    "frame_rate": video_stream.get('r_frame_rate', 'unknown'),
+                    "pixel_format": video_stream.get('pix_fmt')
+                }
+
+            audio_stream = next((s for s in probe_data.get('streams', []) if s.get('codec_type') == 'audio'), None)
+            if audio_stream:
+                metadata["audio_stream"] = {
+                    "codec": audio_stream.get('codec_name'),
+                    "sample_rate": audio_stream.get('sample_rate'),
+                    "channels": audio_stream.get('channels')
+                }
+
+        except Exception as e:
+            metadata["video_metadata_error"] = str(e)
+
+        return metadata
+
+    @staticmethod
+    async def _extract_pdf_metadata(file_path: str) -> dict:
+        """Extract PDF metadata using PyPDF2."""
+        metadata = {}
+
+        try:
+            import PyPDF2
+
+            with open(file_path, 'rb') as file:
+                reader = PyPDF2.PdfReader(file)
+
+                metadata.update({
+                    "page_count": len(reader.pages),
+                    "is_encrypted": reader.is_encrypted
+                })
+
+                # Extract document info if available
+                if reader.metadata:
+                    doc_info = {}
+                    for key, value in reader.metadata.items():
+                        # Clean up keys (remove leading '/')
+                        clean_key = key.lstrip('/')
+                        doc_info[clean_key] = str(value) if value else ""
+
+                    if doc_info:
+                        metadata["document_info"] = doc_info
+
+        except Exception as e:
+            metadata["pdf_metadata_error"] = str(e)
+
+        return metadata
+
+    @staticmethod
+    async def _verify_magic_number(file_path: str, content_type: str) -> bool:
+        """Verify file signature matches claimed content type."""
+        magic_numbers = {
+            'image/jpeg': [b'\xff\xd8\xff'],
+            'image/png': [b'\x89PNG\r\n\x1a\n'],
+            'image/gif': [b'GIF87a', b'GIF89a'],
+            'image/webp': [b'RIFF', b'WEBP'],  # WebP starts with RIFF and contains WEBP
+            'application/pdf': [b'%PDF-'],
+            'video/mp4': [b'ftyp'],
+            'video/avi': [b'RIFF'],
+            'video/mov': [b'ftyp', b'moov'],
+            'video/webm': [b'\x1a\x45\xdf\xa3']  # WebM/Matroska
+        }
+
+        try:
+            with open(file_path, 'rb') as f:
+                header = f.read(20)  # Read first 20 bytes
+
+            expected_signatures = magic_numbers.get(content_type, [])
+
+            # Special handling for WebP which has WEBP at position 8-12
+            if content_type == 'image/webp' and header.startswith(b'RIFF'):
+                return header[8:12] == b'WEBP'
+
+            return any(header.startswith(sig) for sig in expected_signatures)
+
+        except Exception:
+            return False
     # endregion
 
     async def _process_extract_metadata_worker(self, state: WorkflowGraphState) -> WorkflowGraphState:
@@ -113,6 +288,45 @@ class ExtractMetadataService(INeedRedisManagerInterface):
         # -------------------------------------------------------------------------------
         # The real metadata extraction!
         # -------------------------------------------------------------------------------
+        # Initialize metadata if not present
+        if "metadata" not in state or state["metadata"] is None:
+            state["metadata"] = {}
+
+        content_type = state["content_type"]
+        file_path = state["file_path"]
+
+        # 1. Extract universal metadata (applies to all file types)
+        universal_metadata = await self._extract_universal_metadata(state)
+        if "universal_metadata_error" in universal_metadata:
+            errors.append(f"Universal metadata extraction failed: {universal_metadata['universal_metadata_error']}")
+        else:
+            state["metadata"].update(universal_metadata)
+
+        # 2. Extract type-specific metadata
+        try:
+            if content_type.startswith("image/"):
+                image_metadata = await self._extract_image_metadata(file_path)
+                if "image_metadata_error" in image_metadata:
+                    errors.append(f"Image metadata extraction failed: {image_metadata['image_metadata_error']}")
+                else:
+                    state["metadata"].update(image_metadata)
+
+            elif content_type.startswith("video/"):
+                video_metadata = await self._extract_video_metadata(file_path)
+                if "video_metadata_error" in video_metadata:
+                    errors.append(f"Video metadata extraction failed: {video_metadata['video_metadata_error']}")
+                else:
+                    state["metadata"].update(video_metadata)
+
+            elif content_type == "application/pdf":
+                pdf_metadata = await self._extract_pdf_metadata(file_path)
+                if "pdf_metadata_error" in pdf_metadata:
+                    errors.append(f"PDF metadata extraction failed: {pdf_metadata['pdf_metadata_error']}")
+                else:
+                    state["metadata"].update(pdf_metadata)
+
+        except Exception as e:
+            errors.append(f"Type-specific metadata extraction failed: {str(e)}")
 
         # -------------------------------------------------------------------------------
         if errors:
@@ -127,6 +341,7 @@ class ExtractMetadataService(INeedRedisManagerInterface):
 
         state["updated_at"] = datetime.now(timezone.utc).isoformat()
         print(f"[Worker:extract_metadata_from_file] Job {state['job_id']} extracting metadata done. State: {state}")
+
         return state
 
     @staticmethod

@@ -26,7 +26,7 @@ from custom_middleware.logging_middleware import EnhancedLoggingMiddleware
 VALIDATION_QUEUE = os.getenv("VALIDATION_QUEUE", "validation_queue")
 VALIDATION_CALLBACK_QUEUE = os.getenv("VALIDATION_CALLBACK_QUEUE", "validation_callback_queue")
 
-# Add upload/raw storage location constant (configurable)
+# Upload/raw storage location constant (configurable)
 UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "storage/raw")).resolve()
 
 # Validation constraints
@@ -455,4 +455,3 @@ async def redis_listener(validation_service: ValidationService):
     finally:
         await pubsub.unsubscribe(VALIDATION_QUEUE)
         await pubsub.close()
-

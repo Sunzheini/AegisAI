@@ -27,9 +27,6 @@ EXTRACT_METADATA_QUEUE = os.getenv("EXTRACT_METADATA_QUEUE", "extract_metadata_q
 EXTRACT_METADATA_CALLBACK_QUEUE = os.getenv("EXTRACT_METADATA_CALLBACK_QUEUE", "extract_metadata_callback_queue")
 
 
-# Extract metadata constraints
-
-
 logger = LoggingManager.setup_logging(
     service_name="extract-metadata-service",
     log_file_path="logs/extract_metadata_service.log",

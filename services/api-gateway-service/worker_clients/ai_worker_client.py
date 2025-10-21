@@ -1,0 +1,38 @@
+"""
+AI Worker Client for Orchestrator
+----------------------------------
+Lightweight client that publishes ai-related (e.g. summarize text) tasks to Redis and waits for results.
+Used by the workflow orchestrator.
+"""
+import os
+
+from contracts.job_schemas import WorkflowGraphState
+from worker_clients.base_worker_client import BaseWorkerClient
+
+
+# Specific Configuration
+AI_WORKER_NAME = os.getenv("AI_WORKER_NAME", "AIWorker")
+AI_TEXT_TASK_NAME = os.getenv("AI_TASK_NAME", "process by ai")
+AI_TEXT_QUEUE = os.getenv("AI_QUEUE", "ai_queue")
+AI_TEXT_CALLBACK_QUEUE = os.getenv("AI_CALLBACK_QUEUE", "ai_callback_queue")
+
+
+class AIWorkerClient(BaseWorkerClient):
+    """Client for interacting with the ai service."""
+    def __init__(self):
+        self.worker_name = AI_WORKER_NAME
+        self.task_name = AI_TEXT_TASK_NAME
+        self.worker_queue = AI_TEXT_QUEUE
+        self.worker_callback_queue = AI_TEXT_CALLBACK_QUEUE
+
+
+ai_worker_client = AIWorkerClient()
+
+
+# Backward compatibility - function used by orchestrator graph
+async def process_file_by_ai_worker_redis(state: WorkflowGraphState) -> WorkflowGraphState:
+    """
+    Function called by orchestrator workflow graph.
+    Delegates to the ai service via Redis.
+    """
+    return await ai_worker_client.process_file_by_the_worker(state)

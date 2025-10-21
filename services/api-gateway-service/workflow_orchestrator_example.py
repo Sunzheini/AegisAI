@@ -77,9 +77,8 @@ later: add user stories use jira, pull requests how to see progress in github
 """
 
 
-# ToDo: Worker Base
-# ToDo: Extraction Worker
-# ToDo: AI Summarization Worker
+# ToDo: Extraction Worker Service + actual logic + tests
+# ToDo: AI Summarization Worker Service + actual logic + tests
 
 # ToDo: when moving Give the workflow orchestrator direct access to the storage via shared
 #  folder, it is better to pass only the file path and metadata in the job request, not the

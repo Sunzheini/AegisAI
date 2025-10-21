@@ -54,6 +54,7 @@ from ai_worker_example import (
     summarize_document_worker,
 )
 from custom_middleware.error_middleware import ErrorMiddleware
+from support.support_functions import resolve_file_path
 from worker_clients.validation_worker_client import validate_file_worker_redis
 from worker_clients.media_processing_worker_client import media_process_file_worker_redis
 
@@ -256,9 +257,13 @@ class WorkflowOrchestrator(INeedRedisManagerInterface):
             print(f"[Orchestrator] Job {job.job_id} already exists!")
             raise ValueError("Job already exists")
 
+        # Resolve file path once in orchestrator
+        resolved_path = await resolve_file_path(job.file_path, job.job_id)
+
         state = WorkflowGraphState(
             job_id=job.job_id,
-            file_path=job.file_path,
+            # file_path=job.file_path,
+            file_path=resolved_path,
             content_type=job.content_type,
             checksum_sha256=job.checksum_sha256,
             submitted_by=job.submitted_by,

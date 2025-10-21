@@ -370,58 +370,6 @@ class ValidationService(INeedRedisManagerInterface):
         print(f"[Worker:validate_file] Job {state['job_id']} validating...")
         await asyncio.sleep(0.5)
 
-
-
-
-        # -------------------------------------------------------------------------------
-
-        # Resolve file path: the ingestion prefixes files with {job_id}_{basename} and
-        # stores them under storage/raw. Try direct filename, job-prefixed, and glob fallback.
-        try:
-            job_id = state.get("job_id", "")
-            raw_path = state.get("file_path", "")
-            p = Path(raw_path)
-            resolved = None
-
-            if p.is_absolute():
-                resolved = p
-            else:
-                # direct candidate under UPLOAD_DIR
-                candidate = UPLOAD_DIR / p
-                if candidate.exists():
-                    resolved = candidate
-                else:
-                    # try job-prefixed filename
-                    prefixed = UPLOAD_DIR / f"{job_id}_{p.name}"
-                    if prefixed.exists():
-                        resolved = prefixed
-                    else:
-                        # glob fallback: any file ending with _basename
-                        matches = list(UPLOAD_DIR.glob(f"*_{p.name}"))
-                        if matches:
-                            resolved = matches[0]
-                        else:
-                            # fallback to candidate (may not exist) so validators will report a clear error
-                            resolved = candidate
-
-            try:
-                resolved = resolved.resolve()
-            except Exception:
-                # if resolve fails, keep the path as-is
-                pass
-
-            # replace state's file_path with resolved absolute/relative path string
-            state["file_path"] = str(resolved)
-            print(f"[Worker:validate_file] Resolved file path for job {job_id}: {state['file_path']}")
-        except Exception as e:
-            # If resolution itself fails, record the error and continue so validators catch it
-            print(f"[Worker:validate_file] Error resolving file path: {e}")
-
-        # -------------------------------------------------------------------------------
-
-
-
-
         errors = []
 
         # -------------------------------------------------------------------------------

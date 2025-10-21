@@ -2,7 +2,7 @@ def test_validation_service_logging_setup(caplog, validation_client):
     """Test that validation service has proper logging setup."""
     with caplog.at_level("INFO", logger="validation-service"):
         # Get the logger from the validation service module
-        from validation_worker_service import logger as validation_logger
+        from workers.validation_worker_service import logger as validation_logger
         validation_logger.info("Validation service test log")
 
         assert any("Validation service test log" in record.message for record in caplog.records)

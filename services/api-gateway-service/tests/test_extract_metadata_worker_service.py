@@ -5,7 +5,7 @@ import pytest
 import tempfile
 import os
 
-from extract_metadata_worker_service import (
+from workers.extract_metadata_worker_service import (
     ExtractMetadataService,
     EXTRACT_METADATA_QUEUE,
     EXTRACT_METADATA_CALLBACK_QUEUE,

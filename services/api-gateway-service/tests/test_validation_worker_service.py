@@ -5,7 +5,7 @@ import pytest
 import tempfile
 import os
 
-from validation_worker_service import (
+from workers.validation_worker_service import (
     ValidationService,
     VALIDATION_QUEUE,
     VALIDATION_CALLBACK_QUEUE,

@@ -39,7 +39,7 @@ from fastapi import FastAPI, HTTPException, status, Request
 from contracts.job_schemas import IngestionJobRequest, IngestionJobStatusResponse, WorkflowGraphState
 from needs.INeedRedisManager import INeedRedisManagerInterface
 from needs.ResolveNeedsManager import ResolveNeedsManager
-from logging_management import LoggingManager
+from logging_management.logging_manager import LoggingManager
 from custom_middleware.logging_middleware import EnhancedLoggingMiddleware
 from media_processing_worker_example import (
     extract_metadata_worker,

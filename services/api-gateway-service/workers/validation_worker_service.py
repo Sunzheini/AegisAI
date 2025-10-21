@@ -18,7 +18,7 @@ from custom_middleware.error_middleware import ErrorMiddleware
 from needs.INeedRedisManager import INeedRedisManagerInterface
 from needs.ResolveNeedsManager import ResolveNeedsManager
 from redis_management.redis_manager import RedisManager
-from logging_management import LoggingManager
+from logging_management.logging_manager import LoggingManager
 from custom_middleware.logging_middleware import EnhancedLoggingMiddleware
 
 

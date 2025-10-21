@@ -332,12 +332,16 @@ class ExtractMetadataService(INeedRedisManagerInterface):
         if errors:
             state["status"] = "failed"
             state["step"] = "extract_metadata_from_file_failed"
-            state["metadata"] = {"errors": errors}
+
+            # state["metadata"] = {"errors": errors}
+            state["metadata"]["errors"] = errors    # Keep existing metadata but add errors
 
         else:
             state["status"] = "success"
             state["step"] = "extract_metadata_from_file_done"
-            state["metadata"] = {"extracting_metadata": "passed"}
+
+            # state["metadata"] = {"extracting_metadata": "passed"}
+            state["metadata"]["extracting_metadata"] = "passed"     # Just add the success flag
 
         state["updated_at"] = datetime.now(timezone.utc).isoformat()
         print(f"[Worker:extract_metadata_from_file] Job {state['job_id']} extracting metadata done. State: {state}")

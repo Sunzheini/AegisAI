@@ -16,6 +16,8 @@ AI_TASK_NAME = os.getenv("AI_TASK_NAME", "process by ai")
 AI_QUEUE = os.getenv("AI_QUEUE", "ai_queue")
 AI_CALLBACK_QUEUE = os.getenv("AI_CALLBACK_QUEUE", "ai_callback_queue")
 
+SPECIFIC_TIMEOUT_SECONDS = 300  # 5 minutes
+
 
 class AIWorkerClient(BaseWorkerClient):
     """Client for interacting with the ai service."""
@@ -35,4 +37,4 @@ async def process_file_by_ai_worker_redis(state: WorkflowGraphState) -> Workflow
     Function called by orchestrator workflow graph.
     Delegates to the ai service via Redis.
     """
-    return await ai_worker_client.process_file_by_the_worker(state)
+    return await ai_worker_client.process_file_by_the_worker(state, SPECIFIC_TIMEOUT_SECONDS)

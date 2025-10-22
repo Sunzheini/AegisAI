@@ -16,6 +16,8 @@ EXTRACT_TEXT_TASK_NAME = os.getenv("EXTRACT_TEXT_TASK_NAME", "extract text")
 EXTRACT_TEXT_QUEUE = os.getenv("EXTRACT_TEXT_QUEUE", "extract_text_queue")
 EXTRACT_TEXT_CALLBACK_QUEUE = os.getenv("EXTRACT_TEXT_CALLBACK_QUEUE", "extract_text_callback_queue")
 
+SPECIFIC_TIMEOUT_SECONDS = 300  # 5 minutes
+
 
 class ExtractTextWorkerClient(BaseWorkerClient):
     """Client for interacting with the extract text service."""
@@ -35,4 +37,4 @@ async def extract_text_from_file_worker_redis(state: WorkflowGraphState) -> Work
     Function called by orchestrator workflow graph.
     Delegates to the extract text service via Redis.
     """
-    return await extract_text_worker_client.process_file_by_the_worker(state)
+    return await extract_text_worker_client.process_file_by_the_worker(state, SPECIFIC_TIMEOUT_SECONDS)

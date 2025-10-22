@@ -262,6 +262,7 @@ def orchestrator_client():
     """Test client for workflow orchestrator service."""
     try:
         from workflow_orchestrator_example import app as orchestrator_app
+
         orchestrator_app.state.testing = True
         return TestClient(orchestrator_app)
     except ImportError:
@@ -273,6 +274,7 @@ def validation_client():
     """Test client for validation service."""
     try:
         from validation_service_example import app as validation_app
+
         validation_app.state.testing = True
         return TestClient(validation_app)
     except ImportError:

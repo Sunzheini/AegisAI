@@ -1,6 +1,7 @@
 """
 Support functions for the API Gateway Service.
 """
+
 import os
 from pathlib import Path
 

@@ -38,7 +38,10 @@ def test_error_middleware_logs_and_returns_500(caplog):
 
         # Check that our intentional error message is in the logs
         error_messages = [r.getMessage() for r in error_logs]
-        assert any("Intentional error for testing error middleware" in msg for msg in error_messages)
+        assert any(
+            "Intentional error for testing error middleware" in msg
+            for msg in error_messages
+        )
 
 
 def test_logging_middleware_adds_request_id():
@@ -65,14 +68,16 @@ def test_logging_middleware_logs_requests(caplog):
 
         # Check that request was logged by our app logger
         request_logs = [
-            r for r in caplog.records
+            r
+            for r in caplog.records
             if "request received" in r.getMessage().lower() and r.name == APP_NAME
         ]
         assert len(request_logs) > 0
 
         # Check that response was logged by our app logger
         response_logs = [
-            r for r in caplog.records
+            r
+            for r in caplog.records
             if "response sent" in r.getMessage().lower() and r.name == APP_NAME
         ]
         assert len(response_logs) > 0
@@ -96,10 +101,13 @@ def test_logging_middleware_handles_errors(caplog):
         assert traceback_logged, "Expected traceback in error logs"
 
 
-@pytest.mark.parametrize("endpoint,expected_status", [
-    ("/health", 200),
-    ("/nonexistent", 404),
-])
+@pytest.mark.parametrize(
+    "endpoint,expected_status",
+    [
+        ("/health", 200),
+        ("/nonexistent", 404),
+    ],
+)
 def test_logging_middleware_different_status_codes(endpoint, expected_status, caplog):
     """Test logging with different HTTP status codes."""
     with caplog.at_level("INFO", logger=APP_NAME):
@@ -110,13 +118,15 @@ def test_logging_middleware_different_status_codes(endpoint, expected_status, ca
         # For 404, check that it was logged as warning by our app logger
         if expected_status == 404:
             warning_logs = [
-                r for r in caplog.records
+                r
+                for r in caplog.records
                 if r.levelno == logging.WARNING and r.name == APP_NAME
             ]
             assert len(warning_logs) > 0
         else:
             info_logs = [
-                r for r in caplog.records
+                r
+                for r in caplog.records
                 if r.levelno == logging.INFO and r.name == APP_NAME
             ]
             assert len(info_logs) > 0
@@ -126,27 +136,31 @@ def test_logging_middleware_sensitive_headers(caplog):
     """Test that sensitive headers are not logged."""
     with caplog.at_level("INFO", logger=APP_NAME):
         # Make request with sensitive headers
-        client.get("/health", headers={
-            "Authorization": "Bearer secret-token",
-            "Cookie": "session=abc123",
-            "User-Agent": "Test-Agent"
-        })
+        client.get(
+            "/health",
+            headers={
+                "Authorization": "Bearer secret-token",
+                "Cookie": "session=abc123",
+                "User-Agent": "Test-Agent",
+            },
+        )
 
         # Check that request was logged by our app logger
         request_logs = [
-            r for r in caplog.records
+            r
+            for r in caplog.records
             if "request received" in r.getMessage().lower() and r.name == APP_NAME
         ]
         assert len(request_logs) > 0
 
         # Check the log record for structured data
         for record in request_logs:
-            if hasattr(record, 'request_data'):
-                headers = record.request_data.get('headers', {})
+            if hasattr(record, "request_data"):
+                headers = record.request_data.get("headers", {})
                 # Sensitive headers should be filtered out
-                assert 'authorization' not in headers
-                assert 'cookie' not in headers
+                assert "authorization" not in headers
+                assert "cookie" not in headers
                 # Non-sensitive headers should be present
-                assert 'user-agent' in headers
-                assert headers['user-agent'] == 'Test-Agent'
+                assert "user-agent" in headers
+                assert headers["user-agent"] == "Test-Agent"
                 break

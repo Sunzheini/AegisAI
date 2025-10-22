@@ -4,6 +4,7 @@ AI Service
 Standalone service that executes tasks using LLM calls.
 Uses RedisManager for consistent connection management.
 """
+
 import os
 import json
 import asyncio
@@ -35,7 +36,7 @@ UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "storage/processed")).resolve()
 logger = LoggingManager.setup_logging(
     service_name="ai-service",
     log_file_path="logs/ai_service.log",
-    log_level=logging.INFO
+    log_level=logging.INFO,
 )
 
 
@@ -91,7 +92,7 @@ class AIService(INeedRedisManagerInterface):
                 "status": "failed",
                 "step": "ai_processing_failed",
                 "metadata": {"errors": [str(e)]},
-                "updated_at": self._current_timestamp()
+                "updated_at": self._current_timestamp(),
             }
 
     # region AI Processing Methods
@@ -127,12 +128,15 @@ class AIService(INeedRedisManagerInterface):
             state["metadata"] = {"ai_processing": "passed"}
 
         state["updated_at"] = datetime.now(timezone.utc).isoformat()
-        print(f"[Worker:ai_processing] Job {state['job_id']} ai processing done. State: {state}")
+        print(
+            f"[Worker:ai_processing] Job {state['job_id']} ai processing done. State: {state}"
+        )
         return state
 
     @staticmethod
     def _current_timestamp():
         from datetime import datetime, timezone
+
         return datetime.now(timezone.utc).isoformat()
 
 
@@ -165,7 +169,7 @@ async def redis_listener(ai_service: AIService):
                     # Use shared Redis connection to publish result
                     await redis_client.publish(
                         AI_CALLBACK_QUEUE,
-                        json.dumps({"job_id": job_id, "result": result})
+                        json.dumps({"job_id": job_id, "result": result}),
                     )
                     print(f"[AIService] Published result for: {job_id}")
 

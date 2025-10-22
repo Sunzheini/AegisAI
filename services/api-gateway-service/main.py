@@ -18,6 +18,7 @@ App State:
 Health Endpoint:
     - GET /health: Returns service status
 """
+
 import logging
 from fastapi import FastAPI
 
@@ -32,9 +33,7 @@ from custom_middleware.logging_middleware import EnhancedLoggingMiddleware
 
 
 logger = LoggingManager.setup_logging(
-    service_name=APP_NAME,
-    log_file_path=LOG_FILE_PATH,
-    log_level=logging.DEBUG
+    service_name=APP_NAME, log_file_path=LOG_FILE_PATH, log_level=logging.DEBUG
 )
 
 

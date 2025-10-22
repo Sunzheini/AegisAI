@@ -50,21 +50,23 @@ async def test_extract_metadata_success(redis_client):
                         data = json.loads(message["data"])
                         # Publish callback with result
                         result = dict(data)
-                        result.update({
-                            "status": "success",
-                            "step": "extract_metadata_from_file_done",
-                            "metadata": {
-                                "validation": "passed",
-                                "file_size": 3848766,
-                                "file_extension": ".pdf",
-                                "page_count": 339,
-                                "is_encrypted": True,
-                                "extracting_metadata": "passed"
-                            },
-                        })
+                        result.update(
+                            {
+                                "status": "success",
+                                "step": "extract_metadata_from_file_done",
+                                "metadata": {
+                                    "validation": "passed",
+                                    "file_size": 3848766,
+                                    "file_extension": ".pdf",
+                                    "page_count": 339,
+                                    "is_encrypted": True,
+                                    "extracting_metadata": "passed",
+                                },
+                            }
+                        )
                         await redis_client.publish(
                             EXTRACT_METADATA_CALLBACK_QUEUE,
-                            json.dumps({"job_id": data["job_id"], "result": result})
+                            json.dumps({"job_id": data["job_id"], "result": result}),
                         )
                         return
         finally:
@@ -110,5 +112,8 @@ async def test_extract_metadata_timeout(redis_client):
         "metadata": {"validation": "passed"},
     }
 
-    with pytest.raises(TimeoutError, match=f"Extract metadata service timeout for job {state['job_id']}"):
+    with pytest.raises(
+        TimeoutError,
+        match=f"Extract metadata service timeout for job {state['job_id']}",
+    ):
         await client.process_file_by_the_worker(state, timeout=0.1)  # 100ms timeout

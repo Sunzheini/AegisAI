@@ -14,6 +14,7 @@ class IngestionJobRequest(BaseModel):
     """
     Schema for ingestion job requests sent from the API Gateway to the Workflow Orchestrator.
     """
+
     job_id: str
     file_path: str
     content_type: str
@@ -25,6 +26,7 @@ class IngestionJobStatusResponse(BaseModel):
     """
     Schema for job status responses from the Workflow Orchestrator to API Gateway or frontend.
     """
+
     job_id: str
     status: str
     step: str
@@ -34,12 +36,13 @@ class IngestionJobStatusResponse(BaseModel):
     content_type: str
     checksum_sha256: str
     submitted_by: Optional[str] = None
-    
+
 
 class WorkflowGraphState(TypedDict):
     """
     State schema for the workflow graph, executed by the orchestrator.
     """
+
     job_id: str
     file_path: str
     content_type: str

@@ -52,7 +52,7 @@ def create_test_file():
 
     def _create_file(content, extension):
         fd, path = tempfile.mkstemp(suffix=extension)
-        with os.fdopen(fd, 'wb') as f:
+        with os.fdopen(fd, "wb") as f:
             f.write(content)
         test_files.append(path)
         return path
@@ -70,7 +70,7 @@ def create_test_file():
 def create_valid_test_pdf():
     """Create a more complete PDF structure that PyPDF2 can parse."""
     # This is a minimal but valid PDF structure
-    pdf_content = b'''%PDF-1.4
+    pdf_content = b"""%PDF-1.4
 1 0 obj
 << /Type /Catalog /Pages 2 0 R >>
 endobj
@@ -90,16 +90,18 @@ trailer
 << /Size 4 /Root 1 0 R >>
 startxref
 190
-%%EOF'''
+%%EOF"""
     return pdf_content
 
 
 @pytest.mark.asyncio
-async def test_extract_metadata_worker_success_pdf(extract_metadata_service, sample_pdf_state, create_test_file):
+async def test_extract_metadata_worker_success_pdf(
+    extract_metadata_service, sample_pdf_state, create_test_file
+):
     """_process_extract_metadata_worker should extract metadata from valid PDF files."""
     # Create a valid PDF file
     pdf_content = create_valid_test_pdf()
-    file_path = create_test_file(pdf_content, '.pdf')
+    file_path = create_test_file(pdf_content, ".pdf")
 
     state = sample_pdf_state.copy()
     state["file_path"] = file_path
@@ -115,7 +117,9 @@ async def test_extract_metadata_worker_success_pdf(extract_metadata_service, sam
 
 
 @pytest.mark.asyncio
-async def test_extract_metadata_nonexistent_file(extract_metadata_service, sample_pdf_state):
+async def test_extract_metadata_nonexistent_file(
+    extract_metadata_service, sample_pdf_state
+):
     """Metadata extraction should handle non-existent files gracefully."""
     state = sample_pdf_state.copy()
     state["file_path"] = "/nonexistent/file.pdf"
@@ -127,10 +131,12 @@ async def test_extract_metadata_nonexistent_file(extract_metadata_service, sampl
 
 
 @pytest.mark.asyncio
-async def test_extract_universal_metadata_success(extract_metadata_service, sample_pdf_state, create_test_file):
+async def test_extract_universal_metadata_success(
+    extract_metadata_service, sample_pdf_state, create_test_file
+):
     """_extract_universal_metadata should extract basic file info."""
     pdf_content = create_valid_test_pdf()
-    file_path = create_test_file(pdf_content, '.pdf')
+    file_path = create_test_file(pdf_content, ".pdf")
 
     state = sample_pdf_state.copy()
     state["file_path"] = file_path
@@ -151,7 +157,7 @@ async def test_extract_pdf_metadata_success(extract_metadata_service, create_tes
     """_extract_pdf_metadata should extract PDF-specific information."""
     # Create a valid PDF
     pdf_content = create_valid_test_pdf()
-    file_path = create_test_file(pdf_content, '.pdf')
+    file_path = create_test_file(pdf_content, ".pdf")
 
     metadata = await extract_metadata_service._extract_pdf_metadata(file_path)
 
@@ -167,11 +173,13 @@ async def test_extract_pdf_metadata_success(extract_metadata_service, create_tes
 
 
 @pytest.mark.asyncio
-async def test_extract_pdf_metadata_invalid_file(extract_metadata_service, create_test_file):
+async def test_extract_pdf_metadata_invalid_file(
+    extract_metadata_service, create_test_file
+):
     """_extract_pdf_metadata should handle invalid PDF files gracefully."""
     # Create a non-PDF file
-    invalid_content = b'Not a PDF file'
-    file_path = create_test_file(invalid_content, '.pdf')
+    invalid_content = b"Not a PDF file"
+    file_path = create_test_file(invalid_content, ".pdf")
 
     metadata = await extract_metadata_service._extract_pdf_metadata(file_path)
 
@@ -182,33 +190,45 @@ async def test_extract_pdf_metadata_invalid_file(extract_metadata_service, creat
 
 
 @pytest.mark.asyncio
-async def test_verify_magic_number_valid_pdf(extract_metadata_service, create_test_file):
+async def test_verify_magic_number_valid_pdf(
+    extract_metadata_service, create_test_file
+):
     """_verify_magic_number should return True for valid PDF signatures."""
     pdf_content = create_valid_test_pdf()
-    file_path = create_test_file(pdf_content, '.pdf')
+    file_path = create_test_file(pdf_content, ".pdf")
 
-    result = await extract_metadata_service._verify_magic_number(file_path, "application/pdf")
+    result = await extract_metadata_service._verify_magic_number(
+        file_path, "application/pdf"
+    )
     assert result == True
 
 
 @pytest.mark.asyncio
-async def test_verify_magic_number_invalid_pdf(extract_metadata_service, create_test_file):
+async def test_verify_magic_number_invalid_pdf(
+    extract_metadata_service, create_test_file
+):
     """_verify_magic_number should return False for invalid PDF signatures."""
-    invalid_content = b'Not a PDF file'
-    file_path = create_test_file(invalid_content, '.pdf')
+    invalid_content = b"Not a PDF file"
+    file_path = create_test_file(invalid_content, ".pdf")
 
-    result = await extract_metadata_service._verify_magic_number(file_path, "application/pdf")
+    result = await extract_metadata_service._verify_magic_number(
+        file_path, "application/pdf"
+    )
     assert result == False
 
 
 @pytest.mark.asyncio
-async def test_verify_magic_number_unsupported_type(extract_metadata_service, create_test_file):
+async def test_verify_magic_number_unsupported_type(
+    extract_metadata_service, create_test_file
+):
     """_verify_magic_number should handle unsupported content types."""
     pdf_content = create_valid_test_pdf()
-    file_path = create_test_file(pdf_content, '.pdf')
+    file_path = create_test_file(pdf_content, ".pdf")
 
     # Test with unsupported content type
-    result = await extract_metadata_service._verify_magic_number(file_path, "application/unknown")
+    result = await extract_metadata_service._verify_magic_number(
+        file_path, "application/unknown"
+    )
     assert result == False
 
 
@@ -216,8 +236,8 @@ async def test_verify_magic_number_unsupported_type(extract_metadata_service, cr
 async def test_extract_image_metadata(extract_metadata_service, create_test_file):
     """_extract_image_metadata should handle image files (if dependencies available)."""
     # Create a minimal PNG file
-    png_content = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90\x77\x53\xde\x00\x00\x00\x0cIDATx\x9cc\xf8\x0f\x00\x00\x01\x01\x00\x05\x00\x00\x00\x00IEND\xae\x42\x60\x82'
-    file_path = create_test_file(png_content, '.png')
+    png_content = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90\x77\x53\xde\x00\x00\x00\x0cIDATx\x9cc\xf8\x0f\x00\x00\x01\x01\x00\x05\x00\x00\x00\x00IEND\xae\x42\x60\x82"
+    file_path = create_test_file(png_content, ".png")
 
     try:
         metadata = await extract_metadata_service._extract_image_metadata(file_path)
@@ -230,10 +250,12 @@ async def test_extract_image_metadata(extract_metadata_service, create_test_file
 
 
 @pytest.mark.asyncio
-async def test_process_extract_metadata_task_success(extract_metadata_service, sample_pdf_state, create_test_file):
+async def test_process_extract_metadata_task_success(
+    extract_metadata_service, sample_pdf_state, create_test_file
+):
     """process_extract_metadata_task should process tasks successfully."""
     pdf_content = create_valid_test_pdf()
-    file_path = create_test_file(pdf_content, '.pdf')
+    file_path = create_test_file(pdf_content, ".pdf")
 
     task_data = sample_pdf_state.copy()
     task_data["file_path"] = file_path
@@ -253,7 +275,9 @@ async def test_process_extract_metadata_task_invalid_data(extract_metadata_servi
     """process_extract_metadata_task should handle invalid task data gracefully."""
     invalid_task_data = {"invalid": "data"}
 
-    result = await extract_metadata_service.process_extract_metadata_task(invalid_task_data)
+    result = await extract_metadata_service.process_extract_metadata_task(
+        invalid_task_data
+    )
 
     assert result["status"] == "failed"
     assert "extract_metadata_from_file_failed" in result["step"]
@@ -261,11 +285,13 @@ async def test_process_extract_metadata_task_invalid_data(extract_metadata_servi
 
 
 @pytest.mark.asyncio
-async def test_redis_listener_integration(redis_client, sample_pdf_state, create_test_file):
+async def test_redis_listener_integration(
+    redis_client, sample_pdf_state, create_test_file
+):
     """Integration test with Redis listener for extract metadata service."""
     # Create valid test file
     pdf_content = create_valid_test_pdf()
-    file_path = create_test_file(pdf_content, '.pdf')
+    file_path = create_test_file(pdf_content, ".pdf")
 
     # Create service instance
     svc = ExtractMetadataService()

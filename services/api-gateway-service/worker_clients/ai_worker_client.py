@@ -4,6 +4,7 @@ AI Worker Client for Orchestrator
 Lightweight client that publishes ai-related (e.g. summarize text) tasks to Redis and waits for results.
 Used by the workflow orchestrator.
 """
+
 import os
 
 from contracts.job_schemas import WorkflowGraphState
@@ -21,6 +22,7 @@ SPECIFIC_TIMEOUT_SECONDS = 300  # 5 minutes
 
 class AIWorkerClient(BaseWorkerClient):
     """Client for interacting with the ai service."""
+
     def __init__(self):
         self.worker_name = AI_WORKER_NAME
         self.task_name = AI_TASK_NAME
@@ -32,9 +34,13 @@ ai_worker_client = AIWorkerClient()
 
 
 # Backward compatibility - function used by orchestrator graph
-async def process_file_by_ai_worker_redis(state: WorkflowGraphState) -> WorkflowGraphState:
+async def process_file_by_ai_worker_redis(
+    state: WorkflowGraphState,
+) -> WorkflowGraphState:
     """
     Function called by orchestrator workflow graph.
     Delegates to the ai service via Redis.
     """
-    return await ai_worker_client.process_file_by_the_worker(state, SPECIFIC_TIMEOUT_SECONDS)
+    return await ai_worker_client.process_file_by_the_worker(
+        state, SPECIFIC_TIMEOUT_SECONDS
+    )

@@ -43,7 +43,7 @@ async def test_extract_text_success(redis_client):
             "file_extension": ".pdf",
             "page_count": 339,
             "is_encrypted": True,
-            "extracting_metadata": "passed"
+            "extracting_metadata": "passed",
         },
     }
 
@@ -57,40 +57,45 @@ async def test_extract_text_success(redis_client):
                         data = json.loads(message["data"])
                         # Publish callback with result
                         result = dict(data)
-                        result.update({
-                            "status": "success",
-                            "step": "extract_text_done",
-                            "metadata": {
-                                "validation": "passed",
-                                "file_size": 3848766,
-                                "file_extension": ".pdf",
-                                "page_count": 339,
-                                "is_encrypted": True,
-                                "extracting_metadata": "passed",
-                                "text_extraction": {
-                                    "success": True,
-                                    "extracted_character_count": 15420,
-                                    "total_pages": 339,
-                                    "pages_with_text": 339,
-                                    "text_file_path": "/tmp/job-123_extracted_text.txt",
-                                    "file_stats": {
-                                        "saved_at": "2025-01-01T00:00:00Z",
-                                        "file_size_bytes": 16234,
-                                        "character_count": 15420
+                        result.update(
+                            {
+                                "status": "success",
+                                "step": "extract_text_done",
+                                "metadata": {
+                                    "validation": "passed",
+                                    "file_size": 3848766,
+                                    "file_extension": ".pdf",
+                                    "page_count": 339,
+                                    "is_encrypted": True,
+                                    "extracting_metadata": "passed",
+                                    "text_extraction": {
+                                        "success": True,
+                                        "extracted_character_count": 15420,
+                                        "total_pages": 339,
+                                        "pages_with_text": 339,
+                                        "text_file_path": "/tmp/job-123_extracted_text.txt",
+                                        "file_stats": {
+                                            "saved_at": "2025-01-01T00:00:00Z",
+                                            "file_size_bytes": 16234,
+                                            "character_count": 15420,
+                                        },
+                                        "content_analysis": {
+                                            "word_count": 2450,
+                                            "paragraph_count": 89,
+                                            "content_categories": [
+                                                "technical_document",
+                                                "datasheet",
+                                            ],
+                                        },
+                                        "text_preview": "Sample extracted text preview...",
                                     },
-                                    "content_analysis": {
-                                        "word_count": 2450,
-                                        "paragraph_count": 89,
-                                        "content_categories": ["technical_document", "datasheet"]
-                                    },
-                                    "text_preview": "Sample extracted text preview..."
+                                    "extract_text": "passed",
                                 },
-                                "extract_text": "passed"
-                            },
-                        })
+                            }
+                        )
                         await redis_client.publish(
                             EXTRACT_TEXT_CALLBACK_QUEUE,
-                            json.dumps({"job_id": data["job_id"], "result": result})
+                            json.dumps({"job_id": data["job_id"], "result": result}),
                         )
                         return
         finally:
@@ -113,7 +118,10 @@ async def test_extract_text_success(redis_client):
     assert result_state["status"] == "success"
     assert result_state["step"] == "extract_text_done"
     assert result_state["metadata"]["text_extraction"]["success"] == True
-    assert result_state["metadata"]["text_extraction"]["extracted_character_count"] == 15420
+    assert (
+        result_state["metadata"]["text_extraction"]["extracted_character_count"]
+        == 15420
+    )
     assert "text_file_path" in result_state["metadata"]["text_extraction"]
 
 
@@ -140,9 +148,11 @@ async def test_extract_text_timeout(redis_client):
             "file_extension": ".pdf",
             "page_count": 339,
             "is_encrypted": True,
-            "extracting_metadata": "passed"
+            "extracting_metadata": "passed",
         },
     }
 
-    with pytest.raises(TimeoutError, match=f"Extract text service timeout for job {state['job_id']}"):
+    with pytest.raises(
+        TimeoutError, match=f"Extract text service timeout for job {state['job_id']}"
+    ):
         await client.process_file_by_the_worker(state, timeout=0.1)  # 100ms timeout

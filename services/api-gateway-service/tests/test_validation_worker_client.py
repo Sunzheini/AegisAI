@@ -50,13 +50,16 @@ async def test_validate_file_success(redis_client):
                         data = json.loads(message["data"])
                         # Publish callback with result
                         result = dict(data)
-                        result.update({
-                            "status": "success",
-                            "step": "validate_file_done",
-                            "metadata": {"validation": "passed"},
-                        })
+                        result.update(
+                            {
+                                "status": "success",
+                                "step": "validate_file_done",
+                                "metadata": {"validation": "passed"},
+                            }
+                        )
                         await redis_client.publish(
-                            VALIDATION_CALLBACK_QUEUE, json.dumps({"job_id": data["job_id"], "result": result})
+                            VALIDATION_CALLBACK_QUEUE,
+                            json.dumps({"job_id": data["job_id"], "result": result}),
                         )
                         return
         finally:
@@ -100,5 +103,7 @@ async def test_validate_file_timeout(redis_client):
         "metadata": {},
     }
 
-    with pytest.raises(TimeoutError, match=f"Validation service timeout for job {state['job_id']}"):
+    with pytest.raises(
+        TimeoutError, match=f"Validation service timeout for job {state['job_id']}"
+    ):
         await client.process_file_by_the_worker(state, timeout=0.1)  # 100ms timeout

@@ -5,8 +5,12 @@ import pytest
 import tempfile
 import os
 
-from workers.extract_text_worker_service import ExtractTextService, redis_listener, EXTRACT_TEXT_CALLBACK_QUEUE, \
-    EXTRACT_TEXT_QUEUE
+from workers.extract_text_worker_service import (
+    ExtractTextService,
+    redis_listener,
+    EXTRACT_TEXT_CALLBACK_QUEUE,
+    EXTRACT_TEXT_QUEUE,
+)
 
 
 class DummyRedisManager:
@@ -43,7 +47,7 @@ def sample_pdf_state():
             "file_extension": ".pdf",
             "page_count": 339,
             "is_encrypted": True,
-            "extracting_metadata": "passed"
+            "extracting_metadata": "passed",
         },
     }
 
@@ -55,7 +59,7 @@ def create_test_file():
 
     def _create_file(content, extension):
         fd, path = tempfile.mkstemp(suffix=extension)
-        with os.fdopen(fd, 'wb') as f:
+        with os.fdopen(fd, "wb") as f:
             f.write(content)
         test_files.append(path)
         return path
@@ -72,7 +76,7 @@ def create_test_file():
 
 def create_valid_test_pdf_with_text():
     """Create a PDF with actual text content for testing."""
-    pdf_content = b'''%PDF-1.4
+    pdf_content = b"""%PDF-1.4
 1 0 obj
 << /Type /Catalog /Pages 2 0 R >>
 endobj
@@ -99,13 +103,13 @@ trailer
 << /Size 5 /Root 1 0 R >>
 startxref
 300
-%%EOF'''
+%%EOF"""
     return pdf_content
 
 
 def create_pdf_with_no_text():
     """Create a PDF with no extractable text."""
-    pdf_content = b'''%PDF-1.4
+    pdf_content = b"""%PDF-1.4
 1 0 obj
 << /Type /Catalog /Pages 2 0 R >>
 endobj
@@ -125,16 +129,18 @@ trailer
 << /Size 4 /Root 1 0 R >>
 startxref
 190
-%%EOF'''
+%%EOF"""
     return pdf_content
 
 
 @pytest.mark.asyncio
-async def test_extract_text_worker_success_pdf(extract_text_service, sample_pdf_state, create_test_file):
+async def test_extract_text_worker_success_pdf(
+    extract_text_service, sample_pdf_state, create_test_file
+):
     """_process_extract_text_worker should extract text from valid PDF files."""
     # Create a PDF with text content
     pdf_content = create_valid_test_pdf_with_text()
-    file_path = create_test_file(pdf_content, '.pdf')
+    file_path = create_test_file(pdf_content, ".pdf")
 
     state = sample_pdf_state.copy()
     state["file_path"] = file_path
@@ -159,11 +165,13 @@ async def test_extract_text_nonexistent_file(extract_text_service, sample_pdf_st
 
 
 @pytest.mark.asyncio
-async def test_extract_text_wrong_content_type(extract_text_service, sample_pdf_state, create_test_file):
+async def test_extract_text_wrong_content_type(
+    extract_text_service, sample_pdf_state, create_test_file
+):
     """Text extraction should fail for non-PDF files."""
     # Create a text file but claim it's PDF
     text_content = b"This is a text file, not a PDF"
-    file_path = create_test_file(text_content, '.txt')
+    file_path = create_test_file(text_content, ".txt")
 
     state = sample_pdf_state.copy()
     state["file_path"] = file_path
@@ -179,7 +187,7 @@ async def test_extract_text_from_pdf_success(extract_text_service, create_test_f
     """_extract_text_from_pdf should extract text from PDF files."""
     # Create a PDF with text content
     pdf_content = create_valid_test_pdf_with_text()
-    file_path = create_test_file(pdf_content, '.pdf')
+    file_path = create_test_file(pdf_content, ".pdf")
 
     result = await extract_text_service._extract_text_from_pdf(file_path)
 
@@ -199,7 +207,7 @@ async def test_extract_text_from_pdf_no_text(extract_text_service, create_test_f
     """_extract_text_from_pdf should handle PDFs with no text gracefully."""
     # Create a PDF with no text
     pdf_content = create_pdf_with_no_text()
-    file_path = create_test_file(pdf_content, '.pdf')
+    file_path = create_test_file(pdf_content, ".pdf")
 
     result = await extract_text_service._extract_text_from_pdf(file_path)
 
@@ -210,11 +218,13 @@ async def test_extract_text_from_pdf_no_text(extract_text_service, create_test_f
 
 
 @pytest.mark.asyncio
-async def test_extract_text_from_pdf_invalid_file(extract_text_service, create_test_file):
+async def test_extract_text_from_pdf_invalid_file(
+    extract_text_service, create_test_file
+):
     """_extract_text_from_pdf should handle invalid PDF files gracefully."""
     # Create a non-PDF file
-    invalid_content = b'Not a PDF file'
-    file_path = create_test_file(invalid_content, '.pdf')
+    invalid_content = b"Not a PDF file"
+    file_path = create_test_file(invalid_content, ".pdf")
 
     result = await extract_text_service._extract_text_from_pdf(file_path)
 
@@ -245,7 +255,7 @@ async def test_save_extracted_text_to_file(extract_text_service):
     assert os.path.exists(file_path)
 
     # Verify content
-    with open(file_path, 'r', encoding='utf-8') as f:
+    with open(file_path, "r", encoding="utf-8") as f:
         saved_content = f.read()
     assert saved_content == extracted_text
 
@@ -288,10 +298,12 @@ async def test_analyze_text_content_empty(extract_text_service):
 
 
 @pytest.mark.asyncio
-async def test_process_extract_text_task_success(extract_text_service, sample_pdf_state, create_test_file):
+async def test_process_extract_text_task_success(
+    extract_text_service, sample_pdf_state, create_test_file
+):
     """process_extract_text_task should process tasks successfully."""
     pdf_content = create_valid_test_pdf_with_text()
-    file_path = create_test_file(pdf_content, '.pdf')
+    file_path = create_test_file(pdf_content, ".pdf")
 
     task_data = sample_pdf_state.copy()
     task_data["file_path"] = file_path
@@ -316,11 +328,13 @@ async def test_process_extract_text_task_invalid_data(extract_text_service):
 
 
 @pytest.mark.asyncio
-async def test_redis_listener_integration(redis_client, sample_pdf_state, create_test_file):
+async def test_redis_listener_integration(
+    redis_client, sample_pdf_state, create_test_file
+):
     """Integration test with Redis listener for extract text service."""
     # Create valid test file
     pdf_content = create_valid_test_pdf_with_text()
-    file_path = create_test_file(pdf_content, '.pdf')
+    file_path = create_test_file(pdf_content, ".pdf")
 
     # Create service instance
     svc = ExtractTextService()

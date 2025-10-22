@@ -1,6 +1,7 @@
 """
 Interface indicating that a class requires a Redis Manager.
 """
+
 import abc
 from typing import Any
 

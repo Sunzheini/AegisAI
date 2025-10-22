@@ -36,13 +36,17 @@ from contextlib import asynccontextmanager
 from langgraph.graph import StateGraph, END
 from fastapi import FastAPI, HTTPException, status, Request
 
-from contracts.job_schemas import IngestionJobRequest, IngestionJobStatusResponse, WorkflowGraphState
+from contracts.job_schemas import (
+    IngestionJobRequest,
+    IngestionJobStatusResponse,
+    WorkflowGraphState,
+)
 from needs.INeedRedisManager import INeedRedisManagerInterface
 from needs.ResolveNeedsManager import ResolveNeedsManager
 from logging_management.logging_manager import LoggingManager
 from custom_middleware.logging_middleware import EnhancedLoggingMiddleware
+from custom_middleware.error_middleware import ErrorMiddleware
 from media_processing_worker_example import (
-    extract_metadata_worker,
     generate_thumbnails_worker,
     extract_audio_worker,
     transcribe_audio_worker,
@@ -50,16 +54,17 @@ from media_processing_worker_example import (
 )
 from ai_worker_example import (
     analyze_image_with_ai_worker,
-    extract_text_worker,
-    summarize_document_worker,
 )
-from custom_middleware.error_middleware import ErrorMiddleware
 from support.support_functions import resolve_file_path
 
 # Worker clients using Redis
 from worker_clients.validation_worker_client import validate_file_worker_redis
-from worker_clients.extract_metadata_worker_client import extract_metadata_from_file_worker_redis
-from worker_clients.extract_text_worker_client import extract_text_from_file_worker_redis
+from worker_clients.extract_metadata_worker_client import (
+    extract_metadata_from_file_worker_redis,
+)
+from worker_clients.extract_text_worker_client import (
+    extract_text_from_file_worker_redis,
+)
 from worker_clients.ai_worker_client import process_file_by_ai_worker_redis
 
 
@@ -69,7 +74,7 @@ USE_REDIS_LISTENER = os.getenv("USE_REDIS_LISTENER", "true").lower() == "true"
 logger = LoggingManager.setup_logging(
     service_name="workflow-orchestrator",
     log_file_path="logs/workflow_orchestrator.log",
-    log_level=logging.INFO
+    log_level=logging.INFO,
 )
 
 
@@ -94,6 +99,7 @@ async def lifespan(app):
 
     # Create RedisManager instance
     from redis_management.redis_manager import RedisManager
+
     redis_manager = RedisManager()
 
     # Create orchestrator and inject RedisManager
@@ -102,7 +108,9 @@ async def lifespan(app):
 
     # Resolve ValidationWorkerClient dependency
     from worker_clients.validation_worker_client import validation_worker_client
-    from worker_clients.extract_metadata_worker_client import extract_metadata_worker_client
+    from worker_clients.extract_metadata_worker_client import (
+        extract_metadata_worker_client,
+    )
     from worker_clients.extract_text_worker_client import extract_text_worker_client
     from worker_clients.ai_worker_client import ai_worker_client
 
@@ -132,8 +140,13 @@ async def lifespan(app):
         # Close RedisManager connection - NOW IT EXISTS!
         await app.state.redis_manager.close()
     else:
-        print("[Orchestrator] Redis listener mode disabled. Only direct HTTP submission will be processed.")
-        logger.info("Redis listener mode disabled. Only direct HTTP submission will be processed.")
+        print(
+            "[Orchestrator] Redis listener mode disabled. "
+            "Only direct HTTP submission will be processed."
+        )
+        logger.info(
+            "Redis listener mode disabled. Only direct HTTP submission will be processed."
+        )
         yield
 
 
@@ -170,13 +183,19 @@ class WorkflowOrchestrator(INeedRedisManagerInterface):
             graph.add_node("route_workflow", self._worker_route_workflow)
 
             # Image branch
-            graph.add_node("generate_thumbnails", generate_thumbnails_worker)   # placeholder
-            graph.add_node("analyze_image_with_ai", analyze_image_with_ai_worker)   # placeholder
+            graph.add_node(
+                "generate_thumbnails", generate_thumbnails_worker
+            )  # placeholder
+            graph.add_node(
+                "analyze_image_with_ai", analyze_image_with_ai_worker
+            )  # placeholder
 
             # Video branch
-            graph.add_node("extract_audio", extract_audio_worker)   # placeholder
-            graph.add_node("transcribe_audio", transcribe_audio_worker) # placeholder
-            graph.add_node("generate_video_summary", generate_video_summary_worker) # placeholder
+            graph.add_node("extract_audio", extract_audio_worker)  # placeholder
+            graph.add_node("transcribe_audio", transcribe_audio_worker)  # placeholder
+            graph.add_node(
+                "generate_video_summary", generate_video_summary_worker
+            )  # placeholder
 
             # PDF branch
             graph.add_node("extract_text", extract_text_from_file_worker_redis)
@@ -188,10 +207,11 @@ class WorkflowOrchestrator(INeedRedisManagerInterface):
                 if state.get("status") == "failed":
                     return "END"
                 return "extract_metadata"
+
             graph.add_conditional_edges(
                 "validate_file",
                 after_validation,
-                {"END": END, "extract_metadata": "extract_metadata"}
+                {"END": END, "extract_metadata": "extract_metadata"},
             )
 
             graph.add_edge("extract_metadata", "route_workflow")
@@ -309,7 +329,7 @@ class WorkflowOrchestrator(INeedRedisManagerInterface):
         try:
             state = self.jobs[job_id]
             print(f"[DEBUG] Before graph.ainvoke: {state}")
-            final_state = await self.graph.ainvoke(state)   # Call the graph
+            final_state = await self.graph.ainvoke(state)  # Call the graph
             self.jobs[job_id] = final_state
             await self.redis_manager.save_job_state_to_redis(job_id, final_state)
 

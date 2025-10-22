@@ -1,6 +1,7 @@
 """
 Reusable logging middleware for all FastAPI services.
 """
+
 import time
 import logging
 from typing import Callable
@@ -42,14 +43,22 @@ class EnhancedLoggingMiddleware(BaseHTTPMiddleware):
         if self.enable_user_agent:
             user_agent = request.headers.get("user-agent", "")
             user_agent_parsed = parse(user_agent)
-            request_log.update({
-                "user_agent": user_agent_parsed.browser.family if user_agent_parsed else "unknown",
-                "user_agent_os": user_agent_parsed.os.family if user_agent_parsed else "unknown",
-            })
+            request_log.update(
+                {
+                    "user_agent": (
+                        user_agent_parsed.browser.family
+                        if user_agent_parsed
+                        else "unknown"
+                    ),
+                    "user_agent_os": (
+                        user_agent_parsed.os.family if user_agent_parsed else "unknown"
+                    ),
+                }
+            )
 
         # Log sensitive headers safely
         headers = dict(request.headers)
-        sensitive_headers = {'authorization', 'cookie', 'proxy-authorization'}
+        sensitive_headers = {"authorization", "cookie", "proxy-authorization"}
         for header in sensitive_headers:
             headers.pop(header, None)
         request_log["headers"] = headers
@@ -70,7 +79,9 @@ class EnhancedLoggingMiddleware(BaseHTTPMiddleware):
             }
 
             log_level = logging.INFO if response.status_code < 400 else logging.WARNING
-            logger_method = self.logger.info if response.status_code < 400 else self.logger.warning
+            logger_method = (
+                self.logger.info if response.status_code < 400 else self.logger.warning
+            )
             logger_method("Response sent", extra={"response_data": response_log})
 
             # Add request ID to response headers for client tracing
@@ -95,6 +106,6 @@ class EnhancedLoggingMiddleware(BaseHTTPMiddleware):
             self.logger.error(
                 "Error processing request",
                 extra={"error_data": error_log},
-                exc_info=True
+                exc_info=True,
             )
             raise

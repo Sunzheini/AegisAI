@@ -4,6 +4,7 @@ Validation Service
 Standalone service that processes validation tasks.
 Uses RedisManager for consistent connection management.
 """
+
 import os
 import json
 import asyncio
@@ -24,7 +25,9 @@ from custom_middleware.logging_middleware import EnhancedLoggingMiddleware
 
 # Configuration
 VALIDATION_QUEUE = os.getenv("VALIDATION_QUEUE", "validation_queue")
-VALIDATION_CALLBACK_QUEUE = os.getenv("VALIDATION_CALLBACK_QUEUE", "validation_callback_queue")
+VALIDATION_CALLBACK_QUEUE = os.getenv(
+    "VALIDATION_CALLBACK_QUEUE", "validation_callback_queue"
+)
 
 # Upload/raw storage location constant (configurable)
 UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "storage/raw")).resolve()
@@ -32,7 +35,7 @@ UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "storage/raw")).resolve()
 # Validation constraints
 MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE", 100 * 1024 * 1024))  # 100MB default
 MAX_IMAGE_DIMENSION = int(os.getenv("MAX_IMAGE_DIMENSION", 10000))  # 10k pixels
-MAX_VIDEO_DURATION = int(os.getenv("MAX_VIDEO_DURATION", 3600))     # 1 hour in seconds
+MAX_VIDEO_DURATION = int(os.getenv("MAX_VIDEO_DURATION", 3600))  # 1 hour in seconds
 ALLOWED_EXTENSIONS = {
     "application/pdf": [".pdf"],
     "image/jpeg": [".jpg", ".jpeg"],
@@ -49,7 +52,7 @@ ALLOWED_EXTENSIONS = {
 logger = LoggingManager.setup_logging(
     service_name="validation-service",
     log_file_path="logs/validation_service.log",
-    log_level=logging.INFO
+    log_level=logging.INFO,
 )
 
 
@@ -109,7 +112,7 @@ class ValidationService(INeedRedisManagerInterface):
                 "status": "failed",
                 "step": "validate_file_failed",
                 "metadata": {"errors": [str(e)]},
-                "updated_at": self._current_timestamp()
+                "updated_at": self._current_timestamp(),
             }
 
     # region Validation Methods
@@ -146,7 +149,9 @@ class ValidationService(INeedRedisManagerInterface):
 
         allowed_types = list(self.ALLOWED_EXTENSIONS.keys())
         if state["content_type"] not in allowed_types:
-            errors.append(f"Unsupported file type: {state['content_type']}. Allowed types: {', '.join(allowed_types)}")
+            errors.append(
+                f"Unsupported file type: {state['content_type']}. Allowed types: {', '.join(allowed_types)}"
+            )
 
         # Checksum validation
         checksum = state.get("checksum_sha256", "")
@@ -168,7 +173,9 @@ class ValidationService(INeedRedisManagerInterface):
             file_size = os.path.getsize(file_path)
 
             if file_size > self.MAX_FILE_SIZE:
-                errors.append(f"File size {file_size} exceeds maximum allowed size {self.MAX_FILE_SIZE}")
+                errors.append(
+                    f"File size {file_size} exceeds maximum allowed size {self.MAX_FILE_SIZE}"
+                )
 
             # Check minimum file size (avoid empty files)
             if file_size == 0:
@@ -234,23 +241,23 @@ class ValidationService(INeedRedisManagerInterface):
             file_size = os.path.getsize(file_path)
 
             # Check if file has basic image structure
-            with open(file_path, 'rb') as f:
+            with open(file_path, "rb") as f:
                 header = f.read(100)
 
             # Basic magic number checks
-            if header.startswith(b'\xff\xd8\xff'):
+            if header.startswith(b"\xff\xd8\xff"):
                 # JPEG - check minimum size for valid JPEG
                 if file_size < 100:  # Minimal valid JPEG is around 100 bytes
                     errors.append("JPEG file appears to be too small or corrupted")
-            elif header.startswith(b'\x89PNG\r\n\x1a\n'):
+            elif header.startswith(b"\x89PNG\r\n\x1a\n"):
                 # PNG - check minimum size
                 if file_size < 67:  # Minimal valid PNG is around 67 bytes
                     errors.append("PNG file appears to be too small or corrupted")
-            elif header.startswith(b'GIF8'):
+            elif header.startswith(b"GIF8"):
                 # GIF - check minimum size
                 if file_size < 35:  # Minimal valid GIF is around 35 bytes
                     errors.append("GIF file appears to be too small or corrupted")
-            elif header.startswith(b'RIFF') and header[8:12] == b'WEBP':
+            elif header.startswith(b"RIFF") and header[8:12] == b"WEBP":
                 # WebP
                 if file_size < 45:  # Minimal valid WebP
                     errors.append("WebP file appears to be too small or corrupted")
@@ -258,9 +265,12 @@ class ValidationService(INeedRedisManagerInterface):
                 errors.append("File does not appear to be a valid image format")
 
             # Check if image dimensions are reasonable
-            if file_size > self.MAX_IMAGE_DIMENSION * self.MAX_IMAGE_DIMENSION * 4:  # Rough estimate: width * height * 4 bytes
+            if (
+                file_size > self.MAX_IMAGE_DIMENSION * self.MAX_IMAGE_DIMENSION * 4
+            ):  # Rough estimate: width * height * 4 bytes
                 errors.append(
-                    f"Image file size suggests dimensions may exceed maximum allowed {self.MAX_IMAGE_DIMENSION}x{self.MAX_IMAGE_DIMENSION}")
+                    f"Image file size suggests dimensions may exceed maximum allowed {self.MAX_IMAGE_DIMENSION}x{self.MAX_IMAGE_DIMENSION}"
+                )
 
         except Exception as e:
             errors.append(f"Image validation failed: {str(e)}")
@@ -279,16 +289,16 @@ class ValidationService(INeedRedisManagerInterface):
                 errors.append("Video file appears to be too small or corrupted")
 
             # Basic video file check
-            with open(file_path, 'rb') as f:
+            with open(file_path, "rb") as f:
                 header = f.read(100)
 
             # Check for common video file signatures
             video_signatures = [
-                b'ftyp',  # MP4
-                b'RIFF',  # AVI, WAV
-                b'\x00\x00\x00 ftyp',  # Another MP4 variant
-                b'\x1a\x45\xdf\xa3',  # WebM/Matroska
-                b'\x00\x00\x01\xba',  # MPEG
+                b"ftyp",  # MP4
+                b"RIFF",  # AVI, WAV
+                b"\x00\x00\x00 ftyp",  # Another MP4 variant
+                b"\x1a\x45\xdf\xa3",  # WebM/Matroska
+                b"\x00\x00\x01\xba",  # MPEG
             ]
 
             if not any(sig in header for sig in video_signatures):
@@ -299,7 +309,8 @@ class ValidationService(INeedRedisManagerInterface):
             estimated_duration = file_size * 8 / (1.5 * 1024 * 1024)  # seconds
             if estimated_duration > self.MAX_VIDEO_DURATION:
                 errors.append(
-                    f"Estimated video duration ({estimated_duration:.1f}s) may exceed maximum allowed {self.MAX_VIDEO_DURATION}s")
+                    f"Estimated video duration ({estimated_duration:.1f}s) may exceed maximum allowed {self.MAX_VIDEO_DURATION}s"
+                )
 
         except Exception as e:
             errors.append(f"Video validation failed: {str(e)}")
@@ -312,16 +323,16 @@ class ValidationService(INeedRedisManagerInterface):
         errors = []
 
         try:
-            with open(file_path, 'rb') as f:
+            with open(file_path, "rb") as f:
                 header = f.read(10)
                 footer = f.seek(-10, 2)  # Seek to last 10 bytes
                 footer = f.read(10)
 
             # Check PDF header and footer
-            if not header.startswith(b'%PDF-'):
+            if not header.startswith(b"%PDF-"):
                 errors.append("Invalid PDF file: missing PDF header")
 
-            if b'%%EOF' not in footer:
+            if b"%%EOF" not in footer:
                 errors.append("Invalid PDF file: missing EOF marker")
 
         except Exception as e:
@@ -337,17 +348,17 @@ class ValidationService(INeedRedisManagerInterface):
 
         try:
             # Check for suspicious characters in the file path regardless of file existence
-            if any(char in file_path for char in [';', '|', '&', '$', '`']):
+            if any(char in file_path for char in [";", "|", "&", "$", "`"]):
                 errors.append("File path contains potentially dangerous characters")
 
             # Check for path traversal attempts
-            if '..' in file_path:
+            if ".." in file_path:
                 errors.append("Invalid file path: potential path traversal attack")
 
             # Check for double extensions in the filename
             path = Path(file_path)
             filename = path.name
-            if len(filename.split('.')) > 2:
+            if len(filename.split(".")) > 2:
                 # This might be legitimate, but worth logging
                 print(f"Warning: File {filename} has multiple extensions")
 
@@ -358,7 +369,9 @@ class ValidationService(INeedRedisManagerInterface):
 
     # endregion
 
-    async def _validate_file_worker(self, state: WorkflowGraphState) -> WorkflowGraphState:
+    async def _validate_file_worker(
+        self, state: WorkflowGraphState
+    ) -> WorkflowGraphState:
         """
         Validates the file type, size, and integrity for an ingestion job.
         Updates the job state with validation results.
@@ -405,12 +418,15 @@ class ValidationService(INeedRedisManagerInterface):
             state["metadata"] = {"validation": "passed"}
 
         state["updated_at"] = datetime.now(timezone.utc).isoformat()
-        print(f"[Worker:validate_file] Job {state['job_id']} validation done. State: {state}")
+        print(
+            f"[Worker:validate_file] Job {state['job_id']} validation done. State: {state}"
+        )
         return state
 
     @staticmethod
     def _current_timestamp():
         from datetime import datetime, timezone
+
         return datetime.now(timezone.utc).isoformat()
 
 
@@ -443,7 +459,7 @@ async def redis_listener(validation_service: ValidationService):
                     # Use shared Redis connection to publish result
                     await redis_client.publish(
                         VALIDATION_CALLBACK_QUEUE,
-                        json.dumps({"job_id": job_id, "result": result})
+                        json.dumps({"job_id": job_id, "result": result}),
                     )
                     print(f"[ValidationService] Published result for: {job_id}")
 

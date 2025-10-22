@@ -1,6 +1,7 @@
 """
 Contains the RedisManager class responsible for managing Redis interactions.
 """
+
 import os
 import json
 from typing import Optional
@@ -12,6 +13,7 @@ from contracts.job_schemas import IngestionJobRequest, WorkflowGraphState
 
 class RedisManager:
     """Manages Redis interactions for publishing job events."""
+
     def __init__(self):
         self.redis_url = os.getenv("TEST_REDIS_URL", "redis://localhost:6379/2")
         self._redis_client = None  # For connection pooling in orchestrator
@@ -19,7 +21,9 @@ class RedisManager:
     # ---------------------------------------------------------------------------------
     # For API Gateway (one-off publishing)
     # ---------------------------------------------------------------------------------
-    async def publish_message_to_redis(self, job_id: str, job_record: dict, file, current_user):
+    async def publish_message_to_redis(
+        self, job_id: str, job_record: dict, file, current_user
+    ):
         """
         Publishes a JOB_CREATED event to Redis for the given job (one-off publishing).
         :param job_id: The unique identifier for the job.
@@ -28,7 +32,9 @@ class RedisManager:
         :param current_user: The user who submitted the job.
         :return: A dictionary indicating the job ID and publication status.
         """
-        print(f"[upload_media] Publishing JOB_CREATED event for job_id: {job_id} to Redis")
+        print(
+            f"[upload_media] Publishing JOB_CREATED event for job_id: {job_id} to Redis"
+        )
 
         job_request = IngestionJobRequest(
             job_id=job_id,
@@ -53,15 +59,21 @@ class RedisManager:
     async def get_redis_client(self) -> aioredis.Redis:
         """Get or create Redis client for orchestrator (connection pooling)."""
         if self._redis_client is None:
-            self._redis_client = aioredis.from_url(self.redis_url, decode_responses=True)
+            self._redis_client = aioredis.from_url(
+                self.redis_url, decode_responses=True
+            )
         return self._redis_client
 
-    async def save_job_state_to_redis(self, job_id: str, state: WorkflowGraphState) -> None:
+    async def save_job_state_to_redis(
+        self, job_id: str, state: WorkflowGraphState
+    ) -> None:
         """Persist job state to Redis as JSON."""
         redis_client = await self.get_redis_client()
         await redis_client.set(f"job_state:{job_id}", json.dumps(dict(state)))
 
-    async def load_job_state_from_redis(self, job_id: str) -> Optional[WorkflowGraphState]:
+    async def load_job_state_from_redis(
+        self, job_id: str
+    ) -> Optional[WorkflowGraphState]:
         """Load job state from Redis as WorkflowGraphState."""
         redis_client = await self.get_redis_client()
         data = await redis_client.get(f"job_state:{job_id}")

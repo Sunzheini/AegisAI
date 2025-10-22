@@ -52,7 +52,7 @@ def create_test_file():
 
     def _create_file(content, extension):
         fd, path = tempfile.mkstemp(suffix=extension)
-        with os.fdopen(fd, 'wb') as f:
+        with os.fdopen(fd, "wb") as f:
             f.write(content)
         test_files.append(path)
         return path
@@ -68,11 +68,15 @@ def create_test_file():
 
 
 @pytest.mark.asyncio
-async def test_validate_file_worker_success(validation_service, sample_pdf_state, create_test_file):
+async def test_validate_file_worker_success(
+    validation_service, sample_pdf_state, create_test_file
+):
     """_validate_file_worker should mark state as success for valid files."""
     # Create a simple PDF file
-    pdf_content = b'%PDF-1.4\n1 0 obj\n<<>>\nendobj\nxref\ntrailer\n<<>>\nstartxref\n%%EOF'
-    file_path = create_test_file(pdf_content, '.pdf')
+    pdf_content = (
+        b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\nxref\ntrailer\n<<>>\nstartxref\n%%EOF"
+    )
+    file_path = create_test_file(pdf_content, ".pdf")
 
     state = sample_pdf_state.copy()
     state["file_path"] = file_path
@@ -95,16 +99,18 @@ async def test_validate_file_nonexistent_file(validation_service, sample_pdf_sta
 
 # In tests/test_validation_worker_service.py - Keep this test as is
 @pytest.mark.asyncio
-async def test_validate_file_size_exceeded(validation_service, sample_pdf_state, create_test_file):
+async def test_validate_file_size_exceeded(
+    validation_service, sample_pdf_state, create_test_file
+):
     """Validation should fail for files exceeding size limit."""
     # Create a large PNG file (simplified valid PNG structure)
-    png_header = b'\x89PNG\r\n\x1a\n'
-    png_footer = b'\x00\x00\x00\x00IEND\xae\x42\x60\x82'
+    png_header = b"\x89PNG\r\n\x1a\n"
+    png_footer = b"\x00\x00\x00\x00IEND\xae\x42\x60\x82"
 
     # Create content that exceeds size limit
-    large_content = png_header + (b'x' * 120) + png_footer  # Total > 100 bytes
+    large_content = png_header + (b"x" * 120) + png_footer  # Total > 100 bytes
 
-    file_path = create_test_file(large_content, '.png')
+    file_path = create_test_file(large_content, ".png")
 
     # Temporarily set small max size
     original_max_size = validation_service.MAX_FILE_SIZE
@@ -125,11 +131,14 @@ async def test_validate_file_size_exceeded(validation_service, sample_pdf_state,
     finally:
         validation_service.MAX_FILE_SIZE = original_max_size
 
+
 @pytest.mark.asyncio
-async def test_validate_file_extension_mismatch(validation_service, sample_pdf_state, create_test_file):
+async def test_validate_file_extension_mismatch(
+    validation_service, sample_pdf_state, create_test_file
+):
     """Validation should fail when file extension doesn't match content type."""
     # Create a .txt file but claim it's PDF
-    file_path = create_test_file(b'text content', '.txt')
+    file_path = create_test_file(b"text content", ".txt")
 
     state = sample_pdf_state.copy()
     state["file_path"] = file_path
@@ -140,11 +149,13 @@ async def test_validate_file_extension_mismatch(validation_service, sample_pdf_s
 
 
 @pytest.mark.asyncio
-async def test_validate_invalid_pdf_structure(validation_service, sample_pdf_state, create_test_file):
+async def test_validate_invalid_pdf_structure(
+    validation_service, sample_pdf_state, create_test_file
+):
     """Validation should fail for malformed PDF files."""
     # Create invalid PDF content
-    invalid_pdf = b'Not a PDF file'
-    file_path = create_test_file(invalid_pdf, '.pdf')
+    invalid_pdf = b"Not a PDF file"
+    file_path = create_test_file(invalid_pdf, ".pdf")
 
     state = sample_pdf_state.copy()
     state["file_path"] = file_path
@@ -172,10 +183,12 @@ async def test_validate_security_checks(validation_service, sample_pdf_state):
 
 
 @pytest.mark.asyncio
-async def test_validate_invalid_checksum_format(validation_service, sample_pdf_state, create_test_file):
+async def test_validate_invalid_checksum_format(
+    validation_service, sample_pdf_state, create_test_file
+):
     """Validation should fail for invalid checksum format."""
-    pdf_content = b'%PDF-1.4\n...'
-    file_path = create_test_file(pdf_content, '.pdf')
+    pdf_content = b"%PDF-1.4\n..."
+    file_path = create_test_file(pdf_content, ".pdf")
 
     state = sample_pdf_state.copy()
     state["file_path"] = file_path
@@ -187,11 +200,15 @@ async def test_validate_invalid_checksum_format(validation_service, sample_pdf_s
 
 
 @pytest.mark.asyncio
-async def test_redis_listener_integration(redis_client, sample_pdf_state, create_test_file):
+async def test_redis_listener_integration(
+    redis_client, sample_pdf_state, create_test_file
+):
     """Integration test with Redis listener."""
     # Create valid test file
-    pdf_content = b'%PDF-1.4\n1 0 obj\n<<>>\nendobj\nxref\ntrailer\n<<>>\nstartxref\n%%EOF'
-    file_path = create_test_file(pdf_content, '.pdf')
+    pdf_content = (
+        b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\nxref\ntrailer\n<<>>\nstartxref\n%%EOF"
+    )
+    file_path = create_test_file(pdf_content, ".pdf")
 
     # Create service instance
     svc = ValidationService()

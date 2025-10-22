@@ -60,6 +60,7 @@ from support.support_functions import resolve_file_path
 from worker_clients.validation_worker_client import validate_file_worker_redis
 from worker_clients.extract_metadata_worker_client import extract_metadata_from_file_worker_redis
 from worker_clients.extract_text_worker_client import extract_text_from_file_worker_redis
+from worker_clients.ai_worker_client import process_file_by_ai_worker_redis
 
 
 USE_REDIS_LISTENER = os.getenv("USE_REDIS_LISTENER", "true").lower() == "true"
@@ -72,7 +73,6 @@ logger = LoggingManager.setup_logging(
 )
 
 
-# ToDo: Extract Text Worker Service + actual logic + tests
 # ToDo: AI Summarization Worker Service + actual logic + tests
 # ToDo: Celery?
 # ToDo: user stories use jira
@@ -102,10 +102,12 @@ async def lifespan(app):
     from worker_clients.validation_worker_client import validation_worker_client
     from worker_clients.extract_metadata_worker_client import extract_metadata_worker_client
     from worker_clients.extract_text_worker_client import extract_text_worker_client
+    from worker_clients.ai_worker_client import ai_worker_client
 
     ResolveNeedsManager.resolve_needs(validation_worker_client)
     ResolveNeedsManager.resolve_needs(extract_metadata_worker_client)
     ResolveNeedsManager.resolve_needs(extract_text_worker_client)
+    ResolveNeedsManager.resolve_needs(ai_worker_client)
 
     # Store orchestrator in app.state so routes can access it
     app.state.orchestrator = orchestrator
@@ -113,6 +115,7 @@ async def lifespan(app):
     app.state.validation_worker_client = validation_worker_client
     app.state.extract_metadata_worker_client = extract_metadata_worker_client
     app.state.extract_text_worker_client = extract_text_worker_client
+    app.state.ai_worker_client = ai_worker_client
 
     if USE_REDIS_LISTENER:
         print("[Orchestrator] Redis listener mode enabled. Starting Redis listener...")
@@ -165,18 +168,17 @@ class WorkflowOrchestrator(INeedRedisManagerInterface):
             graph.add_node("route_workflow", self._worker_route_workflow)
 
             # Image branch
-            graph.add_node("generate_thumbnails", generate_thumbnails_worker)
-            graph.add_node("analyze_image_with_ai", analyze_image_with_ai_worker)
+            graph.add_node("generate_thumbnails", generate_thumbnails_worker)   # placeholder
+            graph.add_node("analyze_image_with_ai", analyze_image_with_ai_worker)   # placeholder
 
             # Video branch
-            graph.add_node("extract_audio", extract_audio_worker)
-            graph.add_node("transcribe_audio", transcribe_audio_worker)
-            graph.add_node("generate_video_summary", generate_video_summary_worker)
+            graph.add_node("extract_audio", extract_audio_worker)   # placeholder
+            graph.add_node("transcribe_audio", transcribe_audio_worker) # placeholder
+            graph.add_node("generate_video_summary", generate_video_summary_worker) # placeholder
 
             # PDF branch
-            # graph.add_node("extract_text", extract_text_worker)
             graph.add_node("extract_text", extract_text_from_file_worker_redis)
-            graph.add_node("summarize_document", summarize_document_worker)
+            graph.add_node("summarize_document", process_file_by_ai_worker_redis)
             print("[Orchestrator] Added all nodes to graph.")
 
             # Conditional edge after validation: if failed, go to END

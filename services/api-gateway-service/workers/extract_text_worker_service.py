@@ -197,6 +197,11 @@ class ExtractTextService(INeedRedisManagerInterface):
         """
         Extracting text from file.
         Updates the job state with the results of the extracting text.
+
+        The extracted text will be saved in two places:
+        1) in state["metadata"]["text_extraction"]
+        2) storage/processed/...txt
+
         Args:
             state (WorkflowGraphState): The job state dictionary containing file metadata and path.
         Returns:
@@ -227,6 +232,7 @@ class ExtractTextService(INeedRedisManagerInterface):
 
                 # Only proceed if we have extracted text
                 if extraction_result["character_count"] > 0:
+
                     # Save extracted text to file
                     text_file_path, file_stats = await self._save_extracted_text_to_file(
                         state["job_id"],
@@ -283,13 +289,6 @@ class ExtractTextService(INeedRedisManagerInterface):
 
         state["updated_at"] = datetime.now(timezone.utc).isoformat()
         print(f"[Worker:extract_text] Job {state['job_id']} extracting text done. State: {state}")
-
-        # The extracted text will be saved in two places: 1) in state["metadata"]["text_extraction"]
-        print('-----------------------------------')
-        print(state["metadata"]["text_extraction"])
-        print('-----------------------------------')
-        # 2) storage/processed/69fbf937-21f6-4bc6-a3d8-0155c2ce0342_extracted_text.txt
-
         return state
 
     @staticmethod

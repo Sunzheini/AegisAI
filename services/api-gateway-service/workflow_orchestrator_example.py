@@ -78,8 +78,6 @@ logger = LoggingManager.setup_logging(
 )
 
 
-# ToDo: pylint / black -> run on other pc -> review
-
 # ToDo: When moving Give the workflow orchestrator direct access to the storage via shared
 #  folder, it is better to pass only the file path and metadata in the job request, not the
 #  file content itself.
@@ -88,6 +86,7 @@ logger = LoggingManager.setup_logging(
 # ToDo: AI Summarization Worker Service: integration with CustomLLM
 # ToDo: Celery?
 # ToDo: user stories use jira
+# ToDo: pylint / black -> run on other pc -> review
 
 # ToDO: AWS (OpenTelemetry?)
 

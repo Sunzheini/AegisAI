@@ -69,22 +69,17 @@ logger = LoggingManager.setup_logging(
 )
 
 
-# ToDo:
-"""
-status: black uses 88 max line length and "", logging implemented, pylint used, error middleware
-    and reviewed broad exceptions
-later: add user stories use jira, pull requests how to see progress in github
-"""
-
-
 # ToDo: Extraction Worker Service + actual logic + tests
 # ToDo: AI Summarization Worker Service + actual logic + tests
+# ToDo: Celery?
+# ToDo: user stories use jira
 
 # ToDo: when moving Give the workflow orchestrator direct access to the storage via shared
 #  folder, it is better to pass only the file path and metadata in the job request, not the
 #  file content itself.
 # ToDo: Move incl. tests to work there
 # ToDo: pylint / black -> run on other pc -> review
+# ToDO: AWS (OpenTelemetry?)
 
 
 @asynccontextmanager

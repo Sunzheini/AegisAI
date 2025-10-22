@@ -55,8 +55,11 @@ from ai_worker_example import (
 )
 from custom_middleware.error_middleware import ErrorMiddleware
 from support.support_functions import resolve_file_path
+
+# Worker clients using Redis
 from worker_clients.validation_worker_client import validate_file_worker_redis
 from worker_clients.extract_metadata_worker_client import extract_metadata_from_file_worker_redis
+from worker_clients.extract_text_worker_client import extract_text_from_file_worker_redis
 
 
 USE_REDIS_LISTENER = os.getenv("USE_REDIS_LISTENER", "true").lower() == "true"
@@ -69,7 +72,7 @@ logger = LoggingManager.setup_logging(
 )
 
 
-# ToDo: Extraction Worker Service + actual logic + tests
+# ToDo: Extract Text Worker Service + actual logic + tests
 # ToDo: AI Summarization Worker Service + actual logic + tests
 # ToDo: Celery?
 # ToDo: user stories use jira
@@ -98,14 +101,18 @@ async def lifespan(app):
     # Resolve ValidationWorkerClient dependency
     from worker_clients.validation_worker_client import validation_worker_client
     from worker_clients.extract_metadata_worker_client import extract_metadata_worker_client
+    from worker_clients.extract_text_worker_client import extract_text_worker_client
+
     ResolveNeedsManager.resolve_needs(validation_worker_client)
     ResolveNeedsManager.resolve_needs(extract_metadata_worker_client)
+    ResolveNeedsManager.resolve_needs(extract_text_worker_client)
 
     # Store orchestrator in app.state so routes can access it
     app.state.orchestrator = orchestrator
     app.state.redis_manager = redis_manager
     app.state.validation_worker_client = validation_worker_client
     app.state.extract_metadata_worker_client = extract_metadata_worker_client
+    app.state.extract_text_worker_client = extract_text_worker_client
 
     if USE_REDIS_LISTENER:
         print("[Orchestrator] Redis listener mode enabled. Starting Redis listener...")
@@ -167,7 +174,8 @@ class WorkflowOrchestrator(INeedRedisManagerInterface):
             graph.add_node("generate_video_summary", generate_video_summary_worker)
 
             # PDF branch
-            graph.add_node("extract_text", extract_text_worker)
+            # graph.add_node("extract_text", extract_text_worker)
+            graph.add_node("extract_text", extract_text_from_file_worker_redis)
             graph.add_node("summarize_document", summarize_document_worker)
             print("[Orchestrator] Added all nodes to graph.")
 

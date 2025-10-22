@@ -71,9 +71,6 @@ class ExtractMetadataService(INeedRedisManagerInterface):
     def __init__(self):
         self.logger = logging.getLogger("extract-metadata-service")
 
-        # Instance-level configuration
-
-
     async def process_extract_metadata_task(self, task_data: dict) -> dict:
         """Process extract metadata task using shared Redis connection."""
         try:

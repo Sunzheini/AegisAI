@@ -8,11 +8,6 @@ from typing import Optional
 
 import redis.asyncio as aioredis
 
-# try:
-#     from ..contracts.job_schemas import IngestionJobRequest, WorkflowGraphState
-# except:
-#     from contracts.job_schemas import IngestionJobRequest, WorkflowGraphState
-
 from shared_lib.contracts.job_schemas import IngestionJobRequest, WorkflowGraphState
 
 

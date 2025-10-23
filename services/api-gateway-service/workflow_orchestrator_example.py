@@ -95,7 +95,8 @@ logger = LoggingManager.setup_logging(
 )
 
 
-# ToDo: Separate orchestrator errors
+# ToDo: fix load_dotenv() must be everywhere (it gave error in ingestion_views.py!)
+# ToDo: Separate orchestrator
 # ToDo: When moving Give the workflow orchestrator direct access to the storage via shared
 #  folder, it is better to pass only the file path and metadata in the job request, not the
 #  file content itself.

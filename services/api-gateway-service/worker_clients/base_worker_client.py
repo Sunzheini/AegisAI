@@ -10,11 +10,11 @@ from abc import abstractmethod
 USE_SHARED_LIB = os.getenv("USE_SHARED_LIB", False)
 if USE_SHARED_LIB:
     from shared_lib.contracts.job_schemas import WorkflowGraphState
+    from shared_lib.needs.INeedRedisManager import INeedRedisManagerInterface
 else:
     from shared_lib.contracts.job_schemas import WorkflowGraphState
+    from needs.INeedRedisManager import INeedRedisManagerInterface
 # ------------------------------------------------------------------------------------------
-
-from needs.INeedRedisManager import INeedRedisManagerInterface
 
 
 class BaseWorkerClient(INeedRedisManagerInterface):

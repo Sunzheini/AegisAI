@@ -44,16 +44,18 @@ if USE_SHARED_LIB:
         IngestionJobStatusResponse,
         WorkflowGraphState,
     )
+    from shared_lib.needs.INeedRedisManager import INeedRedisManagerInterface
+    from shared_lib.needs.ResolveNeedsManager import ResolveNeedsManager
 else:
     from contracts.job_schemas import (
         IngestionJobRequest,
         IngestionJobStatusResponse,
         WorkflowGraphState,
     )
+    from needs.INeedRedisManager import INeedRedisManagerInterface
+    from needs.ResolveNeedsManager import ResolveNeedsManager
 # ------------------------------------------------------------------------------------------
 
-from needs.INeedRedisManager import INeedRedisManagerInterface
-from needs.ResolveNeedsManager import ResolveNeedsManager
 from logging_management.logging_manager import LoggingManager
 from custom_middleware.logging_middleware import EnhancedLoggingMiddleware
 from custom_middleware.error_middleware import ErrorMiddleware

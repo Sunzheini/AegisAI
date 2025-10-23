@@ -18,14 +18,17 @@ from fastapi import FastAPI
 USE_SHARED_LIB = os.getenv("USE_SHARED_LIB", False)
 if USE_SHARED_LIB:
     from shared_lib.contracts.job_schemas import WorkflowGraphState
+    from shared_lib.needs.INeedRedisManager import INeedRedisManagerInterface
+    from shared_lib.needs.ResolveNeedsManager import ResolveNeedsManager
+    from shared_lib.redis_management.redis_manager import RedisManager
 else:
     from contracts.job_schemas import WorkflowGraphState
+    from needs.INeedRedisManager import INeedRedisManagerInterface
+    from needs.ResolveNeedsManager import ResolveNeedsManager
+    from redis_management.redis_manager import RedisManager
 # ------------------------------------------------------------------------------------------
 
 from custom_middleware.error_middleware import ErrorMiddleware
-from needs.INeedRedisManager import INeedRedisManagerInterface
-from needs.ResolveNeedsManager import ResolveNeedsManager
-from redis_management.redis_manager import RedisManager
 from logging_management.logging_manager import LoggingManager
 from custom_middleware.logging_middleware import EnhancedLoggingMiddleware
 

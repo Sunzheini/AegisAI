@@ -1,10 +1,19 @@
 """
 Database manager for user data using PostgreSQL and SQLAlchemy.
 """
-
+import os
 from models.models import User
-from support.security import get_password_hash
-from support.singleton_interface import SingletonInterface
+
+# Conditional import for shared library usage ----------------------------------------------
+USE_SHARED_LIB = os.getenv("USE_SHARED_LIB", False)
+if USE_SHARED_LIB:
+    from shared_lib.support.security import get_password_hash
+    from shared_lib.support.singleton_interface import SingletonInterface
+else:
+    from support.security import get_password_hash
+    from support.singleton_interface import SingletonInterface
+# ------------------------------------------------------------------------------------------
+
 from db_management.db_settings import (
     initialize_database,
     DB_SESSION_LOCAL,

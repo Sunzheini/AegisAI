@@ -1,9 +1,17 @@
+import os
 import logging
 import pytest
 from fastapi.testclient import TestClient
 
 from main import app, logger
-from support.constants import APP_NAME
+
+# Conditional import for shared library usage ----------------------------------------------
+USE_SHARED_LIB = os.getenv("USE_SHARED_LIB", False)
+if USE_SHARED_LIB:
+    from shared_lib.support.constants import APP_NAME
+else:
+    from support.constants import APP_NAME
+# ------------------------------------------------------------------------------------------
 
 
 client = TestClient(app)

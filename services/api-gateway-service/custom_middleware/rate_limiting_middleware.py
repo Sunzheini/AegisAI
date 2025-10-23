@@ -29,7 +29,7 @@ Usage
 This module documents the middleware and its trade-offs for the local-first phase
 described in WORK_PLAN.md.
 """
-
+import os
 import time
 from typing import Callable, Dict, Tuple
 
@@ -37,7 +37,13 @@ from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
-from support.constants import RATE_LIMIT_PER_MINUTE
+# Conditional import for shared library usage ----------------------------------------------
+USE_SHARED_LIB = os.getenv("USE_SHARED_LIB", False)
+if USE_SHARED_LIB:
+    from shared_lib.support.constants import RATE_LIMIT_PER_MINUTE
+else:
+    from support.constants import RATE_LIMIT_PER_MINUTE
+# ------------------------------------------------------------------------------------------
 
 
 class InMemoryRateLimiter(BaseHTTPMiddleware):

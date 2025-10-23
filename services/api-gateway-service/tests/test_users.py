@@ -1,7 +1,17 @@
+import os
+
 import pytest
 
 from models.models import User
-from support.security import get_password_hash
+
+# Conditional import for shared library usage ----------------------------------------------
+USE_SHARED_LIB = os.getenv("USE_SHARED_LIB", False)
+if USE_SHARED_LIB:
+    from shared_lib.support.security import get_password_hash
+
+else:
+    from support.security import get_password_hash
+# ------------------------------------------------------------------------------------------
 
 
 # --------------------------------------------------------------------------------------

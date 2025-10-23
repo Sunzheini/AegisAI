@@ -2,13 +2,19 @@
 Custom error handling middleware for FastAPI apps.
 Catches unhandled exceptions, logs them, and returns a consistent JSON error response.
 """
-
+import os
 import logging
 import traceback
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from support.constants import APP_NAME
+# Conditional import for shared library usage ----------------------------------------------
+USE_SHARED_LIB = os.getenv("USE_SHARED_LIB", False)
+if USE_SHARED_LIB:
+    from shared_lib.support.constants import APP_NAME
+else:
+    from support.constants import APP_NAME
+# ------------------------------------------------------------------------------------------
 
 
 logger = logging.getLogger(APP_NAME)

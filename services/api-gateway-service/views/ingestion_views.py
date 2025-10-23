@@ -29,19 +29,22 @@ from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Path, Request
 from starlette import status as H
 
-from support.security import auth_required
-from support.constants import ALLOWED_CONTENT_TYPES_SET, MAX_UPLOAD_BYTES_SIZE
-from support.support_functions import sanitize_filename
-from support.storage_abstraction import LocalFileStorage, InMemoryJobAssetStore
-
 # Conditional import for shared library usage ----------------------------------------------
 USE_SHARED_LIB = os.getenv("USE_SHARED_LIB", False)
 if USE_SHARED_LIB:
     from shared_lib.contracts.job_schemas import IngestionJobRequest
     from shared_lib.needs.INeedRedisManager import INeedRedisManagerInterface
+    from shared_lib.support.security import auth_required
+    from shared_lib.support.constants import ALLOWED_CONTENT_TYPES_SET, MAX_UPLOAD_BYTES_SIZE
+    from shared_lib.support.support_functions import sanitize_filename
+    from shared_lib.support.storage_abstraction import LocalFileStorage, InMemoryJobAssetStore
 else:
     from contracts.job_schemas import IngestionJobRequest
     from needs.INeedRedisManager import INeedRedisManagerInterface
+    from support.security import auth_required
+    from support.constants import ALLOWED_CONTENT_TYPES_SET, MAX_UPLOAD_BYTES_SIZE
+    from support.support_functions import sanitize_filename
+    from support.storage_abstraction import LocalFileStorage, InMemoryJobAssetStore
 # ------------------------------------------------------------------------------------------
 
 

@@ -14,8 +14,16 @@ from fastapi.testclient import TestClient
 from main import app
 from db_management.db_manager import DataBaseManager
 from models.models import User
-from support.security import get_password_hash
-from support.constants import LOG_FILE_PATH, APP_NAME
+
+# Conditional import for shared library usage ----------------------------------------------
+USE_SHARED_LIB = os.getenv("USE_SHARED_LIB", False)
+if USE_SHARED_LIB:
+    from shared_lib.support.security import get_password_hash
+    from shared_lib.support.constants import LOG_FILE_PATH, APP_NAME
+else:
+    from support.security import get_password_hash
+    from support.constants import LOG_FILE_PATH, APP_NAME
+# ------------------------------------------------------------------------------------------
 
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))

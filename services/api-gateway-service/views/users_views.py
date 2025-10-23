@@ -1,13 +1,21 @@
 """
 Defines user-related views (endpoints) for the FastAPI application.
 """
+import os
 
 from fastapi import APIRouter, HTTPException, Path, Query, Depends
 from starlette import status as H
 
 from models.models import User, UserCreate, UserUpdate
 from db_management.db_manager import DataBaseManager
-from support.security import auth_required, get_password_hash
+
+# Conditional import for shared library usage ----------------------------------------------
+USE_SHARED_LIB = os.getenv("USE_SHARED_LIB", False)
+if USE_SHARED_LIB:
+    from shared_lib.support.security import auth_required, get_password_hash
+else:
+    from support.security import auth_required, get_password_hash
+# ------------------------------------------------------------------------------------------
 
 
 class UsersViewsManager:

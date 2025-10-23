@@ -46,6 +46,7 @@ if USE_SHARED_LIB:
     )
     from shared_lib.needs.INeedRedisManager import INeedRedisManagerInterface
     from shared_lib.needs.ResolveNeedsManager import ResolveNeedsManager
+    from shared_lib.support.support_functions import resolve_file_path
 else:
     from contracts.job_schemas import (
         IngestionJobRequest,
@@ -54,6 +55,7 @@ else:
     )
     from needs.INeedRedisManager import INeedRedisManagerInterface
     from needs.ResolveNeedsManager import ResolveNeedsManager
+    from support.support_functions import resolve_file_path
 # ------------------------------------------------------------------------------------------
 
 from logging_management.logging_manager import LoggingManager
@@ -68,7 +70,6 @@ from media_processing_worker_example import (
 from ai_worker_example import (
     analyze_image_with_ai_worker,
 )
-from support.support_functions import resolve_file_path
 
 # Worker clients using Redis
 from worker_clients.validation_worker_client import validate_file_worker_redis

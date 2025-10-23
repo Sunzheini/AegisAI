@@ -18,13 +18,21 @@ App State:
 Health Endpoint:
     - GET /health: Returns service status
 """
-
+import os
 import logging
 from fastapi import FastAPI
 
 from custom_middleware.rate_limiting_middleware import InMemoryRateLimiter
 from custom_middleware.error_middleware import ErrorMiddleware
-from support.constants import LOG_FILE_PATH, APP_NAME
+
+# Conditional import for shared library usage ----------------------------------------------
+USE_SHARED_LIB = os.getenv("USE_SHARED_LIB", False)
+if USE_SHARED_LIB:
+    from shared_lib.support.constants import LOG_FILE_PATH, APP_NAME
+else:
+    from support.constants import LOG_FILE_PATH, APP_NAME
+# ------------------------------------------------------------------------------------------
+
 from views.ingestion_views import IngestionViewsManager
 from routers import auth_router, users_router, v1_router, redis_router
 from routers.users_router import get_current_user

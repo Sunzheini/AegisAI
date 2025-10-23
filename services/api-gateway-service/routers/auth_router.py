@@ -1,7 +1,6 @@
 """
 Authentication and Authorization using JWT tokens with FastAPI
 """
-
 import os
 from datetime import timedelta, datetime, timezone
 from typing import Dict, Any, Optional
@@ -11,7 +10,14 @@ from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from jose import jwt, JWTError
 
 from db_management.db_manager import DataBaseManager
-from support.security import verify_password, get_password_hash
+
+# Conditional import for shared library usage ----------------------------------------------
+USE_SHARED_LIB = os.getenv("USE_SHARED_LIB", False)
+if USE_SHARED_LIB:
+    from shared_lib.support.security import verify_password, get_password_hash
+else:
+    from support.security import verify_password, get_password_hash
+# ------------------------------------------------------------------------------------------
 
 """
 THe flow is as follows:

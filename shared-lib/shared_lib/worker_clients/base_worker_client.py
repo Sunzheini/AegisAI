@@ -12,8 +12,8 @@ from abc import abstractmethod
 #     from contracts.job_schemas import WorkflowGraphState
 #     from needs.INeedRedisManager import INeedRedisManagerInterface
 
-from contracts.job_schemas import WorkflowGraphState
-from needs.INeedRedisManager import INeedRedisManagerInterface
+from shared_lib.contracts.job_schemas import WorkflowGraphState
+from shared_lib.needs.INeedRedisManager import INeedRedisManagerInterface
 
 
 class BaseWorkerClient(INeedRedisManagerInterface):

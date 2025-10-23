@@ -12,7 +12,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 # except:
 #     from support.constants import APP_NAME
 
-from support.constants import APP_NAME
+from shared_lib.support.constants import APP_NAME
 
 
 logger = logging.getLogger(APP_NAME)

@@ -42,7 +42,7 @@ from starlette.responses import JSONResponse
 # except:
 #     from support.constants import RATE_LIMIT_PER_MINUTE
 
-from support.constants import RATE_LIMIT_PER_MINUTE
+from shared_lib.support.constants import RATE_LIMIT_PER_MINUTE
 
 
 class InMemoryRateLimiter(BaseHTTPMiddleware):

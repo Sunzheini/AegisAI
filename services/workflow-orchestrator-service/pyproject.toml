@@ -18,7 +18,8 @@ dependencies = [
     "pylint (>=4.0.0,<5.0.0)",
     "black (>=25.9.0,<26.0.0)",
     "python-dotenv (>=1.1.1,<2.0.0)",
-    "shared-lib @ file:///D:/Study/Projects/Github/AegisAI/shared-lib"
+    "shared-lib @ file:///D:/Study/Projects/Github/AegisAI/shared-lib",
+    "user-agents (>=2.2.0,<3.0.0)"
 ]
 
 

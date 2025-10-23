@@ -13,7 +13,7 @@ import redis.asyncio as aioredis
 # except:
 #     from contracts.job_schemas import IngestionJobRequest, WorkflowGraphState
 
-from contracts.job_schemas import IngestionJobRequest, WorkflowGraphState
+from shared_lib.contracts.job_schemas import IngestionJobRequest, WorkflowGraphState
 
 
 class RedisManager:

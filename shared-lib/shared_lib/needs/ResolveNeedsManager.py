@@ -1,6 +1,12 @@
 """
 Contains the manager to resolve needs for needy objects.
 """
+# try:
+#     from .INeedRedisManager import INeedRedisManagerInterface
+#     from ..redis_management.redis_manager import RedisManager
+# except:
+#     from needs.INeedRedisManager import INeedRedisManagerInterface
+#     from redis_management.redis_manager import RedisManager
 
 from needs.INeedRedisManager import INeedRedisManagerInterface
 from redis_management.redis_manager import RedisManager

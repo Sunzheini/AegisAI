@@ -37,6 +37,11 @@ from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
+# try:
+#     from ..support.constants import RATE_LIMIT_PER_MINUTE
+# except:
+#     from support.constants import RATE_LIMIT_PER_MINUTE
+
 from support.constants import RATE_LIMIT_PER_MINUTE
 
 

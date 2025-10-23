@@ -5,6 +5,13 @@ import json
 import asyncio
 from abc import abstractmethod
 
+# try:
+#     from ..contracts.job_schemas import WorkflowGraphState
+#     from ..needs.INeedRedisManager import INeedRedisManagerInterface
+# except:
+#     from contracts.job_schemas import WorkflowGraphState
+#     from needs.INeedRedisManager import INeedRedisManagerInterface
+
 from contracts.job_schemas import WorkflowGraphState
 from needs.INeedRedisManager import INeedRedisManagerInterface
 

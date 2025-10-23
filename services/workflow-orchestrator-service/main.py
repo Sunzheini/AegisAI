@@ -24,7 +24,6 @@ Migration Notes:
     - Replace in-memory stores with S3/DynamoDB for production
     - Replace simulated workers with Lambda/Step Functions for cloud
 """
-
 import os
 import json
 from typing import Dict, Any, Optional
@@ -36,16 +35,18 @@ from contextlib import asynccontextmanager
 from langgraph.graph import StateGraph, END
 from fastapi import FastAPI, HTTPException, status, Request
 
-from contracts.job_schemas import (
-    IngestionJobRequest,
-    IngestionJobStatusResponse,
-    WorkflowGraphState,
-)
-from needs.INeedRedisManager import INeedRedisManagerInterface
-from needs.ResolveNeedsManager import ResolveNeedsManager
-from logging_management.logging_manager import LoggingManager
-from custom_middleware.logging_middleware import EnhancedLoggingMiddleware
-from custom_middleware.error_middleware import ErrorMiddleware
+from shared_lib.contracts.job_schemas import (
+        IngestionJobRequest,
+        IngestionJobStatusResponse,
+        WorkflowGraphState,
+    )
+from shared_lib.needs.INeedRedisManager import INeedRedisManagerInterface
+from shared_lib.needs.ResolveNeedsManager import ResolveNeedsManager
+from shared_lib.support.support_functions import resolve_file_path
+from shared_lib.logging_management.logging_manager import LoggingManager
+from shared_lib.custom_middleware.logging_middleware import EnhancedLoggingMiddleware
+from shared_lib.custom_middleware.error_middleware import ErrorMiddleware
+
 from media_processing_worker_example import (
     generate_thumbnails_worker,
     extract_audio_worker,
@@ -55,7 +56,6 @@ from media_processing_worker_example import (
 from ai_worker_example import (
     analyze_image_with_ai_worker,
 )
-from support.support_functions import resolve_file_path
 
 # Worker clients using Redis
 from worker_clients.validation_worker_client import validate_file_worker_redis
@@ -97,7 +97,7 @@ async def lifespan(app):
     logger.info("Starting Workflow Orchestrator service...")
 
     # Create RedisManager instance
-    from redis_management.redis_manager import RedisManager
+    from shared_lib.redis_management.redis_manager import RedisManager
 
     redis_manager = RedisManager()
 

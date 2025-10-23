@@ -1701,6 +1701,20 @@ tornado = ["tornado (>=6)"]
 unleash = ["UnleashClient (>=6.0.1)"]
 
 [[package]]
+name = "shared-lib"
+version = "0.1.4"
+description = "Shared code for microservices"
+optional = false
+python-versions = ">=3.11"
+groups = ["main"]
+files = []
+develop = false
+
+[package.source]
+type = "directory"
+url = "../../shared-lib"
+
+[[package]]
 name = "shellingham"
 version = "1.5.4"
 description = "Tool to Detect Surrounding Shell"
@@ -2376,4 +2390,4 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11"
-content-hash = "92faa3263aaa3524e2badebd0dcb1a55ab08e869d650fe89e996649237ce66e7"
+content-hash = "b2e61e87c6b82c3aceb8484a3cb136db23da2ad9a68a1b7bd479698a32c764db"

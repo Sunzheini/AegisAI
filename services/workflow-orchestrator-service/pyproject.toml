@@ -17,7 +17,8 @@ dependencies = [
     "langgraph (>=0.6.8,<0.7.0)",
     "pylint (>=4.0.0,<5.0.0)",
     "black (>=25.9.0,<26.0.0)",
-    "python-dotenv (>=1.1.1,<2.0.0)"
+    "python-dotenv (>=1.1.1,<2.0.0)",
+    "shared-lib @ file:///D:/Study/Projects/Github/AegisAI/shared-lib"
 ]
 
 

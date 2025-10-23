@@ -6,15 +6,8 @@ Used by the workflow orchestrator.
 """
 import os
 
-# Conditional import for shared library usage ----------------------------------------------
-USE_SHARED_LIB = os.getenv("USE_SHARED_LIB", False)
-if USE_SHARED_LIB:
-    from shared_lib.contracts.job_schemas import WorkflowGraphState
-    from shared_lib.worker_clients.base_worker_client import BaseWorkerClient
-else:
-    from contracts.job_schemas import WorkflowGraphState
-    from worker_clients.base_worker_client import BaseWorkerClient
-# ------------------------------------------------------------------------------------------
+from shared_lib.contracts.job_schemas import WorkflowGraphState
+from shared_lib.worker_clients.base_worker_client import BaseWorkerClient
 
 
 # Specific Configuration

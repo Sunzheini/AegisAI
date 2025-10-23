@@ -8,7 +8,13 @@ from typing import Optional
 
 import redis.asyncio as aioredis
 
-from shared_lib.contracts.job_schemas import IngestionJobRequest, WorkflowGraphState
+# Conditional import for shared library usage ----------------------------------------------
+USE_SHARED_LIB = os.getenv("USE_SHARED_LIB", False)
+if USE_SHARED_LIB:
+    from shared_lib.contracts.job_schemas import IngestionJobRequest, WorkflowGraphState
+else:
+    from contracts.job_schemas import IngestionJobRequest, WorkflowGraphState
+# ------------------------------------------------------------------------------------------
 
 
 class RedisManager:

@@ -4,7 +4,6 @@ Extract Metadata Service
 Standalone service that executes extract metadata tasks.
 Uses RedisManager for consistent connection management.
 """
-
 import os
 import json
 import asyncio
@@ -14,7 +13,15 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
-from shared_lib.contracts.job_schemas import WorkflowGraphState
+
+# Conditional import for shared library usage ----------------------------------------------
+USE_SHARED_LIB = os.getenv("USE_SHARED_LIB", False)
+if USE_SHARED_LIB:
+    from shared_lib.contracts.job_schemas import WorkflowGraphState
+else:
+    from contracts.job_schemas import WorkflowGraphState
+# ------------------------------------------------------------------------------------------
+
 from custom_middleware.error_middleware import ErrorMiddleware
 from needs.INeedRedisManager import INeedRedisManagerInterface
 from needs.ResolveNeedsManager import ResolveNeedsManager

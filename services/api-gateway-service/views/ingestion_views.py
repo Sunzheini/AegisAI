@@ -35,7 +35,6 @@ from support.constants import ALLOWED_CONTENT_TYPES_SET, MAX_UPLOAD_BYTES_SIZE
 from support.support_functions import sanitize_filename
 from support.storage_abstraction import LocalFileStorage, InMemoryJobAssetStore
 
-
 # Conditional import for shared library usage ----------------------------------------------
 USE_SHARED_LIB = os.getenv("USE_SHARED_LIB", False)
 if USE_SHARED_LIB:

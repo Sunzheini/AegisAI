@@ -36,11 +36,21 @@ from contextlib import asynccontextmanager
 from langgraph.graph import StateGraph, END
 from fastapi import FastAPI, HTTPException, status, Request
 
-from shared_lib.contracts.job_schemas import (
-    IngestionJobRequest,
-    IngestionJobStatusResponse,
-    WorkflowGraphState,
-)
+# Conditional import for shared library usage ----------------------------------------------
+USE_SHARED_LIB = os.getenv("USE_SHARED_LIB", False)
+if USE_SHARED_LIB:
+    from shared_lib.contracts.job_schemas import (
+        IngestionJobRequest,
+        IngestionJobStatusResponse,
+        WorkflowGraphState,
+    )
+else:
+    from contracts.job_schemas import (
+        IngestionJobRequest,
+        IngestionJobStatusResponse,
+        WorkflowGraphState,
+    )
+# ------------------------------------------------------------------------------------------
 
 from needs.INeedRedisManager import INeedRedisManagerInterface
 from needs.ResolveNeedsManager import ResolveNeedsManager

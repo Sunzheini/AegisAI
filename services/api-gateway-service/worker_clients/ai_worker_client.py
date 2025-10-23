@@ -7,7 +7,7 @@ Used by the workflow orchestrator.
 
 import os
 
-from contracts.job_schemas import WorkflowGraphState
+from shared_lib.contracts.job_schemas import WorkflowGraphState
 from worker_clients.base_worker_client import BaseWorkerClient
 
 

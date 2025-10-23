@@ -8,7 +8,7 @@ from typing import Optional
 
 import redis.asyncio as aioredis
 
-from contracts.job_schemas import IngestionJobRequest, WorkflowGraphState
+from shared_lib.contracts.job_schemas import IngestionJobRequest, WorkflowGraphState
 
 
 class RedisManager:

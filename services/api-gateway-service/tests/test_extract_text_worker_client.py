@@ -3,7 +3,7 @@ import json
 import async_timeout
 import pytest
 
-from contracts.job_schemas import WorkflowGraphState
+from shared_lib.contracts.job_schemas import WorkflowGraphState
 from worker_clients.extract_text_worker_client import (
     ExtractTextWorkerClient,
     EXTRACT_TEXT_QUEUE,

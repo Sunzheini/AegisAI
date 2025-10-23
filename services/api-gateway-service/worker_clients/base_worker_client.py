@@ -6,7 +6,7 @@ import json
 import asyncio
 from abc import abstractmethod
 
-from contracts.job_schemas import WorkflowGraphState
+from shared_lib.contracts.job_schemas import WorkflowGraphState
 from needs.INeedRedisManager import INeedRedisManagerInterface
 
 

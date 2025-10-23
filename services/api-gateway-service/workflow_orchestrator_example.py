@@ -36,11 +36,12 @@ from contextlib import asynccontextmanager
 from langgraph.graph import StateGraph, END
 from fastapi import FastAPI, HTTPException, status, Request
 
-from contracts.job_schemas import (
+from shared_lib.contracts.job_schemas import (
     IngestionJobRequest,
     IngestionJobStatusResponse,
     WorkflowGraphState,
 )
+
 from needs.INeedRedisManager import INeedRedisManagerInterface
 from needs.ResolveNeedsManager import ResolveNeedsManager
 from logging_management.logging_manager import LoggingManager

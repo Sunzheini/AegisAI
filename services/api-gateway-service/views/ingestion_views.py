@@ -34,7 +34,7 @@ from support.security import auth_required
 from support.constants import ALLOWED_CONTENT_TYPES_SET, MAX_UPLOAD_BYTES_SIZE
 from support.support_functions import sanitize_filename
 from support.storage_abstraction import LocalFileStorage, InMemoryJobAssetStore
-from contracts.job_schemas import IngestionJobRequest
+from shared_lib.contracts.job_schemas import IngestionJobRequest
 
 
 load_dotenv()

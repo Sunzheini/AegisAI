@@ -14,7 +14,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
-from contracts.job_schemas import WorkflowGraphState
+from shared_lib.contracts.job_schemas import WorkflowGraphState
 from custom_middleware.error_middleware import ErrorMiddleware
 from needs.INeedRedisManager import INeedRedisManagerInterface
 from needs.ResolveNeedsManager import ResolveNeedsManager

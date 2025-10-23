@@ -1,6 +1,7 @@
 """
 Reusable logging configuration for all microservices.
 """
+
 import os
 import sys
 import logging

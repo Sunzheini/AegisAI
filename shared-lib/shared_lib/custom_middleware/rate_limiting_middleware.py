@@ -29,6 +29,7 @@ Usage
 This module documents the middleware and its trade-offs for the local-first phase
 described in WORK_PLAN.md.
 """
+import os
 import time
 from typing import Callable, Dict, Tuple
 

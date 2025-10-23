@@ -2258,7 +2258,7 @@ unleash = ["UnleashClient (>=6.0.1)"]
 
 [[package]]
 name = "shared-lib"
-version = "0.1.2"
+version = "0.1.3"
 description = "Shared code for microservices"
 optional = false
 python-versions = ">=3.11"

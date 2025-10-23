@@ -47,6 +47,9 @@ if USE_SHARED_LIB:
     from shared_lib.needs.INeedRedisManager import INeedRedisManagerInterface
     from shared_lib.needs.ResolveNeedsManager import ResolveNeedsManager
     from shared_lib.support.support_functions import resolve_file_path
+    from shared_lib.logging_management.logging_manager import LoggingManager
+    from shared_lib.custom_middleware.logging_middleware import EnhancedLoggingMiddleware
+    from shared_lib.custom_middleware.error_middleware import ErrorMiddleware
 else:
     from contracts.job_schemas import (
         IngestionJobRequest,
@@ -56,11 +59,11 @@ else:
     from needs.INeedRedisManager import INeedRedisManagerInterface
     from needs.ResolveNeedsManager import ResolveNeedsManager
     from support.support_functions import resolve_file_path
+    from logging_management.logging_manager import LoggingManager
+    from custom_middleware.logging_middleware import EnhancedLoggingMiddleware
+    from custom_middleware.error_middleware import ErrorMiddleware
 # ------------------------------------------------------------------------------------------
 
-from logging_management.logging_manager import LoggingManager
-from custom_middleware.logging_middleware import EnhancedLoggingMiddleware
-from custom_middleware.error_middleware import ErrorMiddleware
 from media_processing_worker_example import (
     generate_thumbnails_worker,
     extract_audio_worker,

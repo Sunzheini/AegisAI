@@ -21,16 +21,18 @@ if USE_SHARED_LIB:
     from shared_lib.needs.INeedRedisManager import INeedRedisManagerInterface
     from shared_lib.needs.ResolveNeedsManager import ResolveNeedsManager
     from shared_lib.redis_management.redis_manager import RedisManager
+    from shared_lib.custom_middleware.error_middleware import ErrorMiddleware
+    from shared_lib.custom_middleware.logging_middleware import EnhancedLoggingMiddleware
+    from shared_lib.logging_management.logging_manager import LoggingManager
 else:
     from contracts.job_schemas import WorkflowGraphState
     from needs.INeedRedisManager import INeedRedisManagerInterface
     from needs.ResolveNeedsManager import ResolveNeedsManager
     from redis_management.redis_manager import RedisManager
+    from custom_middleware.error_middleware import ErrorMiddleware
+    from custom_middleware.logging_middleware import EnhancedLoggingMiddleware
+    from logging_management.logging_manager import LoggingManager
 # ------------------------------------------------------------------------------------------
-
-from custom_middleware.error_middleware import ErrorMiddleware
-from logging_management.logging_manager import LoggingManager
-from custom_middleware.logging_middleware import EnhancedLoggingMiddleware
 
 
 # Configuration

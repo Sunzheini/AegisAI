@@ -1,10 +1,17 @@
+import os
 import typing as t
 
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from custom_middleware.rate_limiting_middleware import InMemoryRateLimiter
+# Conditional import for shared library usage ----------------------------------------------
+USE_SHARED_LIB = os.getenv("USE_SHARED_LIB", False)
+if USE_SHARED_LIB:
+    from shared_lib.custom_middleware.rate_limiting_middleware import InMemoryRateLimiter
+else:
+    from custom_middleware.rate_limiting_middleware import InMemoryRateLimiter
+# ------------------------------------------------------------------------------------------
 
 
 class SetUserNameMiddleware(BaseHTTPMiddleware):

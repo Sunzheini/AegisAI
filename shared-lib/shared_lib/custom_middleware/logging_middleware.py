@@ -1,6 +1,7 @@
 """
 Reusable logging middleware for all FastAPI services.
 """
+
 import time
 import logging
 from typing import Callable

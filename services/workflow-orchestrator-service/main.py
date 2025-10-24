@@ -300,6 +300,10 @@ class WorkflowOrchestrator(INeedRedisManagerInterface):
         # Resolve file path once in orchestrator
         resolved_path = await resolve_file_path(job.file_path, job.job_id)
 
+        print('---------------------------------------------------')
+        print(f"[Orchestrator] Resolved file path: {resolved_path}")    # storage\raw\ATmega32A.pdf
+        print('---------------------------------------------------')
+
         state = WorkflowGraphState(
             job_id=job.job_id,
             # file_path=job.file_path,

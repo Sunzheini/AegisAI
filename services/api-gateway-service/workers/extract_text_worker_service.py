@@ -15,10 +15,9 @@ from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI
 
-BASE_DIR = Path(__file__).resolve().parent
 
-if os.path.exists(os.path.join(BASE_DIR, '.env')):
-    load_dotenv()
+load_dotenv()
+
 
 # Conditional import for shared library usage ----------------------------------------------
 USE_SHARED_LIB = os.getenv("USE_SHARED_LIB", False)
@@ -48,7 +47,7 @@ EXTRACT_TEXT_CALLBACK_QUEUE = os.getenv(
 )
 
 # Upload/raw storage location constant (configurable)
-UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "storage/raw")).resolve()
+UPLOAD_DIR = Path(os.getenv("RAW_DIR", "storage/raw")).resolve()
 PROCESSED_DIR = Path(os.getenv("PROCESSED_DIR", "storage/processed")).resolve()
 
 
@@ -161,6 +160,22 @@ class ExtractTextService(INeedRedisManagerInterface):
             # Create text file path
             text_filename = f"{job_id}_extracted_text.txt"
             text_file_path = PROCESSED_DIR / text_filename
+
+
+
+
+
+            # DEBUG: Show what paths are being used
+            print(f"[DEBUG ExtractText] PROCESSED_DIR: {PROCESSED_DIR}")
+            print(f"[DEBUG ExtractText] Saving text to: {text_file_path}")
+            print(f"[DEBUG ExtractText] PROCESSED_DIR exists: {PROCESSED_DIR.exists()}")
+
+            # Ensure the directory exists
+            PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
+
+
+
+
 
             # Save text to file
             with open(text_file_path, "w", encoding="utf-8") as f:

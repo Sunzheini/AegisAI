@@ -46,7 +46,7 @@ AI_QUEUE = os.getenv("AI_QUEUE", "ai_queue")
 AI_CALLBACK_QUEUE = os.getenv("AI_CALLBACK_QUEUE", "ai_callback_queue")
 
 # Upload/raw storage location constant (configurable)
-UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "storage/processed")).resolve()
+UPLOAD_DIR = Path(os.getenv("PROCESSED_DIR", "storage/processed")).resolve()
 
 # ai processing constraints
 

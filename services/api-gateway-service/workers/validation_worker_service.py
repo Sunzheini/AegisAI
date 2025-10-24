@@ -48,7 +48,9 @@ VALIDATION_CALLBACK_QUEUE = os.getenv(
 )
 
 # Upload/raw storage location constant (configurable)
-UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "storage/raw")).resolve()
+UPLOAD_DIR = Path(os.getenv("RAW_DIR", "storage/raw")).resolve()
+
+print(UPLOAD_DIR)
 
 # Validation constraints
 MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE", 100 * 1024 * 1024))  # 100MB default

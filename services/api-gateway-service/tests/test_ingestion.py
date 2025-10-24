@@ -3,18 +3,51 @@ import os
 import time
 import uuid
 import threading
+from pathlib import Path
+
 import pytest
 import requests
 from unittest.mock import patch
 
+from dotenv import load_dotenv
+
 from views.ingestion_views import IngestionViewsManager as IVM
+
+BASE_DIR = Path(__file__).resolve().parent
+
+if os.path.exists(os.path.join(BASE_DIR, '.env')):
+    load_dotenv()
+
+STORAGE_ROOT = os.getenv(
+    "STORAGE_ROOT", os.path.abspath(os.path.join(os.getcwd(), "storage"))
+)
+RAW_DIR = os.getenv(
+    "RAW_DIR", os.path.join(STORAGE_ROOT, "raw")
+)  # Stores the original uploaded files before any processing
+PROCESSED_DIR = os.getenv(
+    "PROCESSED_DIR", os.path.join(STORAGE_ROOT, "processed")
+)  # Stores files after initial processing (e.g., validation, copying, basic transformation)
+TRANSCODED_DIR = os.getenv(
+    "TRANSCODED_DIR", os.path.join(STORAGE_ROOT, "transcoded")
+)  # Stores files after advanced processing, such as format conversion or transcoding
 
 
 def _cleanup_storage():
     """Remove all files from storage subdirectories."""
+
+    # 1. Remove local storage files
     storage_root = os.path.abspath(os.path.join(os.getcwd(), "storage"))
     for sub in ("raw", "processed", "transcoded"):
         d = os.path.join(storage_root, sub)
+        if os.path.isdir(d):
+            for name in os.listdir(d):
+                try:
+                    os.remove(os.path.join(d, name))
+                except OSError:
+                    pass
+
+    # 2. Remove shared storage files
+    for d in (RAW_DIR, PROCESSED_DIR, TRANSCODED_DIR):
         if os.path.isdir(d):
             for name in os.listdir(d):
                 try:

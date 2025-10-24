@@ -120,11 +120,6 @@ async def lifespan(app):
     """Lifespan context manager to start/stop Redis listener if enabled."""
     logger.info("Starting Workflow Orchestrator service...")
 
-    # Create RedisManager instance
-    from redis_management.redis_manager import RedisManager
-
-    redis_manager = RedisManager()
-
     # Create orchestrator and inject RedisManager
     orchestrator = WorkflowOrchestrator()
     ResolveNeedsManager.resolve_needs(orchestrator)
@@ -144,7 +139,7 @@ async def lifespan(app):
 
     # Store orchestrator in app.state so routes can access it
     app.state.orchestrator = orchestrator
-    app.state.redis_manager = redis_manager
+    app.state.redis_manager = orchestrator.redis_manager
     app.state.validation_worker_client = validation_worker_client
     app.state.extract_metadata_worker_client = extract_metadata_worker_client
     app.state.extract_text_worker_client = extract_text_worker_client
@@ -317,10 +312,6 @@ class WorkflowOrchestrator(INeedRedisManagerInterface):
 
         # Resolve file path once in orchestrator
         resolved_path = await resolve_file_path(job.file_path, job.job_id)
-
-        print('---------------------------------------------------')
-        print(f"[Orchestrator] Resolved file path: {resolved_path}")  # storage\raw\ce578975-20e7-43eb-b5f6-8a4cbc2a7c6e_P8052AH.pdf
-        print('---------------------------------------------------')
 
         state = WorkflowGraphState(
             job_id=job.job_id,

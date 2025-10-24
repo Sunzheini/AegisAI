@@ -5,16 +5,15 @@ Lightweight client that publishes extract metadata tasks to Redis and waits for 
 Used by the workflow orchestrator.
 """
 import os
-from pathlib import Path
 
 from dotenv import load_dotenv
+
 from shared_lib.contracts.job_schemas import WorkflowGraphState
 from shared_lib.worker_clients.base_worker_client import BaseWorkerClient
 
-BASE_DIR = Path(__file__).resolve().parent
 
-if os.path.exists(os.path.join(BASE_DIR, '.env')):
-    load_dotenv()
+load_dotenv()
+
 
 # Specific Configuration
 EXTRACT_METADATA_WORKER_NAME = os.getenv(

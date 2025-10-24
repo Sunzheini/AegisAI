@@ -26,7 +26,6 @@ Migration Notes:
 """
 import os
 import json
-from pathlib import Path
 from typing import Dict, Any, Optional
 from datetime import datetime, timezone
 import asyncio
@@ -37,11 +36,13 @@ from dotenv import load_dotenv
 from langgraph.graph import StateGraph, END
 from fastapi import FastAPI, HTTPException, status, Request
 
+load_dotenv()
+
 from shared_lib.contracts.job_schemas import (
-        IngestionJobRequest,
-        IngestionJobStatusResponse,
-        WorkflowGraphState,
-    )
+    IngestionJobRequest,
+    IngestionJobStatusResponse,
+    WorkflowGraphState,
+)
 from shared_lib.needs.INeedRedisManager import INeedRedisManagerInterface
 from shared_lib.needs.ResolveNeedsManager import ResolveNeedsManager
 from shared_lib.support.support_functions import resolve_file_path
@@ -69,10 +70,6 @@ from worker_clients.extract_text_worker_client import (
 )
 from worker_clients.ai_worker_client import process_file_by_ai_worker_redis
 
-BASE_DIR = Path(__file__).resolve().parent
-
-if os.path.exists(os.path.join(BASE_DIR, '.env')):
-    load_dotenv()
 
 USE_REDIS_LISTENER = os.getenv("USE_REDIS_LISTENER", "true").lower() == "true"
 
@@ -84,28 +81,10 @@ logger = LoggingManager.setup_logging(
 )
 
 
-# ToDo: When moving Give the workflow orchestrator direct access to the storage via shared
-#  folder, it is better to pass only the file path and metadata in the job request, not the
-#  file content itself.
-# ToDo: Move incl. tests to work there
-
-# ToDo: AI Summarization Worker Service: integration with CustomLLM
-# ToDo: Celery?
-# ToDo: user stories use jira
-# ToDo: pylint / black -> run on other pc -> review
-
-# ToDO: AWS (OpenTelemetry?)
-
-
 @asynccontextmanager
 async def lifespan(app):
     """Lifespan context manager to start/stop Redis listener if enabled."""
     logger.info("Starting Workflow Orchestrator service...")
-
-    # Create RedisManager instance
-    from shared_lib.redis_management.redis_manager import RedisManager
-
-    redis_manager = RedisManager()
 
     # Create orchestrator and inject RedisManager
     orchestrator = WorkflowOrchestrator()
@@ -126,7 +105,7 @@ async def lifespan(app):
 
     # Store orchestrator in app.state so routes can access it
     app.state.orchestrator = orchestrator
-    app.state.redis_manager = redis_manager
+    app.state.redis_manager = orchestrator.redis_manager
     app.state.validation_worker_client = validation_worker_client
     app.state.extract_metadata_worker_client = extract_metadata_worker_client
     app.state.extract_text_worker_client = extract_text_worker_client
@@ -299,10 +278,6 @@ class WorkflowOrchestrator(INeedRedisManagerInterface):
 
         # Resolve file path once in orchestrator
         resolved_path = await resolve_file_path(job.file_path, job.job_id)
-
-        print('---------------------------------------------------')
-        print(f"[Orchestrator] Resolved file path: {resolved_path}")    # storage\raw\ATmega32A.pdf
-        print('---------------------------------------------------')
 
         state = WorkflowGraphState(
             job_id=job.job_id,

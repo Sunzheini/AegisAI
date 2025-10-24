@@ -97,12 +97,6 @@ logger = LoggingManager.setup_logging(
 )
 
 
-# ToDo: Separate orchestrator
-# ToDo: When moving Give the workflow orchestrator direct access to the storage via shared
-#  folder, it is better to pass only the file path and metadata in the job request, not the
-#  file content itself.
-# ToDo: Move incl. tests to work there
-
 # ToDo: AI Summarization Worker Service: integration with CustomLLM
 # ToDo: check if should be using only load_dotenv() instead of:
 # BASE_DIR = Path(__file__).resolve().parent
@@ -112,7 +106,7 @@ logger = LoggingManager.setup_logging(
 # ToDo: user stories use jira
 # ToDo: pylint / black -> run on other pc -> review
 
-# ToDO: AWS (OpenTelemetry?)
+# ToDO: Remove hardcoded 'D:/' -> AWS (OpenTelemetry?)
 
 
 @asynccontextmanager

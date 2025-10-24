@@ -11,10 +11,7 @@ from starlette import status as H
 from models.models import User, UserCreate, UserUpdate
 from db_management.db_manager import DataBaseManager
 
-BASE_DIR = Path(__file__).resolve().parent
-
-if os.path.exists(os.path.join(BASE_DIR, '.env')):
-    load_dotenv()
+load_dotenv()
 
 # Conditional import for shared library usage ----------------------------------------------
 USE_SHARED_LIB = os.getenv("USE_SHARED_LIB", False)

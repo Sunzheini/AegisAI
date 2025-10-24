@@ -20,15 +20,11 @@ Health Endpoint:
 """
 import os
 import logging
-from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
 
-BASE_DIR = Path(__file__).resolve().parent
-
-if os.path.exists(os.path.join(BASE_DIR, '.env')):
-    load_dotenv()
+load_dotenv()
 
 # Conditional import for shared library usage ----------------------------------------------
 USE_SHARED_LIB = os.getenv("USE_SHARED_LIB", False)

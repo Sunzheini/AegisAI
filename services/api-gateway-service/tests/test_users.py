@@ -1,15 +1,11 @@
 import os
-from pathlib import Path
 
 import pytest
 from dotenv import load_dotenv
 
 from models.models import User
 
-BASE_DIR = Path(__file__).resolve().parent
-
-if os.path.exists(os.path.join(BASE_DIR, '.env')):
-    load_dotenv()
+load_dotenv()
 
 # Conditional import for shared library usage ----------------------------------------------
 USE_SHARED_LIB = os.getenv("USE_SHARED_LIB", False)

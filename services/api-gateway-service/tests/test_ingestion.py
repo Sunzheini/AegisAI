@@ -3,7 +3,6 @@ import os
 import time
 import uuid
 import threading
-from pathlib import Path
 
 import pytest
 import requests
@@ -13,10 +12,7 @@ from dotenv import load_dotenv
 
 from views.ingestion_views import IngestionViewsManager as IVM
 
-BASE_DIR = Path(__file__).resolve().parent
-
-if os.path.exists(os.path.join(BASE_DIR, '.env')):
-    load_dotenv()
+load_dotenv()
 
 STORAGE_ROOT = os.getenv(
     "STORAGE_ROOT", os.path.abspath(os.path.join(os.getcwd(), "storage"))

@@ -3,17 +3,13 @@ Redis router for health checks and publishing messages.
 """
 
 import os
-from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, HTTPException
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
 
-BASE_DIR = Path(__file__).resolve().parent
-
-if os.path.exists(os.path.join(BASE_DIR, '.env')):
-    load_dotenv()
+load_dotenv()
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/2")
 

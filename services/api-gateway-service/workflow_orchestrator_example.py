@@ -26,7 +26,6 @@ Migration Notes:
 """
 import os
 import json
-from pathlib import Path
 from typing import Dict, Any, Optional
 from datetime import datetime, timezone
 import asyncio
@@ -37,10 +36,7 @@ from dotenv import load_dotenv
 from langgraph.graph import StateGraph, END
 from fastapi import FastAPI, HTTPException, status, Request
 
-BASE_DIR = Path(__file__).resolve().parent
-
-if os.path.exists(os.path.join(BASE_DIR, '.env')):
-    load_dotenv()
+load_dotenv()
 
 # Conditional import for shared library usage ----------------------------------------------
 USE_SHARED_LIB = os.getenv("USE_SHARED_LIB", False)

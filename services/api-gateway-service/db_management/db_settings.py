@@ -8,7 +8,6 @@ user: admin@admin.com, pass: admin
 -> fastapi_db -> Schema -> public -> Tables -> Users -> Right click -> View/Edit Data
 """
 import os
-from pathlib import Path
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, Column, Integer, String
@@ -18,10 +17,7 @@ import psycopg2
 
 from models.models import User
 
-BASE_DIR = Path(__file__).resolve().parent
-
-if os.path.exists(os.path.join(BASE_DIR, '.env')):
-    load_dotenv()
+load_dotenv()
 
 # ---------------------------------------------------------------------------------------------
 # General Settings

@@ -12,24 +12,6 @@ def sanitize_filename(name: str) -> str:
     return "".join(keep) or "file"
 
 
-# async def resolve_file_path(file_path: str, job_id: str) -> str:
-#     """Resolve file path to actual location with job_id prefix."""
-#     path = Path(file_path)
-#     upload_dir = Path(os.getenv("RAW_DIR", "storage/raw"))
-#
-#     # If path is already absolute and exists, use it
-#     if path.is_absolute() and path.exists():
-#         return str(path)
-#
-#     # Try job-prefixed filename
-#     prefixed = upload_dir / f"{job_id}_{path.name}"
-#     if prefixed.exists():
-#         return str(prefixed)
-#
-#     # Fallback to original path (will fail validation with clear error)
-#     return str(upload_dir / path.name)
-
-
 async def resolve_file_path(file_path: str, job_id: str) -> str:
     """Resolve file path to actual location with job_id prefix."""
     path = Path(file_path)

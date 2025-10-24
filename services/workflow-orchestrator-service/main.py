@@ -26,12 +26,14 @@ Migration Notes:
 """
 import os
 import json
+from pathlib import Path
 from typing import Dict, Any, Optional
 from datetime import datetime, timezone
 import asyncio
 import logging
 from contextlib import asynccontextmanager
 
+from dotenv import load_dotenv
 from langgraph.graph import StateGraph, END
 from fastapi import FastAPI, HTTPException, status, Request
 
@@ -67,6 +69,10 @@ from worker_clients.extract_text_worker_client import (
 )
 from worker_clients.ai_worker_client import process_file_by_ai_worker_redis
 
+BASE_DIR = Path(__file__).resolve().parent
+
+if os.path.exists(os.path.join(BASE_DIR, '.env')):
+    load_dotenv()
 
 USE_REDIS_LISTENER = os.getenv("USE_REDIS_LISTENER", "true").lower() == "true"
 

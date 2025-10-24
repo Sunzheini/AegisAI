@@ -5,6 +5,14 @@ Lightweight client that publishes extract text tasks to Redis and waits for resu
 Used by the workflow orchestrator.
 """
 import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+BASE_DIR = Path(__file__).resolve().parent
+
+if os.path.exists(os.path.join(BASE_DIR, '.env')):
+    load_dotenv()
 
 # Conditional import for shared library usage ----------------------------------------------
 USE_SHARED_LIB = os.getenv("USE_SHARED_LIB", False)

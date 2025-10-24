@@ -20,15 +20,20 @@ import uuid
 import asyncio
 import hashlib
 import logging
+from pathlib import Path
 from typing import Dict, Any
 from datetime import datetime
 
 import requests
 from dotenv import load_dotenv
-from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Path, Request
+from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Request
+from fastapi import Path as PathParam
 from starlette import status as H
 
-load_dotenv()
+BASE_DIR = Path(__file__).resolve().parent
+
+if os.path.exists(os.path.join(BASE_DIR, '.env')):
+    load_dotenv()
 
 # Conditional import for shared library usage ----------------------------------------------
 USE_SHARED_LIB = os.getenv("USE_SHARED_LIB", False)
@@ -395,7 +400,7 @@ class IngestionViewsManager(INeedRedisManagerInterface):
         )
         @auth_required
         async def get_job_status(
-            job_id: str = Path(..., min_length=1),
+            job_id: str = PathParam(..., min_length=1),
             current_user=Depends(self.get_current_user),
         ) -> Dict[str, Any]:
             """
@@ -421,7 +426,7 @@ class IngestionViewsManager(INeedRedisManagerInterface):
         )
         @auth_required
         async def get_asset(
-            asset_id: str = Path(..., min_length=1),
+            asset_id: str = PathParam(..., min_length=1),
             current_user=Depends(self.get_current_user),
         ) -> Dict[str, Any]:
             """

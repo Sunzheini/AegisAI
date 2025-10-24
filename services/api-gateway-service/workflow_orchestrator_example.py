@@ -24,17 +24,23 @@ Migration Notes:
     - Replace in-memory stores with S3/DynamoDB for production
     - Replace simulated workers with Lambda/Step Functions for cloud
 """
-
 import os
 import json
+from pathlib import Path
 from typing import Dict, Any, Optional
 from datetime import datetime, timezone
 import asyncio
 import logging
 from contextlib import asynccontextmanager
 
+from dotenv import load_dotenv
 from langgraph.graph import StateGraph, END
 from fastapi import FastAPI, HTTPException, status, Request
+
+BASE_DIR = Path(__file__).resolve().parent
+
+if os.path.exists(os.path.join(BASE_DIR, '.env')):
+    load_dotenv()
 
 # Conditional import for shared library usage ----------------------------------------------
 USE_SHARED_LIB = os.getenv("USE_SHARED_LIB", False)

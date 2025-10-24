@@ -1,8 +1,16 @@
 import asyncio
 import os
 import json
+from pathlib import Path
+
 import async_timeout
 import pytest
+from dotenv import load_dotenv
+
+BASE_DIR = Path(__file__).resolve().parent
+
+if os.path.exists(os.path.join(BASE_DIR, '.env')):
+    load_dotenv()
 
 # Conditional import for shared library usage ----------------------------------------------
 USE_SHARED_LIB = os.getenv("USE_SHARED_LIB", False)

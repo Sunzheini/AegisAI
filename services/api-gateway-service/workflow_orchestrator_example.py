@@ -97,7 +97,6 @@ logger = LoggingManager.setup_logging(
 )
 
 
-# ToDo: fix load_dotenv() must be everywhere (it gave error in ingestion_views.py!)
 # ToDo: Separate orchestrator
 # ToDo: When moving Give the workflow orchestrator direct access to the storage via shared
 #  folder, it is better to pass only the file path and metadata in the job request, not the
@@ -105,6 +104,10 @@ logger = LoggingManager.setup_logging(
 # ToDo: Move incl. tests to work there
 
 # ToDo: AI Summarization Worker Service: integration with CustomLLM
+# ToDo: check if should be using only load_dotenv() instead of:
+# BASE_DIR = Path(__file__).resolve().parent
+# if os.path.exists(os.path.join(BASE_DIR, '.env')):
+#     load_dotenv()
 # ToDo: Celery?
 # ToDo: user stories use jira
 # ToDo: pylint / black -> run on other pc -> review

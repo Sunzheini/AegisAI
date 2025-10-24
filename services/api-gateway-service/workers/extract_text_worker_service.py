@@ -159,22 +159,6 @@ class ExtractTextService(INeedRedisManagerInterface):
             text_filename = f"{job_id}_extracted_text.txt"
             text_file_path = PROCESSED_DIR / text_filename
 
-
-
-
-
-            # DEBUG: Show what paths are being used
-            print(f"[DEBUG ExtractText] PROCESSED_DIR: {PROCESSED_DIR}")
-            print(f"[DEBUG ExtractText] Saving text to: {text_file_path}")
-            print(f"[DEBUG ExtractText] PROCESSED_DIR exists: {PROCESSED_DIR.exists()}")
-
-            # Ensure the directory exists
-            PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
-
-
-
-
-
             # Save text to file
             with open(text_file_path, "w", encoding="utf-8") as f:
                 f.write(extracted_text)

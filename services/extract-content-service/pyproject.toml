@@ -11,7 +11,11 @@ dependencies = [
     "pytest (>=8.4.2,<9.0.0)",
     "fastapi[standard] (>=0.119.1,<0.120.0)",
     "uvicorn[standard] (>=0.38.0,<0.39.0)",
-    "python-dotenv (>=1.1.1,<2.0.0)"
+    "python-dotenv (>=1.1.1,<2.0.0)",
+    "shared-lib @ file:///D:/Study/Projects/Github/AegisAI/shared-lib",
+    "redis (>=7.0.0,<8.0.0)",
+    "user-agents (>=2.2.0,<3.0.0)",
+    "pdfplumber (>=0.11.7,<0.12.0)"
 ]
 
 

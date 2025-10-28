@@ -98,15 +98,13 @@ logger = LoggingManager.setup_logging(
 
 
 # ToDo: AI Summarization Worker Service: integration with CustomLLM
-# ToDo: check if should be using only load_dotenv() instead of:
-# BASE_DIR = Path(__file__).resolve().parent
-# if os.path.exists(os.path.join(BASE_DIR, '.env')):
-#     load_dotenv()
+
 # ToDo: Celery?
 # ToDo: user stories use jira
 # ToDo: pylint / black -> run on other pc -> review
 
 # ToDO: Remove hardcoded 'D:/' -> AWS (OpenTelemetry, `AWS Toolkit` Pycharm Plugin)
+# ToDo: integrate multipr / -tr / asyncio from playground
 
 
 @asynccontextmanager

@@ -513,14 +513,14 @@ class MainApp:
 
                 # AI Summary Section (initially hidden)
                 with ui.column().classes(
-                    "w-full h-auto p-4 gap-2 "
-                    "border border-white rounded-lg bg-green-100 hidden"
+                        "w-full h-auto p-4 gap-2 "
+                        "border-2 border-white rounded-lg bg-gray-200 hidden"
                 ) as self.ai_summary_container:
                     ui.label("🤖 AI Analysis Summary").classes(
-                        "w-full text-lg font-bold text-green-800"
+                        "w-full p-2 text-center text-xl font-bold border border-white bg-gray-300"
                     )
                     self.ai_summary_text = ui.textarea(label="Summary").classes(
-                        "w-full h-48 border border-green-300 bg-green-50"
+                        "w-full h-48 border border-white bg-white"
                     )
                     self.ai_summary_text.props("readonly")
                     self.ai_summary_text.set_value("AI analysis will appear here when processing is complete...")

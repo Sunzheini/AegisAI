@@ -36,6 +36,7 @@ class IngestionJobStatusResponse(BaseModel):
     content_type: str
     checksum_sha256: str
     submitted_by: Optional[str] = None
+    metadata: Optional[dict] = None
 
 
 class WorkflowGraphState(TypedDict):

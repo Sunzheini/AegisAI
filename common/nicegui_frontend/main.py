@@ -21,6 +21,10 @@ class MainApp:
         self._polling_active = False
         self._polling_job_id = None
 
+        # AI Summary display
+        self.ai_summary_container = None
+        self.ai_summary_text = None
+
         self.create_app()
 
     # region general methods ----------------------------------------------------------------------
@@ -36,41 +40,238 @@ class MainApp:
                     button.props(remove="disable")
                     button.classes(remove="opacity-50 cursor-not-allowed")
 
+    def _extract_ai_summary(self, response_data):
+        """Extract AI summary from the response data"""
+        try:
+            if not isinstance(response_data, dict):
+                return "🔄 Waiting for processing data..."
+
+            status = response_data.get('status', '')
+            step = response_data.get('step', '')
+            job_id = response_data.get('job_id', 'unknown')
+
+            print(f"[EXTRACT_AI] Step: {step}, Status: {status}")
+            print(f"[EXTRACT_AI] All response keys: {list(response_data.keys())}")
+
+            # Get metadata - handle None case
+            metadata = response_data.get('metadata', {})
+            if metadata is None:
+                metadata = {}
+                print(f"[EXTRACT_AI] Metadata was None, set to empty dict")
+            else:
+                print(f"[EXTRACT_AI] Metadata keys: {list(metadata.keys())}")
+
+            # Look for AI processing data - check multiple possible locations
+            ai_processing = None
+
+            # First, check the standard location
+            if 'ai_processing' in metadata:
+                ai_processing = metadata['ai_processing']
+                print(f"[EXTRACT_AI] Found ai_processing in metadata")
+
+            # If not found, check if any key in metadata contains AI data
+            if not ai_processing:
+                for key, value in metadata.items():
+                    if isinstance(value, dict) and any(
+                            ai_key in value for ai_key in ['document_summary', 'sentiment_analysis', 'ai_insights']):
+                        ai_processing = value
+                        print(f"[EXTRACT_AI] Found AI data in metadata['{key}']")
+                        break
+
+            # If still not found, check if the metadata itself contains AI data
+            if not ai_processing:
+                if any(ai_key in metadata for ai_key in ['document_summary', 'sentiment_analysis', 'ai_insights']):
+                    ai_processing = metadata
+                    print(f"[EXTRACT_AI] Found AI data directly in metadata")
+
+            print(f"[EXTRACT_AI] AI Processing data: {ai_processing}")
+
+            # If we found AI processing data, format it
+            if ai_processing:
+                print(f"[EXTRACT_AI] Formatting AI summary...")
+
+                summary_parts = ["✅ **AI Analysis Complete**\n"]
+
+                # Extract document summary
+                doc_summary = ai_processing.get('document_summary', {})
+                if not doc_summary and 'summary' in ai_processing:
+                    doc_summary = ai_processing
+
+                # Main summary
+                if doc_summary.get('summary'):
+                    summary_parts.append(f"📄 **Document Summary**: {doc_summary['summary']}")
+
+                # Metrics
+                metrics = []
+                word_count = doc_summary.get('word_count') or ai_processing.get('word_count')
+                if word_count:
+                    metrics.append(f"Words: {word_count}")
+
+                reading_time = doc_summary.get('estimated_reading_time_minutes') or ai_processing.get(
+                    'estimated_reading_time_minutes')
+                if reading_time:
+                    metrics.append(f"Reading Time: {reading_time} min")
+
+                content_type = doc_summary.get('content_type') or ai_processing.get('content_type')
+                if content_type:
+                    metrics.append(f"Type: {content_type}")
+
+                if metrics:
+                    summary_parts.append(f"📊 **Metrics**: {', '.join(metrics)}")
+
+                # Key topics
+                key_topics = doc_summary.get('key_topics') or ai_processing.get('key_topics')
+                if key_topics and isinstance(key_topics, list):
+                    # Clean and limit topics
+                    clean_topics = []
+                    for topic in key_topics[:5]:
+                        if isinstance(topic, str) and len(topic) < 100:  # Reasonable length
+                            clean_topics.append(topic)
+                    if clean_topics:
+                        summary_parts.append(f"🔑 **Key Topics**: {', '.join(clean_topics)}")
+
+                # AI insights
+                ai_insights = ai_processing.get('ai_insights', {})
+                insights = ai_insights.get('insights') or ai_processing.get('insights')
+                if insights and isinstance(insights, list):
+                    insights_text = " • " + "\n • ".join(insights)
+                    summary_parts.append(f"💡 **AI Insights**:\n{insights_text}")
+
+                # Sentiment
+                sentiment_data = ai_processing.get('sentiment_analysis', {})
+                sentiment = sentiment_data.get('sentiment') or ai_processing.get('sentiment')
+                if sentiment:
+                    sentiment_text = f"😊 **Sentiment**: {sentiment.title()}"
+                    confidence = sentiment_data.get('sentiment_confidence') or ai_processing.get('sentiment_confidence')
+                    if confidence:
+                        sentiment_text += f" ({confidence}% confidence)"
+                    summary_parts.append(sentiment_text)
+
+                # Complexity
+                complexity = ai_insights.get('overall_complexity') or ai_processing.get('overall_complexity')
+                if complexity:
+                    emoji = "🔴" if complexity == 'high' else "🟡" if complexity == 'medium' else "🟢"
+                    summary_parts.append(f"{emoji} **Complexity**: {complexity.title()}")
+
+                result = "\n\n".join(summary_parts)
+                print(f"[EXTRACT_AI] Final summary: {result}")
+                return result
+
+            # If we're at the final step but no AI data found
+            if step == "ai_processing_done" and status == "success":
+                return ("✅ **Processing Complete!**\n\n"
+                        "The document has been successfully processed through the AI pipeline.\n\n"
+                        f"Job ID: {job_id}")
+
+            # Progress messages
+            progress_messages = {
+                'queued': '🔄 Job queued and waiting to start processing...',
+                'validate_file': '🔍 Validating file format, size, and integrity...',
+                'extract_metadata': '📊 Extracting document metadata and properties...',
+                'extract_text': '📝 Extracting text content from document...',
+                'ai_processing': '🤖 Running AI analysis...',
+                'ai_processing_done': '✅ AI processing complete! Finalizing results...',
+            }
+
+            current_message = progress_messages.get(step, f'🔄 Processing: {step.replace("_", " ").title()}...')
+            return f"{current_message}\n\nJob ID: {job_id}\nStatus: {status}"
+
+        except Exception as e:
+            import traceback
+            error_details = traceback.format_exc()
+            print(f"[EXTRACT_AI] Error: {e}\n{error_details}")
+            return f"❌ Error extracting AI summary: {str(e)}"
+
     async def _poll_job_status(self, job_id, context):
         """Poll the job status endpoint until job is completed or failed."""
         # url = f'http://127.0.0.1:8000/v1/jobs/{job_id}'   # the service itself, not implemented
         url = f"http://127.0.0.1:9000/jobs/{job_id}"  # polling the orchestrator
         headers = {"Authorization": f"Bearer {self._access_token}"}
 
-        while True:
-            await asyncio.sleep(2)  # Poll every 2 seconds
+        with context:
+            self.ai_summary_container.classes("block").classes(remove="hidden")
+            self.ai_summary_text.set_value("🔄 Starting document processing pipeline...")
+
+        max_attempts = 60
+        attempt = 0
+        ai_data_found = False
+
+        while attempt < max_attempts and not ai_data_found:
+            await asyncio.sleep(2)
+            attempt += 1
+
             try:
                 async with aiohttp.ClientSession() as session:
                     async with session.get(url, headers=headers) as response:
+                        if response.status != 200:
+                            with context:
+                                self.ai_summary_text.set_value(f"❌ HTTP Error: {response.status}")
+                            continue
+
                         resp_json = await response.json()
                         status = resp_json.get("status")
+                        step = resp_json.get("step", "")
 
-                        # Update textarea with status - wrap in context
+                        print(f"[DEBUG] Polling attempt {attempt}: status={status}, step={step}")
+                        print(f"[DEBUG] Full response keys: {list(resp_json.keys())}")
+
+                        # Update textarea with status
                         with context:
                             self.service1_textarea1.set_value(
-                                f"Polling job {job_id}...\nStatus: {response.status}"
-                                f"\n{json.dumps(resp_json, indent=4)}"
+                                f"Polling job {job_id}... (Attempt {attempt}/{max_attempts})\n"
+                                f"Status: {status}\nStep: {step}\n"
+                                f"Response: {json.dumps(resp_json, indent=4)}"
                             )
-                            
-                        # Check if job is completed or failed, then BREAK the loop
-                        if status in ["completed", "failed", "document_summarized", "success"]:
+
+                            # Extract and display AI summary
+                            ai_summary = self._extract_ai_summary(resp_json)
+                            self.ai_summary_text.set_value(ai_summary)
+
+                        # Check if we have AI processing data in metadata
+                        metadata = resp_json.get('metadata', {})
+                        if metadata is None:
+                            metadata = {}
+
+                        # Look for AI processing data
+                        ai_processing = metadata.get('ai_processing')
+                        if ai_processing:
+                            print(f"[DEBUG] ✅ AI processing data found! Stopping polling.")
+                            ai_data_found = True
                             with context:
-                                ui.notify(f"Job {job_id} {status}!")
-                            break  # Stop polling
+                                ui.notify(f"✅ Job {job_id} completed with AI analysis!")
+                            break
+
+                        # Also stop if job failed
+                        elif status == "failed":
+                            with context:
+                                ui.notify(f"❌ Job {job_id} failed!")
+                                self.ai_summary_text.set_value(f"❌ Job failed at step: {step}")
+                            return
+
+                        # Continue polling if we're still processing
+                        print(f"[DEBUG] No AI data yet, continuing to poll...")
 
             except (aiohttp.ClientError, asyncio.TimeoutError, json.JSONDecodeError) as e:
                 with context:
                     ui.notify(f"Polling failed: {str(e)}")
-                break
+                    self.ai_summary_text.set_value(f"❌ Polling error: {str(e)}")
+                return
             except Exception as e:
                 with context:
                     ui.notify(f"Unexpected error during polling: {str(e)}")
-                break
+                    self.ai_summary_text.set_value(f"❌ Unexpected error: {str(e)}")
+                return
+
+        if not ai_data_found:
+            # Timeout or completed without AI data
+            with context:
+                ui.notify(f"⏰ Polling ended for job {job_id}")
+                self.ai_summary_text.set_value(
+                    f"⏰ Processing ended after {attempt} attempts\n\n"
+                    f"Last status: {status if 'status' in locals() else 'unknown'}\n"
+                    f"Last step: {step if 'step' in locals() else 'unknown'}\n\n"
+                    f"AI analysis data was not found in the response."
+                )
 
     async def _base_request_handler(
         self, method_type: str, url: str, data=None, headers=None
@@ -310,6 +511,20 @@ class MainApp:
                 )
                 self.service1_textarea1.props("readonly")
 
+                # AI Summary Section (initially hidden)
+                with ui.column().classes(
+                    "w-full h-auto p-4 gap-2 "
+                    "border border-white rounded-lg bg-green-100 hidden"
+                ) as self.ai_summary_container:
+                    ui.label("🤖 AI Analysis Summary").classes(
+                        "w-full text-lg font-bold text-green-800"
+                    )
+                    self.ai_summary_text = ui.textarea(label="Summary").classes(
+                        "w-full h-48 border border-green-300 bg-green-50"
+                    )
+                    self.ai_summary_text.props("readonly")
+                    self.ai_summary_text.set_value("AI analysis will appear here when processing is complete...")
+
     # endregion -----------------------------------------------------------------------------------
 
     # region service1 event handlers --------------------------------------------------------------
@@ -498,10 +713,15 @@ class MainApp:
         )
 
         self._spinner.set_visibility(True)
+
+        # Show AI summary container immediately with initial message
+        self.ai_summary_container.classes("block").classes(remove="hidden")
+        self.ai_summary_text.set_value("🔄 Starting document processing pipeline...")
+
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    "http://127.0.0.1:8000/v1/upload", data=data, headers=headers
+                        "http://127.0.0.1:8000/v1/upload", data=data, headers=headers
                 ) as response:
                     resp_json = await response.json()
                     self.service1_textarea1.set_value(
@@ -511,19 +731,24 @@ class MainApp:
                     # Start polling if job_id is present
                     job_id = resp_json.get("job_id")
                     if job_id:
+                        # Update AI summary to show polling has started
+                        self.ai_summary_text.set_value(
+                            f"📤 File uploaded successfully!\n\nJob ID: {job_id}\n\nStarting processing pipeline...")
+
                         # Capture the context BEFORE starting the background task
                         context = ui.context.client
                         asyncio.create_task(self._poll_job_status(job_id, context))
 
         except (aiohttp.ClientError, asyncio.TimeoutError, json.JSONDecodeError) as e:
             ui.notify(f"Upload failed: {str(e)}")
+            self.ai_summary_text.set_value(f"❌ Upload failed: {str(e)}")
         except Exception as e:
             ui.notify(f"Unexpected error during upload: {str(e)}")
+            self.ai_summary_text.set_value(f"❌ Unexpected error: {str(e)}")
         finally:
             self._spinner.set_visibility(False)
 
     # endregion -----------------------------------------------------------------------------------
-
 
 if __name__ in {"__main__", "__mp_main__"}:
     dashboard = MainApp()

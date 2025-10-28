@@ -424,6 +424,7 @@ async def get_job_status(job_id: str, request: Request):
         content_type=job["content_type"],
         checksum_sha256=job["checksum_sha256"],
         submitted_by=job.get("submitted_by"),
+        metadata=job.get("metadata"),
     )
 
 

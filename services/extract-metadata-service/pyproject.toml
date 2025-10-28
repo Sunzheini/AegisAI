@@ -15,7 +15,8 @@ dependencies = [
     "shared-lib @ file:///D:/Study/Projects/Github/AegisAI/shared-lib",
     "pillow (>=12.0.0,<13.0.0)",
     "redis (>=7.0.0,<8.0.0)",
-    "user-agents (>=2.2.0,<3.0.0)"
+    "user-agents (>=2.2.0,<3.0.0)",
+    "pypdf2 (>=3.0.1,<4.0.0)"
 ]
 
 

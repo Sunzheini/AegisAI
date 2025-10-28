@@ -57,8 +57,6 @@ class MainApp:
                                 f"\n{json.dumps(resp_json, indent=4)}"
                             )
                             
-                        print(status)
-
                         # Check if job is completed or failed, then BREAK the loop
                         if status in ["completed", "failed", "document_summarized", "success"]:
                             with context:

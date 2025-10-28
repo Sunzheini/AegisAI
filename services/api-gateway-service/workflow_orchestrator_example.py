@@ -106,7 +106,7 @@ logger = LoggingManager.setup_logging(
 # ToDo: user stories use jira
 # ToDo: pylint / black -> run on other pc -> review
 
-# ToDO: Remove hardcoded 'D:/' -> AWS (OpenTelemetry?)
+# ToDO: Remove hardcoded 'D:/' -> AWS (OpenTelemetry, `AWS Toolkit` Pycharm Plugin)
 
 
 @asynccontextmanager

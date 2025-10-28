@@ -37,16 +37,16 @@ These are the "muscle" that carry out the tasks defined by the LangGraph orchest
    - Validation Worker: Validates file type, size, and integrity.
    - Extract Metadata Worker: Extracts basic metadata
    - After the validation and metadata extraction, the workflow branches based on file type.
-
    - Media Processing Worker: Uses ProcessPoolExecutor for CPU-bound tasks (FFmpeg for video, Pillow for images). You will include 
    benchmarks comparing single-threaded vs. multi-process performance.
-   
    - AI Inference Worker (LangChain): This is where LangChain shines.
      - Purpose: Handles all AI interactions.
      - Implementation: Uses LangChain to create modular, reusable "chains" or "agents".
      - Example Chains:
        - Image Analysis Chain: Uses LangChain's StructuredOutputParser with an OpenAI GPT-4o or Anthropic Claude model to analyze an image and return a structured JSON response with tags, description, and NSFW confidence score.
+       - 
        - Document Summary Chain: Uses LangChain's load_summarize_chain with a map-reduce approach over document chunks to handle long PDFs.
+       - 
        - Multi-Modal Chain: A chain that takes both extracted text from a video and a generated image summary to create a rich content metadata object.
      - Key Feature: Demonstrates LangChain's ability to integrate with different models and tools seamlessly.
 

@@ -46,7 +46,7 @@ AI_CALLBACK_QUEUE = os.getenv("AI_CALLBACK_QUEUE", "ai_callback_queue")
 UPLOAD_DIR = Path(os.getenv("PROCESSED_DIR", "storage/processed")).resolve()
 
 # ai processing constraints
-MAX_TEXT_LENGTH = int(os.getenv("MAX_TEXT_LENGTH", 50000))  # 10k characters default
+MAX_TEXT_LENGTH = int(os.getenv("MAX_TEXT_LENGTH", 500000))  # 10k characters default
 
 logger = LoggingManager.setup_logging(
     service_name="ai-service",

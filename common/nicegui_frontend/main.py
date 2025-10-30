@@ -25,6 +25,12 @@ class MainApp:
         self.ai_summary_container = None
         self.ai_summary_text = None
 
+        # AI Chat state
+        self.chat_history = []
+        self.chat_container = None
+        self.chat_input = None
+        self.chat_messages_container = None
+
         self.create_app()
 
     # region general methods ----------------------------------------------------------------------
@@ -181,6 +187,146 @@ class MainApp:
             error_details = traceback.format_exc()
             print(f"[EXTRACT_AI] Error: {e}\n{error_details}")
             return f"❌ Error extracting AI summary: {str(e)}"
+
+    def _add_ai_chat_section(self):
+        """Add AI Chat section to the frontend"""
+        with ui.column().classes(
+                "w-full h-auto p-4 gap-4 "
+                "border-2 border-white rounded-lg bg-gray-200"
+        ) as self.chat_container:
+            ui.label("💬 AI Chat - Ask Questions About Your Document").classes(
+                "w-full p-2 text-center text-xl font-bold border border-white bg-gray-300"
+            )
+
+            # Chat messages area
+            with ui.scroll_area().classes(
+                    "w-full h-64 border border-gray-300 bg-white rounded-lg") as self.chat_messages_container:
+                # Messages will be added here dynamically
+                ui.label("Start a conversation about your uploaded document...").classes(
+                    "w-full p-2 text-gray-500 text-center")
+
+            # Chat input area
+            with ui.row().classes("w-full gap-2 items-center"):
+                self.chat_input = ui.input(placeholder="Ask a question about your document...").classes("flex-grow")
+                ui.button("Send", on_click=self._send_chat_message).classes("bg-green-500 text-white")
+                ui.button("Clear Chat", on_click=self._clear_chat).classes("bg-red-500 text-white")
+
+    async def _send_chat_message(self):
+        """Send chat message to AI service"""
+        message = self.chat_input.value.strip()
+        if not message:
+            ui.notify("Please enter a message")
+            return
+
+        if not self.uploaded_file_info:
+            ui.notify("Please upload a document first")
+            return
+
+        # Disable input during processing
+        self.chat_input.disable()
+        self._spinner.set_visibility(True)
+
+        try:
+            # Add user message to chat
+            self._add_chat_message("user", message)
+            self.chat_input.set_value("")
+
+            # Send request to AI service
+            payload = {
+                "user_prompt": message,
+                "chat_history": self.chat_history
+            }
+
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                        "http://127.0.0.1:9004/generate-response",
+                        json=payload
+                ) as response:
+                    result = await response.json()
+
+                    if "error" in result:
+                        self._add_chat_message("error", f"Error: {result['error']}")
+                    else:
+                        # Add AI response
+                        self._add_chat_message("ai", result["result"])
+                        # Update chat history
+                        self.chat_history = result.get("chat_history", [])
+                        ui.notify("✅ Response received!")
+
+        except Exception as e:
+            self._add_chat_message("error", f"Request failed: {str(e)}")
+            ui.notify(f"❌ Chat request failed: {str(e)}")
+        finally:
+            self.chat_input.enable()
+            self._spinner.set_visibility(False)
+
+    def _add_chat_message(self, sender, message):
+        """Add a message to the chat UI"""
+        if sender == "user":
+            with self.chat_messages_container:
+                with ui.row().classes("w-full justify-end"):
+                    with ui.column().classes("max-w-3/4 bg-blue-100 p-3 rounded-lg"):
+                        ui.label("👤 You").classes("text-sm font-bold")
+                        ui.label(message).classes("text-gray-800")
+        elif sender == "ai":
+            with self.chat_messages_container:
+                with ui.row().classes("w-full justify-start"):
+                    with ui.column().classes("max-w-3/4 bg-green-100 p-3 rounded-lg"):
+                        ui.label("🤖 AI").classes("text-sm font-bold")
+                        ui.label(message).classes("text-gray-800")
+        else:  # error
+            with self.chat_messages_container:
+                with ui.row().classes("w-full justify-center"):
+                    with ui.column().classes("max-w-3/4 bg-red-100 p-3 rounded-lg"):
+                        ui.label("❌ Error").classes("text-sm font-bold text-red-600")
+                        ui.label(message).classes("text-red-700")
+
+    def _clear_chat(self):
+        """Clear chat history"""
+        self.chat_history = []
+        self.chat_messages_container.clear()
+        self.chat_messages_container.add(
+            ui.label("Chat cleared. Start a new conversation...").classes("w-full p-2 text-gray-500 text-center"))
+        ui.notify("Chat cleared")
+
+    async def _cleanup_data(self):
+        """Cleanup Pinecone data"""
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post("http://127.0.0.1:9004/clean") as response:
+                    result = await response.json()
+
+                    if "error" in result:
+                        ui.notify(f"Cleanup failed: {result['error']}")
+                        self.service1_textarea1.set_value(f"Cleanup failed: {result['error']}")
+                    else:
+                        ui.notify("✅ Data cleaned successfully!")
+                        self.service1_textarea1.set_value(f"Cleanup results: {json.dumps(result, indent=4)}")
+
+        except Exception as e:
+            ui.notify(f"Cleanup request failed: {str(e)}")
+
+    async def _run_tests(self):
+        """Run tests via AI service"""
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post("http://127.0.0.1:9004/run-tests") as response:
+                    result = await response.json()
+
+                    if result.get("success"):
+                        ui.notify("✅ Tests passed!")
+                    else:
+                        ui.notify("❌ Tests failed!")
+
+                    self.service1_textarea1.set_value(
+                        f"Test Results:\nSuccess: {result.get('success', False)}\n\n"
+                        f"STDOUT:\n{result.get('stdout', '')}\n\n"
+                        f"STDERR:\n{result.get('stderr', '')}\n\n"
+                        f"Error: {result.get('error', 'None')}"
+                    )
+
+        except Exception as e:
+            ui.notify(f"Test execution failed: {str(e)}")
 
     async def _poll_job_status(self, job_id, context):
         """Poll the job status endpoint until job is completed or failed."""
@@ -368,162 +514,208 @@ class MainApp:
                 "w-full p-4 text-center text-2xl font-bold border border-white"
             )
 
-            # Service 1: API Gateway Container
-            with ui.column().classes(
-                "w-2/5 h-auto mx-auto p-4 gap-4 "
-                "bg-gray-400 border-2 border-white rounded-lg shadow-lg "
-                "overflow-auto items-start"
-            ):
+            # Main content area with scroll
+            with ui.scroll_area().classes("w-full flex-grow"):
+                with ui.column().classes("w-full max-w-6xl mx-auto p-4 gap-6"):
 
-                # Service 1 Label
-                self.service1_label = ui.label("1. Api Gateway Service").classes(
-                    "w-full p-4 text-center text-xl font-bold border border-white"
-                )
+                    # Service 1: API Gateway Container
+                    with ui.column().classes(
+                        "w-2/5 h-auto mx-auto p-4 gap-4 "
+                        "bg-gray-400 border-2 border-white rounded-lg shadow-lg "
+                        "overflow-auto items-start"
+                    ):
 
-                # Service 1 Button Group1 Container
-                with ui.row().classes(
-                    "w-full gap-4 border border-white items-center justify-evenly"
-                ):
-
-                    # Service 1 Button1 - Health Check
-                    self.service1_button1 = ui.button(
-                        "Health Check", on_click=self._health_check
-                    ).classes(
-                        "w-2/5 h-8 bg-blue-500 text-white rounded-lg shadow-md"
-                    )
-
-                    # Service 1 Button2 - Empty
-                    self.service1_button2 = ui.button("Empty", on_click=None).classes(
-                        "w-2/5 h-8 bg-blue-500 text-white rounded-lg shadow-md"
-                    )
-                    self.service1_button2.disable()
-
-                # Service 1 Input 1 - Username
-                self._service1_input1 = ui.input(label="Username").classes(
-                    "w-full h-16 border border-white"
-                )
-
-                # Service 1 Input 2 - Password
-                self._service1_input2 = ui.input(label="Password").classes(
-                    "w-full h-16 border border-white"
-                )
-
-                # Service 1 Button Group2 Container
-                with ui.row().classes(
-                    "w-full gap-4 border border-white items-center justify-evenly"
-                ):
-
-                    # Service 1 Button3 - Login and store token
-                    self.service1_button3 = ui.button(
-                        "Login and Store Token", on_click=self._login_and_store_token
-                    ).classes(
-                        "w-2/5 h-8 bg-blue-500 text-white rounded-lg shadow-md"
-                    )
-
-                    # Service 1 Button4 - Logout and delete token on client side
-                    self.service1_button4 = ui.button(
-                        "Logout and Delete Token",
-                        on_click=self._logout_and_delete_token,
-                    ).classes(
-                        "w-2/5 h-8 bg-blue-500 text-white rounded-lg shadow-md"
-                    )
-
-                # Service 1 Button Group3 Container
-                with ui.row().classes(
-                    "w-full gap-4 border border-white items-center justify-evenly"
-                ):
-
-                    # Service 1 Button5 - GET users list
-                    self.service1_button5 = ui.button(
-                        "Get users list", on_click=self._get_users_list
-                    ).classes(
-                        "w-2/5 h-8 bg-blue-500 text-white rounded-lg shadow-md"
-                    )
-
-                    # Service 1 Button6 - Empty
-                    self.service1_button6 = ui.button("Empty", on_click=None).classes(
-                        "w-2/5 h-8 bg-blue-500 text-white rounded-lg shadow-md"
-                    )
-                    self.service1_button6.disable()
-
-                # Service 1 Combo Group1 Container
-                with ui.row().classes(
-                    "w-full gap-4 border border-white items-center justify-start"
-                ):
-
-                    # Service 1 Input 3 - ID
-                    self._service1_input3 = ui.input(label="ID").classes("w-w-2/5 h-16")
-
-                    # Service 1 Button7 - GET user by ID
-                    self.service1_button7 = ui.button(
-                        "Get User by ID", on_click=self._get_user_by_id
-                    ).classes(
-                        "w-2/5 h-8 ml-[355px] "
-                        "bg-blue-500 text-white rounded-lg shadow-md"
-                    )
-
-                # Toggle to show form below
-                self.form_switch = ui.switch("Toggle form")
-                self.form_switch.on("click", lambda e: self._toggle_form())
-
-                # Service 1 Form Group1 Container
-                with ui.column().classes(
-                    "w-full h-auto p-4 gap-4 "
-                    "border border-white rounded-lg bg-gray-200 hidden"
-                ) as self.user_form_container:
-                    self.user_form_name = ui.input(label="Name").classes("w-full")
-                    self.user_form_age = (
-                        ui.input(label="Age").props("type=number").classes("w-full")
-                    )
-                    self.user_form_city = ui.input(label="City").classes("w-full")
-                    self.user_form_email = ui.input(label="Email").classes("w-full")
-                    self.user_form_password = ui.input(
-                        label="Password", password=True
-                    ).classes("w-full")
-
-                    with ui.row().classes("w-full mt-4 gap-4 justify-evenly"):
-                        ui.button("Create User", on_click=self._create_user).classes(
-                            "w-1/4 bg-green-500 text-white rounded-lg"
-                        )
-                        ui.button("Edit User", on_click=self._edit_user).classes(
-                            "w-1/4 bg-yellow-500 text-white rounded-lg"
-                        )
-                        ui.button("Delete User", on_click=self._delete_user).classes(
-                            "w-1/4 bg-red-500 text-white rounded-lg"
+                        # Service 1 Label
+                        self.service1_label = ui.label("1. Api Gateway Service").classes(
+                            "w-full p-4 text-center text-xl font-bold border border-white"
                         )
 
-                # File Upload Section
-                with ui.column().classes(
-                    "w-full h-auto p-4 gap-4 "
-                    "border border-white rounded-lg bg-gray-200"
-                ):
-                    self.uploaded_file_info = None
-                    self.uploaded_file = ui.upload(
-                        label="Select file to upload",
-                        auto_upload=True,  # Upload immediately when file is selected
-                        multiple=False,
-                        on_upload=self._on_file_selected,
-                    ).classes("w-full")
+                        # Service 1 Button Group1 Container
+                        with ui.row().classes(
+                            "w-full gap-4 border border-white items-center justify-evenly"
+                        ):
 
-                # Service 1 Textarea - Response display
-                self.service1_textarea1 = ui.textarea(label="Response").classes(
-                    "w-full h-auto border border-white"
-                )
-                self.service1_textarea1.props("readonly")
+                            # Service 1 Button1 - Health Check
+                            self.service1_button1 = ui.button(
+                                "Health Check", on_click=self._health_check
+                            ).classes(
+                                "w-2/5 h-8 bg-blue-500 text-white rounded-lg shadow-md"
+                            )
 
-                # AI Summary Section (initially hidden)
-                with ui.column().classes(
-                        "w-full h-auto p-4 gap-2 "
-                        "border-2 border-white rounded-lg bg-gray-200 hidden"
-                ) as self.ai_summary_container:
-                    ui.label("🤖 AI Analysis Summary").classes(
-                        "w-full p-2 text-center text-xl font-bold border border-white bg-gray-300"
-                    )
-                    self.ai_summary_text = ui.textarea(label="Summary").classes(
-                        "w-full h-48 border border-white bg-white"
-                    )
-                    self.ai_summary_text.props("readonly")
-                    self.ai_summary_text.set_value("AI analysis will appear here when processing is complete...")
+                            # Service 1 Button2 - Empty
+                            self.service1_button2 = ui.button("Empty", on_click=None).classes(
+                                "w-2/5 h-8 bg-blue-500 text-white rounded-lg shadow-md"
+                            )
+                            self.service1_button2.disable()
+
+                        # Service 1 Input 1 - Username
+                        self._service1_input1 = ui.input(label="Username").classes(
+                            "w-full h-16 border border-white"
+                        )
+
+                        # Service 1 Input 2 - Password
+                        self._service1_input2 = ui.input(label="Password").classes(
+                            "w-full h-16 border border-white"
+                        )
+
+                        # Service 1 Button Group2 Container
+                        with ui.row().classes(
+                            "w-full gap-4 border border-white items-center justify-evenly"
+                        ):
+
+                            # Service 1 Button3 - Login and store token
+                            self.service1_button3 = ui.button(
+                                "Login and Store Token", on_click=self._login_and_store_token
+                            ).classes(
+                                "w-2/5 h-8 bg-blue-500 text-white rounded-lg shadow-md"
+                            )
+
+                            # Service 1 Button4 - Logout and delete token on client side
+                            self.service1_button4 = ui.button(
+                                "Logout and Delete Token",
+                                on_click=self._logout_and_delete_token,
+                            ).classes(
+                                "w-2/5 h-8 bg-blue-500 text-white rounded-lg shadow-md"
+                            )
+
+                        # Service 1 Button Group3 Container
+                        with ui.row().classes(
+                            "w-full gap-4 border border-white items-center justify-evenly"
+                        ):
+
+                            # Service 1 Button5 - GET users list
+                            self.service1_button5 = ui.button(
+                                "Get users list", on_click=self._get_users_list
+                            ).classes(
+                                "w-2/5 h-8 bg-blue-500 text-white rounded-lg shadow-md"
+                            )
+
+                            # Service 1 Button6 - Empty
+                            self.service1_button6 = ui.button("Empty", on_click=None).classes(
+                                "w-2/5 h-8 bg-blue-500 text-white rounded-lg shadow-md"
+                            )
+                            self.service1_button6.disable()
+
+                        # Service 1 Combo Group1 Container
+                        with ui.row().classes(
+                            "w-full gap-4 border border-white items-center justify-start"
+                        ):
+
+                            # Service 1 Input 3 - ID
+                            self._service1_input3 = ui.input(label="ID").classes("w-w-2/5 h-16")
+
+                            # Service 1 Button7 - GET user by ID
+                            self.service1_button7 = ui.button(
+                                "Get User by ID", on_click=self._get_user_by_id
+                            ).classes(
+                                "w-2/5 h-8 ml-[355px] "
+                                "bg-blue-500 text-white rounded-lg shadow-md"
+                            )
+
+                        # Toggle to show form below
+                        self.form_switch = ui.switch("Toggle form")
+                        self.form_switch.on("click", lambda e: self._toggle_form())
+
+                        # Service 1 Form Group1 Container
+                        with ui.column().classes(
+                            "w-full h-auto p-4 gap-4 "
+                            "border border-white rounded-lg bg-gray-200 hidden"
+                        ) as self.user_form_container:
+                            self.user_form_name = ui.input(label="Name").classes("w-full")
+                            self.user_form_age = (
+                                ui.input(label="Age").props("type=number").classes("w-full")
+                            )
+                            self.user_form_city = ui.input(label="City").classes("w-full")
+                            self.user_form_email = ui.input(label="Email").classes("w-full")
+                            self.user_form_password = ui.input(
+                                label="Password", password=True
+                            ).classes("w-full")
+
+                            with ui.row().classes("w-full mt-4 gap-4 justify-evenly"):
+                                ui.button("Create User", on_click=self._create_user).classes(
+                                    "w-1/4 bg-green-500 text-white rounded-lg"
+                                )
+                                ui.button("Edit User", on_click=self._edit_user).classes(
+                                    "w-1/4 bg-yellow-500 text-white rounded-lg"
+                                )
+                                ui.button("Delete User", on_click=self._delete_user).classes(
+                                    "w-1/4 bg-red-500 text-white rounded-lg"
+                                )
+
+                        # File Upload Section
+                        with ui.column().classes(
+                            "w-full h-auto p-4 gap-4 "
+                            "border border-white rounded-lg bg-gray-200"
+                        ):
+                            self.uploaded_file_info = None
+                            self.uploaded_file = ui.upload(
+                                label="Select file to upload",
+                                auto_upload=True,  # Upload immediately when file is selected
+                                multiple=False,
+                                on_upload=self._on_file_selected,
+                            ).classes("w-full")
+
+                        # Service 1 Textarea - Response display
+                        self.service1_textarea1 = ui.textarea(label="Response").classes(
+                            "w-full h-auto border border-white"
+                        )
+                        self.service1_textarea1.props("readonly")
+
+                        # NAI Operations Section
+                        with ui.column().classes(
+                                "w-full h-auto p-4 gap-4 border-2 border-white rounded-lg bg-gray-200"
+                        ):
+                            ui.label("🔧 AI Operations").classes(
+                                "w-full p-2 text-center text-xl font-bold border border-white bg-gray-300"
+                            )
+
+                            with ui.row().classes("w-full gap-4 justify-center"):
+                                ui.button("🧹 Clean Vector Store", on_click=self._cleanup_data).classes(
+                                    "bg-red-500 text-white"
+                                )
+                                ui.button("🧪 Run Tests", on_click=self._run_tests).classes(
+                                    "bg-purple-500 text-white"
+                                )
+
+                            # AI Summary Section (initially hidden)
+                            with ui.column().classes(
+                                    "w-full h-auto p-4 gap-2 "
+                                    "border-2 border-white rounded-lg bg-gray-200 hidden"
+                            ) as self.ai_summary_container:
+                                ui.label("🤖 AI Analysis Summary").classes(
+                                    "w-full p-2 text-center text-xl font-bold border border-white bg-gray-300"
+                                )
+                                self.ai_summary_text = ui.textarea(label="Summary").classes(
+                                    "w-full h-48 border border-white bg-white"
+                                )
+                                self.ai_summary_text.props("readonly")
+                                self.ai_summary_text.set_value("AI analysis will appear here when processing is complete...")
+
+                            # NEW: AI Chat Section
+                            with ui.column().classes(
+                                    "w-full h-auto p-4 gap-4 mt-4 "
+                                    "border-2 border-white rounded-lg bg-gray-200"
+                            ) as self.chat_container:
+                                ui.label("💬 AI Chat - Ask Questions About Your Document").classes(
+                                    "w-full p-2 text-center text-xl font-bold border border-white bg-gray-300"
+                                )
+
+                                # Chat messages area
+                                with ui.scroll_area().classes(
+                                        "w-full h-64 border border-gray-300 bg-white rounded-lg p-2") as self.chat_messages_container:
+                                    # Initial message
+                                    ui.label("💬 Start a conversation about your uploaded document...").classes(
+                                        "w-full p-4 text-gray-500 text-center italic")
+
+                                # Chat input area
+                                with ui.row().classes("w-full gap-2 items-center mt-2"):
+                                    self.chat_input = ui.input(
+                                        placeholder="Ask a question about your document...").classes("flex-grow")
+                                    ui.button("Send", on_click=self._send_chat_message).classes(
+                                        "bg-green-500 text-white px-4")
+                                    ui.button("Clear Chat", on_click=self._clear_chat).classes(
+                                        "bg-red-500 text-white px-4")
+
 
     # endregion -----------------------------------------------------------------------------------
 

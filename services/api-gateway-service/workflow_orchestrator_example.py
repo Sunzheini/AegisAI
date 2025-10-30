@@ -97,7 +97,7 @@ logger = LoggingManager.setup_logging(
 )
 
 
-# ToDo: Real AI methods in CustomLLM
+# ToDo: Clean CustomLLM and frontend, fix summary only
 
 # ToDo: Celery?
 # ToDo: user stories use jira

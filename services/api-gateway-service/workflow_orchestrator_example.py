@@ -99,6 +99,7 @@ logger = LoggingManager.setup_logging(
 
 # ToDo: Clean CustomLLM and frontend, fix summary only
 # ToDo: When uploading a second document, ai chat update?
+# ToDo: Keep a ref to the files ina  db / list and delete any uploaded files / select a file for conversation
 
 # ToDo: Celery?
 # ToDo: user stories use jira

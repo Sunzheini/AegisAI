@@ -112,7 +112,7 @@ class ExtractTextService(INeedRedisManagerInterface):
     # region Extract Text Methods
     @staticmethod
     async def _extract_text_from_pdf(file_path: str) -> dict:
-        """Extract text from PDF using pdfplumber."""
+        """Extract text from PDF using pdfplumber in a thread pool."""
         result = {
             "extracted_text": "",
             "character_count": 0,
@@ -124,34 +124,50 @@ class ExtractTextService(INeedRedisManagerInterface):
         try:
             import pdfplumber
 
-            with pdfplumber.open(file_path) as pdf:
-                result["page_count"] = len(pdf.pages)
+            # Wrap the synchronous PDF processing in a thread
+            def extract_pdf_sync():
+                pdf_result = {
+                    "extracted_text": "",
+                    "character_count": 0,
+                    "page_count": 0,
+                    "pages_with_text": 0,
+                    "extraction_errors": [],
+                }
 
-                for page_num, page in enumerate(pdf.pages):
-                    try:
-                        page_text = page.extract_text() or ""
-                        if page_text.strip():
-                            result["pages_with_text"] += 1
-                            result[
-                                "extracted_text"
-                            ] += f"--- Page {page_num + 1} ---\n{page_text}\n\n"
-                            result["character_count"] += len(page_text)
-                    except Exception as page_error:
-                        error_msg = f"Page {page_num + 1}: {str(page_error)}"
-                        result["extraction_errors"].append(error_msg)
+                try:
+                    with pdfplumber.open(file_path) as pdf:
+                        pdf_result["page_count"] = len(pdf.pages)
+
+                        for page_num, page in enumerate(pdf.pages):
+                            try:
+                                page_text = page.extract_text() or ""
+                                if page_text.strip():
+                                    pdf_result["pages_with_text"] += 1
+                                    pdf_result["extracted_text"] += f"--- Page {page_num + 1} ---\n{page_text}\n\n"
+                                    pdf_result["character_count"] += len(page_text)
+                            except Exception as page_error:
+                                error_msg = f"Page {page_num + 1}: {str(page_error)}"
+                                pdf_result["extraction_errors"].append(error_msg)
+                except Exception as e:
+                    pdf_result["extraction_errors"].append(f"PDF extraction failed: {str(e)}")
+
+                return pdf_result
+
+            # Run the synchronous PDF processing in a thread pool
+            result = await asyncio.to_thread(extract_pdf_sync)
 
         except ImportError:
             result["extraction_errors"].append(
                 "pdfplumber not installed. Install with: pip install pdfplumber"
             )
         except Exception as e:
-            result["extraction_errors"].append(f"PDF extraction failed: {str(e)}")
+            result["extraction_errors"].append(f"PDF extraction setup failed: {str(e)}")
 
         return result
 
     @staticmethod
     async def _save_extracted_text_to_file(
-        job_id: str, extracted_text: str, character_count: int
+            job_id: str, extracted_text: str, character_count: int
     ) -> str:
         """Save extracted text to a file in processed directory."""
         try:
@@ -159,9 +175,13 @@ class ExtractTextService(INeedRedisManagerInterface):
             text_filename = f"{job_id}_extracted_text.txt"
             text_file_path = PROCESSED_DIR / text_filename
 
-            # Save text to file
-            with open(text_file_path, "w", encoding="utf-8") as f:
-                f.write(extracted_text)
+            # Save text to file asynchronously
+            def write_file_sync():
+                with open(text_file_path, "w", encoding="utf-8") as f:
+                    f.write(extracted_text)
+                return text_file_path
+
+            text_file_path = await asyncio.to_thread(write_file_sync)
 
             # Add file stats
             file_stats = {

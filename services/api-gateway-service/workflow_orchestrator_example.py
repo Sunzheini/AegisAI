@@ -97,16 +97,8 @@ logger = LoggingManager.setup_logging(
 )
 
 
-# Currently when uploading a new document is adds the chunks, does not delete old ones. How to proceed? - DS chat
-# ToDo: Bug - deletes successfully but gives error message: `Cleanup request failed: argument of type 'NoneType' is not iterable`
-# ToDo: Bug - when try to upload same file says nothing and doesnt upload, but i cans till upload another file
-
-# ToDo: Clean frontend,
-# ToDO: fix summary only
-
-# ToDo: When uploading a second document, ai chat update?
+# ToDO: fix summary only (Currently when uploading a new document is adds the chunks, does not delete old ones. How to proceed? - DS chat)
 # ToDo: Keep a ref to the files ina  db / list and delete any uploaded files / select a file for conversation
-
 # ToDo: Celery?
 # ToDo: user stories use jira
 # ToDo: pylint / black -> run on other pc -> review

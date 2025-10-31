@@ -559,7 +559,7 @@ class MainApp:
 
             # Main content area with scroll
             with ui.scroll_area().classes("w-full flex-grow"):
-                with ui.column().classes("w-full max-w-6xl mx-auto p-4 gap-6"):
+                with ui.column().classes("w-3/4 mx-auto p-4 gap-0 flex-row"):
 
                     # Service 1: API Gateway Container
                     with ui.column().classes(
@@ -569,7 +569,7 @@ class MainApp:
                     ):
 
                         # Service 1 Label
-                        self.service1_label = ui.label("1. Api Gateway Service").classes(
+                        self.service1_label = ui.label("Gateway Service").classes(
                             "w-full p-4 text-center text-xl font-bold border border-white"
                         )
 
@@ -704,61 +704,63 @@ class MainApp:
                         )
                         self.service1_textarea1.props("readonly")
 
-                        # NAI Operations Section
+                    # AI Operations Section
+                    with ui.column().classes(
+                            "w-2/5 h-auto mx-auto p-4 gap-4 "
+                            "bg-gray-400 border-2 border-white rounded-lg shadow-lg "
+                            "overflow-auto items-start"
+                    ):
+                        ui.label("🔧 AI Operations").classes(
+                            "w-full p-2 text-center text-xl font-bold border border-white bg-gray-300"
+                        )
+
+                        with ui.row().classes("w-full gap-4 justify-center"):
+                            ui.button("🧹 Clean Vector Store", on_click=self._cleanup_data).classes(
+                                "bg-red-500 text-white"
+                            )
+                            ui.button("🧪 Run Tests", on_click=self._run_tests).classes(
+                                "bg-purple-500 text-white"
+                            )
+
+                        # AI Summary Section (initially hidden)
                         with ui.column().classes(
-                                "w-full h-auto p-4 gap-4 border-2 border-white rounded-lg bg-gray-200"
-                        ):
-                            ui.label("🔧 AI Operations").classes(
+                                "w-full h-auto p-4 gap-2 "
+                                "border-2 border-white rounded-lg bg-gray-200 hidden"
+                        ) as self.ai_summary_container:
+                            ui.label("🤖 AI Analysis Summary").classes(
+                                "w-full p-2 text-center text-xl font-bold border border-white bg-gray-300"
+                            )
+                            self.ai_summary_text = ui.textarea(label="Summary").classes(
+                                "w-full h-48 border border-white bg-white"
+                            )
+                            self.ai_summary_text.props("readonly")
+                            self.ai_summary_text.set_value(
+                                "AI analysis will appear here when processing is complete...")
+
+                        # NEW: AI Chat Section
+                        with ui.column().classes(
+                                "w-full h-auto p-4 gap-4 mt-4 "
+                                "border-2 border-white rounded-lg bg-gray-200"
+                        ) as self.chat_container:
+                            ui.label("💬 AI Chat - Ask Questions About Your Document").classes(
                                 "w-full p-2 text-center text-xl font-bold border border-white bg-gray-300"
                             )
 
-                            with ui.row().classes("w-full gap-4 justify-center"):
-                                ui.button("🧹 Clean Vector Store", on_click=self._cleanup_data).classes(
-                                    "bg-red-500 text-white"
-                                )
-                                ui.button("🧪 Run Tests", on_click=self._run_tests).classes(
-                                    "bg-purple-500 text-white"
-                                )
+                            # Chat messages area
+                            with ui.scroll_area().classes(
+                                    "w-full h-64 border border-gray-300 bg-white rounded-lg p-2") as self.chat_messages_container:
+                                # Initial message
+                                ui.label("💬 Start a conversation about your uploaded document...").classes(
+                                    "w-full p-4 text-gray-500 text-center italic")
 
-                            # AI Summary Section (initially hidden)
-                            with ui.column().classes(
-                                    "w-full h-auto p-4 gap-2 "
-                                    "border-2 border-white rounded-lg bg-gray-200 hidden"
-                            ) as self.ai_summary_container:
-                                ui.label("🤖 AI Analysis Summary").classes(
-                                    "w-full p-2 text-center text-xl font-bold border border-white bg-gray-300"
-                                )
-                                self.ai_summary_text = ui.textarea(label="Summary").classes(
-                                    "w-full h-48 border border-white bg-white"
-                                )
-                                self.ai_summary_text.props("readonly")
-                                self.ai_summary_text.set_value("AI analysis will appear here when processing is complete...")
-
-                            # NEW: AI Chat Section
-                            with ui.column().classes(
-                                    "w-full h-auto p-4 gap-4 mt-4 "
-                                    "border-2 border-white rounded-lg bg-gray-200"
-                            ) as self.chat_container:
-                                ui.label("💬 AI Chat - Ask Questions About Your Document").classes(
-                                    "w-full p-2 text-center text-xl font-bold border border-white bg-gray-300"
-                                )
-
-                                # Chat messages area
-                                with ui.scroll_area().classes(
-                                        "w-full h-64 border border-gray-300 bg-white rounded-lg p-2") as self.chat_messages_container:
-                                    # Initial message
-                                    ui.label("💬 Start a conversation about your uploaded document...").classes(
-                                        "w-full p-4 text-gray-500 text-center italic")
-
-                                # Chat input area
-                                with ui.row().classes("w-full gap-2 items-center mt-2"):
-                                    self.chat_input = ui.input(
-                                        placeholder="Ask a question about your document...").classes("flex-grow")
-                                    ui.button("Send", on_click=self._send_chat_message).classes(
-                                        "bg-green-500 text-white px-4")
-                                    ui.button("Clear Chat", on_click=self._clear_chat).classes(
-                                        "bg-red-500 text-white px-4")
-
+                            # Chat input area
+                            with ui.row().classes("w-full gap-2 items-center mt-2"):
+                                self.chat_input = ui.input(
+                                    placeholder="Ask a question about your document...").classes("flex-grow")
+                                ui.button("Send", on_click=self._send_chat_message).classes(
+                                    "bg-green-500 text-white px-4")
+                                ui.button("Clear Chat", on_click=self._clear_chat).classes(
+                                    "bg-red-500 text-white px-4")
 
     # endregion -----------------------------------------------------------------------------------
 

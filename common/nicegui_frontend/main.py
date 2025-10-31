@@ -294,17 +294,41 @@ class MainApp:
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post("http://127.0.0.1:9004/clean") as response:
-                    result = await response.json()
+                    # First, check if we got a successful response
+                    if response.status == 200:
+                        result = await response.json()
 
-                    if "error" in result:
-                        ui.notify(f"Cleanup failed: {result['error']}")
-                        self.service1_textarea1.set_value(f"Cleanup failed: {result['error']}")
+                        # Handle the response based on content
+                        if result and "success" in result and result["success"]:
+                            message = result.get("message", "Data cleaned successfully!")
+                            ui.notify(f"✅ {message}")
+
+                            # Format the results nicely
+                            results_text = f"Cleanup completed:\n"
+                            if "results" in result:
+                                for index_name, status in result["results"].items():
+                                    results_text += f"• {index_name}: {status}\n"
+
+                            self.service1_textarea1.set_value(results_text)
+                        else:
+                            error_msg = result.get("error", "Unknown error occurred") if result else "No response data"
+                            ui.notify(f"❌ Cleanup failed: {error_msg}")
+                            self.service1_textarea1.set_value(f"Cleanup failed: {error_msg}")
+
                     else:
-                        ui.notify("✅ Data cleaned successfully!")
-                        self.service1_textarea1.set_value(f"Cleanup results: {json.dumps(result, indent=4)}")
+                        # Handle non-200 status codes
+                        try:
+                            error_data = await response.json()
+                            error_msg = error_data.get("error", f"HTTP {response.status}")
+                        except:
+                            error_msg = f"HTTP {response.status}"
+
+                        ui.notify(f"❌ Cleanup failed: {error_msg}")
+                        self.service1_textarea1.set_value(f"Cleanup failed: {error_msg}")
 
         except Exception as e:
-            ui.notify(f"Cleanup request failed: {str(e)}")
+            ui.notify(f"❌ Cleanup request failed: {str(e)}")
+            self.service1_textarea1.set_value(f"Cleanup request failed: {str(e)}")
 
     async def _run_tests(self):
         """Run tests via AI service"""

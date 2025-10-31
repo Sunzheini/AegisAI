@@ -97,6 +97,7 @@ logger = LoggingManager.setup_logging(
 )
 
 
+# Currently when uploading a new document is adds the chunks, does not delete old ones. How to proceed? - DS chat
 # ToDo: Bug - deletes successfully but gives error message: `Cleanup request failed: argument of type 'NoneType' is not iterable`
 # ToDo: Bug - when try to upload same file says nothing and doesnt upload, but i cans till upload another file
 

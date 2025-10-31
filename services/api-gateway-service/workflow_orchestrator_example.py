@@ -97,15 +97,14 @@ logger = LoggingManager.setup_logging(
 )
 
 
-# ToDO: fix summary only (Currently when uploading a new document is adds the chunks, does not delete old ones. How to proceed? - DS chat)
+# ToDO: AWS acc. to copilot chat
+# ToDO: Remove hardcoded 'D:/' -> AWS (OpenTelemetry, `AWS Toolkit` Pycharm Plugin)
+# ToDo: integrate multipr / -tr / asyncio from playground
+
 # ToDo: Keep a ref to the files ina  db / list and delete any uploaded files / select a file for conversation
 # ToDo: Celery?
 # ToDo: user stories use jira
 # ToDo: pylint / black -> run on other pc -> review
-
-# ToDO: AWS acc. to copilot chat
-# ToDO: Remove hardcoded 'D:/' -> AWS (OpenTelemetry, `AWS Toolkit` Pycharm Plugin)
-# ToDo: integrate multipr / -tr / asyncio from playground
 
 
 @asynccontextmanager

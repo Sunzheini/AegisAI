@@ -98,6 +98,7 @@ logger = LoggingManager.setup_logging(
 
 
 # ToDo: Clean CustomLLM and frontend, fix summary only
+# ToDo: When uploading a second document, ai chat update?
 
 # ToDo: Celery?
 # ToDo: user stories use jira
@@ -106,19 +107,6 @@ logger = LoggingManager.setup_logging(
 # ToDO: AWS acc. to copilot chat
 # ToDO: Remove hardcoded 'D:/' -> AWS (OpenTelemetry, `AWS Toolkit` Pycharm Plugin)
 # ToDo: integrate multipr / -tr / asyncio from playground
-
-
-"""
-ai_worker_service._load_text_for_processing:
-Opens large text files synchronously using open() and read().
-Use await asyncio.to_thread(open_and_read) for large files to avoid blocking.
-support/storage_abstraction.LocalFileStorage.save_file:
-Reads chunks in an async function and writes synchronously (file writes are blocking). The pattern is used but okay because it uses await file_obj.read (UploadFile.read is async) — but writing to file is blocking. For high concurrency, that write should be moved to asyncio.to_thread or use aiofiles.
-views/ingestion_views._process_job:
-Uses asyncio.to_thread(self.file_storage.copy_file, src_path, dst_path) — good (copy done in thread). So the ingestion copy is safe.
-"""
-
-
 
 
 @asynccontextmanager

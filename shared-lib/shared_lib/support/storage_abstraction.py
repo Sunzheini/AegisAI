@@ -35,6 +35,7 @@ Example:
 
 import os
 import shutil
+import asyncio
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
 
@@ -80,13 +81,18 @@ class LocalFileStorage(FileStorage):
         Returns the full path to the saved file.
         """
         dst_path = os.path.join(self.root_dir, filename)
-        with open(dst_path, "wb") as out:
-            while True:
-                chunk = await file_obj.read(1024 * 1024)
-                if not chunk:
-                    break
-                out.write(chunk)
-        await file_obj.close()
+
+        async def write_file_sync():
+            with open(dst_path, "wb") as out:
+                while True:
+                    chunk = await file_obj.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    out.write(chunk)
+            await file_obj.close()
+        
+        await asyncio.to_thread(write_file_sync)
+
         return dst_path
 
     def get_file_path(self, filename: str) -> str:
@@ -97,10 +103,9 @@ class LocalFileStorage(FileStorage):
 
     async def copy_file(self, src: str, dst: str) -> None:
         """
-        Synchronously copy a file from src to dst on the local filesystem.
-        This method is intended to be called via asyncio.to_thread for async compatibility.
+        Copy a file from src to dst on the local filesystem asynchronously.
         """
-        shutil.copy2(src, dst)
+        await asyncio.to_thread(shutil.copy2, src, dst)
 
 
 class JobAssetStore(ABC):

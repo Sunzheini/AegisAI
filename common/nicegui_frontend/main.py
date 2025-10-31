@@ -34,8 +34,8 @@ class MainApp:
         self.create_app()
 
     # region general methods ----------------------------------------------------------------------
-    def _disable_buttons(self, disable: bool) -> None:
-        """Enable or disable all buttons"""
+    def _disable_all_service1_buttons(self, disable: bool) -> None:
+        """Enable or disable all buttons for service1"""
         for i in range(1, 4):
             button = getattr(self, f"_service1_button{i}", None)
             if button:
@@ -46,8 +46,186 @@ class MainApp:
                     button.props(remove="disable")
                     button.classes(remove="opacity-50 cursor-not-allowed")
 
-    def _extract_ai_summary(self, response_data):
-        """Extract AI summary from the response data"""
+    async def _poll_job_status(self, job_id, context) -> None:
+        """
+        Poll the job status endpoint until job is completed or failed.
+        The orchestrator is expected to be running on localhost:9000.
+        :param job_id: the job ID to poll
+        :param context: NiceGUI context manager for UI updates
+        """
+        url = f"http://127.0.0.1:9000/jobs/{job_id}"
+        headers = {"Authorization": f"Bearer {self._access_token}"}
+
+        with context:
+            self.ai_summary_container.classes("block").classes(remove="hidden")
+            self.ai_summary_text.set_value("🔄 Starting document processing pipeline...")
+
+        max_attempts = 120
+        attempt = 0
+        ai_data_found = False
+
+        while attempt < max_attempts and not ai_data_found:
+            await asyncio.sleep(2)
+            attempt += 1
+
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(url, headers=headers) as response:
+                        if response.status != 200:
+                            with context:
+                                self.ai_summary_text.set_value(f"❌ HTTP Error: {response.status}")
+                            continue
+
+                        resp_json = await response.json()
+                        status = resp_json.get("status")
+                        step = resp_json.get("step", "")
+
+                        print(f"[DEBUG] Polling attempt {attempt}: status={status}, step={step}")
+                        print(f"[DEBUG] Full response keys: {list(resp_json.keys())}")
+
+                        # Update textarea with status
+                        with context:
+                            self.service1_textarea1.set_value(
+                                f"Polling job {job_id}... (Attempt {attempt}/{max_attempts})\n"
+                                f"Status: {status}\nStep: {step}\n"
+                                f"Response: {json.dumps(resp_json, indent=4)}"
+                            )
+
+                            # Extract and display AI summary
+                            ai_summary = self._extract_ai_summary(resp_json)
+                            self.ai_summary_text.set_value(ai_summary)
+
+                        # Check if we have AI processing data in metadata
+                        metadata = resp_json.get('metadata', {})
+                        if metadata is None:
+                            metadata = {}
+
+                        # Look for AI processing data
+                        ai_processing = metadata.get('ai_processing')
+                        if ai_processing:
+                            print(f"[DEBUG] ✅ AI processing data found! Stopping polling.")
+                            ai_data_found = True
+                            with context:
+                                ui.notify(f"✅ Job {job_id} completed with AI analysis!")
+                            break
+
+                        # Also stop if job failed
+                        elif status == "failed":
+                            with context:
+                                ui.notify(f"❌ Job {job_id} failed!")
+                                self.ai_summary_text.set_value(f"❌ Job failed at step: {step}")
+                            return
+
+                        # Continue polling if we're still processing
+                        print(f"[DEBUG] No AI data yet, continuing to poll...")
+
+            except (aiohttp.ClientError, asyncio.TimeoutError, json.JSONDecodeError) as e:
+                with context:
+                    ui.notify(f"Polling failed: {str(e)}")
+                    self.ai_summary_text.set_value(f"❌ Polling error: {str(e)}")
+                return
+            except Exception as e:
+                with context:
+                    ui.notify(f"Unexpected error during polling: {str(e)}")
+                    self.ai_summary_text.set_value(f"❌ Unexpected error: {str(e)}")
+                return
+
+        if not ai_data_found:
+            # Timeout or completed without AI data
+            with context:
+                ui.notify(f"⏰ Polling ended for job {job_id}")
+                self.ai_summary_text.set_value(
+                    f"⏰ Processing ended after {attempt} attempts\n\n"
+                    f"Last status: {status if 'status' in locals() else 'unknown'}\n"
+                    f"Last step: {step if 'step' in locals() else 'unknown'}\n\n"
+                    f"AI analysis data was not found in the response."
+                )
+
+    async def _base_request_handler(self, method_type: str, url: str, data=None, headers=None) -> None:
+        """
+        Base async request handler
+        :param method_type: HTTP method type (get, post, put, delete)
+        :param url: the URL to send the request to
+        :param data: the data to send (for POST/PUT)
+        :param headers: optional headers to include
+        """
+        self._spinner.set_visibility(True)
+        self._disable_all_service1_buttons(True)
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                # Prepare request
+                request_kwargs = {}
+
+                # If POST then add data
+                if method_type == "post":
+                    # Special handling for login endpoint
+                    if url.endswith("/auth/login") and data:
+                        request_kwargs["data"] = data
+
+                    # Add auth header for non-login requests
+                    else:
+                        if self._access_token:
+                            if headers is None:
+                                headers = {}
+                            headers["Authorization"] = f"Bearer {self._access_token}"
+                        request_kwargs["json"] = data
+
+                # Put request handling
+                elif method_type == "put":
+                    if self._access_token:
+                        if headers is None:
+                            headers = {}
+                        headers["Authorization"] = f"Bearer {self._access_token}"
+                    request_kwargs["json"] = data
+
+                # Add headers if provided
+                if headers:
+                    request_kwargs["headers"] = headers
+
+                # Make request
+                async with getattr(session, method_type)(
+                    url, **request_kwargs
+                ) as response:
+                    # Process response
+                    try:
+                        response_data = await response.json()
+                        display_content = json.dumps(response_data, indent=4)
+
+                        # Handle token storage
+                        if (
+                            response.status == 200
+                            and url.endswith("/auth/login")
+                            and "access_token" in response_data
+                        ):
+                            self._access_token = response_data["access_token"]
+                            ui.notify("Login successful! Token stored.")
+
+                    except (aiohttp.ContentTypeError, json.JSONDecodeError):
+                        display_content = await response.text()
+
+                    self.service1_textarea1.set_value(
+                        f"Status: {response.status}" f"\n{display_content}"
+                    )
+        except (aiohttp.ClientError, asyncio.TimeoutError, json.JSONDecodeError) as e:
+            ui.notify(f"Request failed: {str(e)}")
+            self.service1_textarea1.set_value(f"Request failed: {str(e)}")
+        except Exception as e:
+            ui.notify(f"Unexpected error during execution: {str(e)}")
+            self.service1_textarea1.set_value(f"Unexpected error: {str(e)}")
+        finally:
+            self._spinner.set_visibility(False)
+            self._disable_all_service1_buttons(False)
+
+    # endregion -----------------------------------------------------------------------------------
+
+    # region ai methods ---------------------------------------------------------------------------
+    @staticmethod
+    def _extract_ai_summary(response_data) -> str:
+        """
+        Extract AI summary from the response data
+        :param response_data: the full response data from the job status endpoint
+        """
         try:
             if not isinstance(response_data, dict):
                 return "🔄 Waiting for processing data..."
@@ -188,7 +366,7 @@ class MainApp:
             print(f"[EXTRACT_AI] Error: {e}\n{error_details}")
             return f"❌ Error extracting AI summary: {str(e)}"
 
-    def _add_ai_chat_section(self):
+    def _add_ai_chat_section(self) -> None:
         """Add AI Chat section to the frontend"""
         with ui.column().classes(
                 "w-full h-auto p-4 gap-4 "
@@ -211,7 +389,7 @@ class MainApp:
                 ui.button("Send", on_click=self._send_chat_message).classes("bg-green-500 text-white")
                 ui.button("Clear Chat", on_click=self._clear_chat).classes("bg-red-500 text-white")
 
-    async def _send_chat_message(self):
+    async def _send_chat_message(self) -> None:
         """Send chat message to AI service"""
         message = self.chat_input.value.strip()
         if not message:
@@ -260,8 +438,12 @@ class MainApp:
             self.chat_input.enable()
             self._spinner.set_visibility(False)
 
-    def _add_chat_message(self, sender, message):
-        """Add a message to the chat UI"""
+    def _add_chat_message(self, sender, message) -> None:
+        """
+        Add a message to the chat UI
+        :param sender: "user", "ai", or "error"
+        :param message: the message content
+        """
         if sender == "user":
             with self.chat_messages_container:
                 with ui.row().classes("w-full justify-end"):
@@ -281,7 +463,7 @@ class MainApp:
                         ui.label("❌ Error").classes("text-sm font-bold text-red-600")
                         ui.label(message).classes("text-red-700")
 
-    def _clear_chat(self):
+    def _clear_chat(self) -> None:
         """Clear chat history"""
         self.chat_history = []
         self.chat_messages_container.clear()
@@ -289,7 +471,7 @@ class MainApp:
             ui.label("Chat cleared. Start a new conversation...").classes("w-full p-2 text-gray-500 text-center"))
         ui.notify("Chat cleared")
 
-    async def _cleanup_data(self):
+    async def _cleanup_data(self) -> None:
         """Cleanup Pinecone data"""
         try:
             async with aiohttp.ClientSession() as session:
@@ -330,7 +512,7 @@ class MainApp:
             ui.notify(f"❌ Cleanup request failed: {str(e)}")
             self.service1_textarea1.set_value(f"Cleanup request failed: {str(e)}")
 
-    async def _run_tests(self):
+    async def _run_tests(self) -> None:
         """Run tests via AI service"""
         try:
             async with aiohttp.ClientSession() as session:
@@ -351,169 +533,6 @@ class MainApp:
 
         except Exception as e:
             ui.notify(f"Test execution failed: {str(e)}")
-
-    async def _poll_job_status(self, job_id, context):
-        """Poll the job status endpoint until job is completed or failed."""
-        # url = f'http://127.0.0.1:8000/v1/jobs/{job_id}'   # the service itself, not implemented
-        url = f"http://127.0.0.1:9000/jobs/{job_id}"  # polling the orchestrator
-        headers = {"Authorization": f"Bearer {self._access_token}"}
-
-        with context:
-            self.ai_summary_container.classes("block").classes(remove="hidden")
-            self.ai_summary_text.set_value("🔄 Starting document processing pipeline...")
-
-        max_attempts = 60
-        attempt = 0
-        ai_data_found = False
-
-        while attempt < max_attempts and not ai_data_found:
-            await asyncio.sleep(2)
-            attempt += 1
-
-            try:
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(url, headers=headers) as response:
-                        if response.status != 200:
-                            with context:
-                                self.ai_summary_text.set_value(f"❌ HTTP Error: {response.status}")
-                            continue
-
-                        resp_json = await response.json()
-                        status = resp_json.get("status")
-                        step = resp_json.get("step", "")
-
-                        print(f"[DEBUG] Polling attempt {attempt}: status={status}, step={step}")
-                        print(f"[DEBUG] Full response keys: {list(resp_json.keys())}")
-
-                        # Update textarea with status
-                        with context:
-                            self.service1_textarea1.set_value(
-                                f"Polling job {job_id}... (Attempt {attempt}/{max_attempts})\n"
-                                f"Status: {status}\nStep: {step}\n"
-                                f"Response: {json.dumps(resp_json, indent=4)}"
-                            )
-
-                            # Extract and display AI summary
-                            ai_summary = self._extract_ai_summary(resp_json)
-                            self.ai_summary_text.set_value(ai_summary)
-
-                        # Check if we have AI processing data in metadata
-                        metadata = resp_json.get('metadata', {})
-                        if metadata is None:
-                            metadata = {}
-
-                        # Look for AI processing data
-                        ai_processing = metadata.get('ai_processing')
-                        if ai_processing:
-                            print(f"[DEBUG] ✅ AI processing data found! Stopping polling.")
-                            ai_data_found = True
-                            with context:
-                                ui.notify(f"✅ Job {job_id} completed with AI analysis!")
-                            break
-
-                        # Also stop if job failed
-                        elif status == "failed":
-                            with context:
-                                ui.notify(f"❌ Job {job_id} failed!")
-                                self.ai_summary_text.set_value(f"❌ Job failed at step: {step}")
-                            return
-
-                        # Continue polling if we're still processing
-                        print(f"[DEBUG] No AI data yet, continuing to poll...")
-
-            except (aiohttp.ClientError, asyncio.TimeoutError, json.JSONDecodeError) as e:
-                with context:
-                    ui.notify(f"Polling failed: {str(e)}")
-                    self.ai_summary_text.set_value(f"❌ Polling error: {str(e)}")
-                return
-            except Exception as e:
-                with context:
-                    ui.notify(f"Unexpected error during polling: {str(e)}")
-                    self.ai_summary_text.set_value(f"❌ Unexpected error: {str(e)}")
-                return
-
-        if not ai_data_found:
-            # Timeout or completed without AI data
-            with context:
-                ui.notify(f"⏰ Polling ended for job {job_id}")
-                self.ai_summary_text.set_value(
-                    f"⏰ Processing ended after {attempt} attempts\n\n"
-                    f"Last status: {status if 'status' in locals() else 'unknown'}\n"
-                    f"Last step: {step if 'step' in locals() else 'unknown'}\n\n"
-                    f"AI analysis data was not found in the response."
-                )
-
-    async def _base_request_handler(
-        self, method_type: str, url: str, data=None, headers=None
-    ):
-        """Base async request handler"""
-        self._spinner.set_visibility(True)
-        self._disable_buttons(True)
-
-        try:
-            async with aiohttp.ClientSession() as session:
-                # Prepare request
-                request_kwargs = {}
-
-                # If POST then add data
-                if method_type == "post":
-                    # Special handling for login endpoint
-                    if url.endswith("/auth/login") and data:
-                        request_kwargs["data"] = data
-
-                    # Add auth header for non-login requests
-                    else:
-                        if self._access_token:
-                            if headers is None:
-                                headers = {}
-                            headers["Authorization"] = f"Bearer {self._access_token}"
-                        request_kwargs["json"] = data
-
-                # Put request handling
-                elif method_type == "put":
-                    if self._access_token:
-                        if headers is None:
-                            headers = {}
-                        headers["Authorization"] = f"Bearer {self._access_token}"
-                    request_kwargs["json"] = data
-
-                # Add headers if provided
-                if headers:
-                    request_kwargs["headers"] = headers
-
-                # Make request
-                async with getattr(session, method_type)(
-                    url, **request_kwargs
-                ) as response:
-                    # Process response
-                    try:
-                        response_data = await response.json()
-                        display_content = json.dumps(response_data, indent=4)
-
-                        # Handle token storage
-                        if (
-                            response.status == 200
-                            and url.endswith("/auth/login")
-                            and "access_token" in response_data
-                        ):
-                            self._access_token = response_data["access_token"]
-                            ui.notify("Login successful! Token stored.")
-
-                    except (aiohttp.ContentTypeError, json.JSONDecodeError):
-                        display_content = await response.text()
-
-                    self.service1_textarea1.set_value(
-                        f"Status: {response.status}" f"\n{display_content}"
-                    )
-        except (aiohttp.ClientError, asyncio.TimeoutError, json.JSONDecodeError) as e:
-            ui.notify(f"Request failed: {str(e)}")
-            self.service1_textarea1.set_value(f"Request failed: {str(e)}")
-        except Exception as e:
-            ui.notify(f"Unexpected error during execution: {str(e)}")
-            self.service1_textarea1.set_value(f"Unexpected error: {str(e)}")
-        finally:
-            self._spinner.set_visibility(False)
-            self._disable_buttons(False)
 
     # endregion -----------------------------------------------------------------------------------
 
@@ -744,11 +763,11 @@ class MainApp:
     # endregion -----------------------------------------------------------------------------------
 
     # region service1 event handlers --------------------------------------------------------------
-    async def _health_check(self):
+    async def _health_check(self) -> None:
         """Health check button handler"""
         await self._base_request_handler("get", "http://127.0.0.1:8000/health")
 
-    async def _login_and_store_token(self):
+    async def _login_and_store_token(self) -> None:
         """Login button handler"""
         username = self._service1_input1.value
         password = self._service1_input2.value
@@ -764,9 +783,8 @@ class MainApp:
             "post", "http://127.0.0.1:8000/auth/login", data=data
         )
 
-    async def _logout_and_delete_token(self):
+    async def _logout_and_delete_token(self) -> None:
         """Logout button handler"""
-
         if not self._access_token:
             ui.notify("No token found. Please login first.")
             self.service1_textarea1.set_value("No token found. Please login first.")
@@ -781,7 +799,7 @@ class MainApp:
         ui.notify("Logged out and token deleted.")
         self.service1_textarea1.set_value("Logged out. Token deleted.")
 
-    async def _get_users_list(self):
+    async def _get_users_list(self) -> None:
         """Get users list button handler"""
         if not self._access_token:
             ui.notify("Please login first to obtain an access token.")
@@ -792,7 +810,7 @@ class MainApp:
             "get", "http://127.0.0.1:8000/users/list", headers=headers
         )
 
-    async def _get_user_by_id(self):
+    async def _get_user_by_id(self) -> None:
         """Get user by ID button handler"""
         if not self._access_token:
             ui.notify("Please login first to obtain an access token.")
@@ -808,7 +826,7 @@ class MainApp:
             "get", f"http://127.0.0.1:8000/users/id/{user_id.strip()}", headers=headers
         )
 
-    def _toggle_form(self):
+    def _toggle_form(self) -> None:
         """Toggle form visibility"""
         self._form_is_visible = not self._form_is_visible
         if self._form_is_visible:
@@ -816,7 +834,7 @@ class MainApp:
         else:
             self.user_form_container.classes("hidden").classes(remove="block")
 
-    async def _create_user(self):
+    async def _create_user(self) -> None:
         """Create user from form"""
         if not self._access_token:
             ui.notify("Please login first to obtain an access token.")
@@ -850,7 +868,7 @@ class MainApp:
         self.user_form_email.set_value("")
         self.user_form_password.set_value("")
 
-    async def _edit_user(self):
+    async def _edit_user(self) -> None:
         """Edit user by ID from form"""
         if not self._access_token:
             ui.notify("Please login first to obtain an access token.")
@@ -885,7 +903,7 @@ class MainApp:
             headers=headers,
         )
 
-    async def _delete_user(self):
+    async def _delete_user(self) -> None:
         """Delete user by ID from form"""
         if not self._access_token:
             ui.notify("Please login first to obtain an access token.")
@@ -901,8 +919,11 @@ class MainApp:
             "delete", f"http://127.0.0.1:8000/users/delete/{user_id}", headers=headers
         )
 
-    async def _on_file_selected(self, file_info):
-        """Handle file selection and upload"""
+    async def _on_file_selected(self, file_info) -> None:
+        """
+        Handle file selection and upload
+        :param file_info: the uploaded file info object
+        """
         self.uploaded_file_info = file_info
 
         # Get file size from file-like object

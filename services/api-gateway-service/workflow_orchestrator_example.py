@@ -98,6 +98,17 @@ logger = LoggingManager.setup_logging(
 
 
 # ToDO: AWS acc. to copilot chat
+"""
+S3 (raw/processed/transcoded buckets) — not implemented.
+DynamoDB for job state — replaced by Redis.
+SQS queues and DLQs — replaced by Redis pub/sub.
+ECS Fargate/EKS and Terraform/CDK infra — not present.
+API Gateway + Cognito JWT authorizer — not present.
+CloudWatch/X-Ray/Prometheus/Grafana instrumentation — not present.
+"""
+
+
+
 # ToDO: Remove hardcoded 'D:/' -> AWS (OpenTelemetry, `AWS Toolkit` Pycharm Plugin)
 # ToDo: integrate multipr / -tr / asyncio from playground
 

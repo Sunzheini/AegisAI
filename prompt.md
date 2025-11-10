@@ -1182,4 +1182,6 @@ volumes:
   postgres_data:
   redis_data:`, so please dont make conflicts between the projects.
 
+Lastly the shared-lib has some dependencies, e.g. `import redis.asyncio as aioredis` but there i dont have venv or anything, when i install the shared-lib in each microservice there are no errors.
+
 Help me containerize all applications and dependencies, so I can later deploy on a cloud.

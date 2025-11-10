@@ -39,14 +39,16 @@ if USE_SHARED_LIB:
     from shared_lib.support.security import auth_required
     from shared_lib.support.constants import ALLOWED_CONTENT_TYPES_SET, MAX_UPLOAD_BYTES_SIZE
     from shared_lib.support.support_functions import sanitize_filename
-    from shared_lib.support.storage_abstraction import LocalFileStorage, InMemoryJobAssetStore
+    from shared_lib.local_storages.local_file_storage import LocalFileStorage
+    from shared_lib.local_storages.in_memory_job_and_asset_storage import InMemoryJobAndAssetStorage
 else:
     from contracts.job_schemas import IngestionJobRequest
     from needs.INeedRedisManager import INeedRedisManagerInterface
     from support.security import auth_required
     from support.constants import ALLOWED_CONTENT_TYPES_SET, MAX_UPLOAD_BYTES_SIZE
     from support.support_functions import sanitize_filename
-    from support.storage_abstraction import LocalFileStorage, InMemoryJobAssetStore
+    from local_storages.local_file_storage import LocalFileStorage
+    from local_storages.in_memory_job_and_asset_storage import InMemoryJobAndAssetStorage
 # ------------------------------------------------------------------------------------------
 
 STORAGE_ROOT = os.getenv(
@@ -68,7 +70,7 @@ USE_REDIS_PUBLISH = os.getenv("USE_REDIS_PUBLISH", "false").lower() == "true"
 
 # ToDo: Instantiate abstractions for local usage, change to AWS later
 file_storage = LocalFileStorage(RAW_DIR)
-job_asset_store = InMemoryJobAssetStore()
+job_asset_store = InMemoryJobAndAssetStorage()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ingestion")

@@ -110,6 +110,12 @@ CloudWatch/X-Ray/Prometheus/Grafana instrumentation — not present.
 
 
 # ToDO: Remove hardcoded 'D:/' -> AWS (OpenTelemetry, `AWS Toolkit` Pycharm Plugin)
+"""
+make build
+make up
+make ps
+make logs
+"""
 # ToDo: integrate multipr / -tr / asyncio from playground
 
 # ToDo: Keep a ref to the files ina  db / list and delete any uploaded files / select a file for conversation

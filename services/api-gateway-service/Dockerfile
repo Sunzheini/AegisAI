@@ -7,11 +7,14 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy service-specific files
-COPY services/api-gateway-service/ .
+# Copy shared library first (for better caching)
+COPY shared-lib /app/shared-lib
 
-# Copy shared library
-COPY shared-lib/ /app/shared-lib/
+# Copy service-specific files
+COPY services/api-gateway-service /app/services/api-gateway-service
+
+# Set working directory to the service
+WORKDIR /app/services/api-gateway-service
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -e .
@@ -29,5 +32,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Start command
+# Start the service
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

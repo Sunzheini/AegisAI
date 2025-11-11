@@ -2,9 +2,21 @@ version: '3.8'
 
 services:
   # Infrastructure Services
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   postgres:
-    image: postgres:13
-    container_name: aegisai-postgres
+    image: postgres:15-alpine
     environment:
       - POSTGRES_DB=aegisai_db
       - POSTGRES_USER=postgres_user
@@ -19,186 +31,109 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-    networks:
-      - aegisai-network
 
-  redis:
-    image: redis:6-alpine
-    container_name: aegisai-redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    command: redis-server --appendonly yes
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    networks:
-      - aegisai-network
-
-  # API Gateway Service
+  # Microservices
   api-gateway:
     build:
       context: .
       dockerfile: services/api-gateway-service/Dockerfile
-    container_name: aegisai-api-gateway
     ports:
       - "8000:8000"
     environment:
       - DEBUG=False
-      - AUTH_ENVIRONMENT=docker
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_NAME=aegisai_db
-      - DB_USER=postgres_user
-      - DB_PASSWORD=password
-      - TEST_REDIS_URL=redis://redis:6379/0
-      - USE_ORCHESTRATOR=True
-      - ORCHESTRATOR_URL=http://workflow-orchestrator:9000/jobs
-      - USE_REDIS_PUBLISH=True
-      - USE_SHARED_LIB=True
+      - DOCKER=True
     volumes:
-      - shared-storage:/app/shared-storage
+      - shared_storage:/app/shared-storage
       - ./shared-lib:/app/shared-lib
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-    networks:
-      - aegisai-network
 
-  # Workflow Orchestrator Service
   workflow-orchestrator:
     build:
       context: .
       dockerfile: services/workflow-orchestrator-service/Dockerfile
-    container_name: aegisai-workflow-orchestrator
     ports:
       - "9000:9000"
     environment:
-      - DEBUG=False
-      - TEST_REDIS_URL=redis://redis:6379/0
-      - USE_REDIS_LISTENER=true
-      - STORAGE_ROOT=/app/shared-storage
+      - DOCKER=True
     volumes:
-      - shared-storage:/app/shared-storage
+      - shared_storage:/app/shared-storage
       - ./shared-lib:/app/shared-lib
     depends_on:
-      redis:
-        condition: service_healthy
-      api-gateway:
-        condition: service_healthy
+      - redis
+      - api-gateway
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/docs"]
       interval: 30s
       timeout: 10s
       retries: 3
-    networks:
-      - aegisai-network
 
-  # Worker Services
   validation-service:
     build:
       context: .
       dockerfile: services/validation-service/Dockerfile
-    container_name: aegisai-validation-service
     environment:
-      - DEBUG=False
-      - TEST_REDIS_URL=redis://redis:6379/0
-      - WORKER_NAME=ValidationWorker
-      - TASK_NAME=validation
-      - WORKER_QUEUE=validation_queue
-      - CALLBACK_QUEUE=validation_callback_queue
+      - DOCKER=True
     volumes:
-      - shared-storage:/app/shared-storage
+      - shared_storage:/app/shared-storage
       - ./shared-lib:/app/shared-lib
     depends_on:
-      redis:
-        condition: service_healthy
-    networks:
-      - aegisai-network
+      - redis
+      - workflow-orchestrator
 
   extract-metadata-service:
     build:
       context: .
       dockerfile: services/extract-metadata-service/Dockerfile
-    container_name: aegisai-extract-metadata-service
     environment:
-      - DEBUG=False
-      - TEST_REDIS_URL=redis://redis:6379/0
-      - WORKER_NAME=ExtractMetadataWorker
-      - TASK_NAME=extract_metadata
-      - WORKER_QUEUE=extract_metadata_queue
-      - CALLBACK_QUEUE=extract_metadata_callback_queue
+      - DOCKER=True
     volumes:
-      - shared-storage:/app/shared-storage
+      - shared_storage:/app/shared-storage
       - ./shared-lib:/app/shared-lib
     depends_on:
-      redis:
-        condition: service_healthy
-    networks:
-      - aegisai-network
+      - redis
+      - workflow-orchestrator
 
   extract-content-service:
     build:
       context: .
       dockerfile: services/extract-content-service/Dockerfile
-    container_name: aegisai-extract-content-service
     environment:
-      - DEBUG=False
-      - TEST_REDIS_URL=redis://redis:6379/0
-      - WORKER_NAME=ExtractContentWorker
-      - TASK_NAME=extract_content
-      - WORKER_QUEUE=extract_content_queue
-      - CALLBACK_QUEUE=extract_content_callback_queue
+      - DOCKER=True
     volumes:
-      - shared-storage:/app/shared-storage
+      - shared_storage:/app/shared-storage
       - ./shared-lib:/app/shared-lib
     depends_on:
-      redis:
-        condition: service_healthy
-    networks:
-      - aegisai-network
+      - redis
+      - workflow-orchestrator
 
   ai-service:
     build:
       context: .
       dockerfile: services/ai-service/Dockerfile
-    container_name: aegisai-ai-service
     environment:
-      - DEBUG=False
-      - TEST_REDIS_URL=redis://redis:6379/0
-      - WORKER_NAME=AIWorker
-      - TASK_NAME=ai_processing
-      - WORKER_QUEUE=ai_processing_queue
-      - CALLBACK_QUEUE=ai_processing_callback_queue
+      - DOCKER=True
     volumes:
-      - shared-storage:/app/shared-storage
+      - shared_storage:/app/shared-storage
       - ./shared-lib:/app/shared-lib
     depends_on:
-      redis:
-        condition: service_healthy
-    networks:
-      - aegisai-network
+      - redis
+      - workflow-orchestrator
 
 volumes:
-  shared-storage:
+  shared_storage:
     driver: local
     driver_opts:
       type: none
       device: ${PWD}/shared-storage
       o: bind
-  postgres_data:
   redis_data:
-
-networks:
-  aegisai-network:
-    driver: bridge
+  postgres_data:

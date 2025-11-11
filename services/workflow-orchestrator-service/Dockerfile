@@ -7,17 +7,23 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy service-specific files
-COPY services/workflow-orchestrator-service/ .
-
 # Copy shared library
-COPY shared-lib/ /app/shared-lib/
+COPY shared-lib /app/shared-lib
+
+# Copy service-specific files
+COPY services/workflow-orchestrator-service /app/services/workflow-orchestrator-service
+
+# Set working directory to the service
+WORKDIR /app/services/workflow-orchestrator-service
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -e .
 
 # Create necessary directories
-RUN mkdir -p /app/shared-storage /app/logs
+RUN mkdir -p /app/shared-storage/raw \
+    /app/shared-storage/processed \
+    /app/shared-storage/transcoded \
+    /app/logs
 
 # Expose port
 EXPOSE 9000
@@ -26,5 +32,5 @@ EXPOSE 9000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:9000/docs || exit 1
 
-# Start command
+# Start the service
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "9000"]

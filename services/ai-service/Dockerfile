@@ -16,10 +16,8 @@ COPY services/ai-service /app/services/ai-service
 # Set working directory to the service
 WORKDIR /app/services/ai-service
 
-# Install shared-lib first, then install service dependencies excluding shared-lib
 RUN pip install --no-cache-dir /app/shared-lib
-RUN pip install --no-cache-dir fastapi uvicorn redis python-dotenv pytest
-# Add other dependencies as needed for each service
+RUN pip install --no-cache-dir fastapi uvicorn redis python-dotenv pytest user_agents pillow pypdf2
 
 # Create necessary directories
 RUN mkdir -p /app/shared-storage/raw \

@@ -16,10 +16,8 @@ COPY services/workflow-orchestrator-service /app/services/workflow-orchestrator-
 # Set working directory to the service
 WORKDIR /app/services/workflow-orchestrator-service
 
-# Install shared-lib first, then install service dependencies excluding shared-lib
 RUN pip install --no-cache-dir /app/shared-lib
-RUN pip install --no-cache-dir fastapi uvicorn redis python-dotenv pytest
-# Add other dependencies as needed for each service
+RUN pip install --no-cache-dir fastapi uvicorn redis python-dotenv pytest user_agents langgraph langgraph-sdk langgraph-checkpoint langgraph-prebuilt
 
 # Create necessary directories
 RUN mkdir -p /app/shared-storage/raw \

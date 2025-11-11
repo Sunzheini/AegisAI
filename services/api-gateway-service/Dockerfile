@@ -16,9 +16,8 @@ COPY services/api-gateway-service /app/services/api-gateway-service
 # Set working directory to the service
 WORKDIR /app/services/api-gateway-service
 
-# Install Python dependencies
 RUN pip install --no-cache-dir /app/shared-lib
-RUN pip install --no-cache-dir fastapi uvicorn redis python-dotenv pytest user-agents
+RUN pip install --no-cache-dir fastapi uvicorn redis python-dotenv pytest requests user_agents python-jose passlib[bcrypt] langgraph langgraph-sdk sqlalchemy psycopg2-binary pdfplumber python-multipart
 
 # Create necessary directories
 RUN mkdir -p /app/shared-storage/raw \

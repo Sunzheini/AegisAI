@@ -80,6 +80,8 @@ services:
     build:
       context: .
       dockerfile: services/validation-service/Dockerfile
+    ports:
+      - "9001:9001"
     environment:
       - DOCKER=True
     volumes:
@@ -93,6 +95,8 @@ services:
     build:
       context: .
       dockerfile: services/extract-metadata-service/Dockerfile
+    ports:
+      - "9002:9002"
     environment:
       - DOCKER=True
     volumes:
@@ -106,6 +110,8 @@ services:
     build:
       context: .
       dockerfile: services/extract-content-service/Dockerfile
+    ports:
+      - "9003:9003"
     environment:
       - DOCKER=True
     volumes:
@@ -119,6 +125,8 @@ services:
     build:
       context: .
       dockerfile: services/ai-service/Dockerfile
+    ports:
+      - "9004:9004"
     environment:
       - DOCKER=True
     volumes:

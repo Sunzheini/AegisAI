@@ -17,7 +17,8 @@ COPY services/api-gateway-service /app/services/api-gateway-service
 WORKDIR /app/services/api-gateway-service
 
 # Install Python dependencies
-RUN pip install --no-cache-dir -e .
+RUN pip install --no-cache-dir /app/shared-lib
+RUN pip install --no-cache-dir fastapi uvicorn redis python-dotenv pytest user-agents
 
 # Create necessary directories
 RUN mkdir -p /app/shared-storage/raw \

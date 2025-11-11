@@ -40,13 +40,24 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DEBUG=False
       - DOCKER=True
-      - DB_HOST=postgres
+      - DEBUG=False
+      - SECRET_KEY=mysecretkey
+      - AUTH_ENVIRONMENT=local
+      - STORAGE_ROOT=/app/shared-storage
+      - RAW_DIR=/app/shared-storage/raw
+      - PROCESSED_DIR=/app/shared-storage/processed
+      - TRANSCODED_DIR=/app/shared-storage/transcoded
+      - USE_ORCHESTRATOR=True
+      - ORCHESTRATOR_URL=http://workflow-orchestrator:9000/jobs
+      - TEST_REDIS_URL=redis://redis:6379/2
+      - USE_REDIS_PUBLISH=True
       - DB_NAME=aegisai_db
       - DB_USER=postgres_user
       - DB_PASSWORD=password
+      - DB_HOST=postgres
       - DB_PORT=5432
+      - USE_SHARED_LIB=True
     volumes:
       - shared_storage:/app/shared-storage
       - ./shared-lib:/app/shared-lib
@@ -69,6 +80,13 @@ services:
       - "9000:9000"
     environment:
       - DOCKER=True
+      - DEBUG=False
+      - STORAGE_ROOT=/app/shared-storage
+      - RAW_DIR=/app/shared-storage/raw
+      - PROCESSED_DIR=/app/shared-storage/processed
+      - TRANSCODED_DIR=/app/shared-storage/transcoded
+      - TEST_REDIS_URL=redis://redis:6379/2
+      - USE_REDIS_LISTENER=true
     volumes:
       - shared_storage:/app/shared-storage
       - ./shared-lib:/app/shared-lib
@@ -89,6 +107,13 @@ services:
       - "9001:9001"
     environment:
       - DOCKER=True
+      - DEBUG=False
+      - STORAGE_ROOT=/app/shared-storage
+      - RAW_DIR=/app/shared-storage/raw
+      - PROCESSED_DIR=/app/shared-storage/processed
+      - TRANSCODED_DIR=/app/shared-storage/transcoded
+      - TEST_REDIS_URL=redis://redis:6379/2
+      - USE_REDIS_LISTENER=true
     volumes:
       - shared_storage:/app/shared-storage
       - ./shared-lib:/app/shared-lib
@@ -104,6 +129,13 @@ services:
       - "9002:9002"
     environment:
       - DOCKER=True
+      - DEBUG=False
+      - STORAGE_ROOT=/app/shared-storage
+      - RAW_DIR=/app/shared-storage/raw
+      - PROCESSED_DIR=/app/shared-storage/processed
+      - TRANSCODED_DIR=/app/shared-storage/transcoded
+      - TEST_REDIS_URL=redis://redis:6379/2
+      - USE_REDIS_LISTENER=true
     volumes:
       - shared_storage:/app/shared-storage
       - ./shared-lib:/app/shared-lib
@@ -119,6 +151,13 @@ services:
       - "9003:9003"
     environment:
       - DOCKER=True
+      - DEBUG=False
+      - STORAGE_ROOT=/app/shared-storage
+      - RAW_DIR=/app/shared-storage/raw
+      - PROCESSED_DIR=/app/shared-storage/processed
+      - TRANSCODED_DIR=/app/shared-storage/transcoded
+      - TEST_REDIS_URL=redis://redis:6379/2
+      - USE_REDIS_LISTENER=true
     volumes:
       - shared_storage:/app/shared-storage
       - ./shared-lib:/app/shared-lib
@@ -134,6 +173,13 @@ services:
       - "9004:9004"
     environment:
       - DOCKER=True
+      - DEBUG=False
+      - STORAGE_ROOT=/app/shared-storage
+      - RAW_DIR=/app/shared-storage/raw
+      - PROCESSED_DIR=/app/shared-storage/processed
+      - TRANSCODED_DIR=/app/shared-storage/transcoded
+      - TEST_REDIS_URL=redis://redis:6379/2
+      - USE_REDIS_LISTENER=true
     volumes:
       - shared_storage:/app/shared-storage
       - ./shared-lib:/app/shared-lib

@@ -17,7 +17,7 @@ COPY services/extract-content-service /app/services/extract-content-service
 WORKDIR /app/services/extract-content-service
 
 RUN pip install --no-cache-dir /app/shared-lib
-RUN pip install --no-cache-dir fastapi uvicorn redis python-dotenv pytest user_agents pillow pypdf2
+RUN pip install --no-cache-dir fastapi uvicorn redis python-dotenv pytest user_agents pillow pypdf2 pdfplumber
 
 # Create necessary directories
 RUN mkdir -p /app/shared-storage/raw \

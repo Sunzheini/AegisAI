@@ -25,5 +25,8 @@ RUN mkdir -p /app/shared-storage/raw \
     /app/shared-storage/transcoded \
     /app/logs
 
-# Start the service (adjust entry point as needed)
-CMD ["python", "main.py"]
+## Start the service (adjust entry point as needed)
+#CMD ["python", "main.py"]
+
+# Change your Dockerfile CMD to:
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "9002"]

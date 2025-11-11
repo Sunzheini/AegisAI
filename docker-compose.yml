@@ -42,6 +42,11 @@ services:
     environment:
       - DEBUG=False
       - DOCKER=True
+      - DB_HOST=postgres
+      - DB_NAME=aegisai_db
+      - DB_USER=postgres_user
+      - DB_PASSWORD=password
+      - DB_PORT=5432
     volumes:
       - shared_storage:/app/shared-storage
       - ./shared-lib:/app/shared-lib

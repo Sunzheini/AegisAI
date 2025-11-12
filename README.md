@@ -112,3 +112,16 @@ Start each service (by its configuration):
 5. extract-content-service (port 9004)
 6. CustomLLM
 7. nicegui_frontend
+
+
+## Dockerize
+1. Use the created docker-compose.yml, Makefile and Dockerfiles in each service, api-gateway has docker-entrypoint.sh.
+2. The only code change is: in the pyproject.toml of each service:
+`
+"shared-lib @ file:///app/shared-lib"                                      # use this
+# "shared-lib @ file:///D:/Study/Projects/Github/AegisAI/shared-lib"       # comment this
+`
+3. Open terminal in the root of AegisAI and run:
+`make build`    # builds the docker images
+`make up`       # creates docker containers and runs them
+`make logs`     # shows the logs of all containers (e.g. to see if they started correctly)

@@ -14,6 +14,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
+from starlette.responses import JSONResponse
 
 load_dotenv()
 
@@ -24,6 +25,9 @@ from shared_lib.redis_management.redis_manager import RedisManager
 from shared_lib.custom_middleware.error_middleware import ErrorMiddleware
 from shared_lib.custom_middleware.logging_middleware import EnhancedLoggingMiddleware
 from shared_lib.logging_management.logging_manager import LoggingManager
+
+# get the concrete manager
+from core.concrete_ai_manager import ConcreteAIManager
 
 
 # Configuration
@@ -99,7 +103,7 @@ class AIService(INeedRedisManagerInterface):
                 "updated_at": self._current_timestamp(),
             }
 
-    # region AI Processing Methods
+    # region Placeholder AI Processing Methods (only for testing/demo)
     @staticmethod
     async def _load_text_for_processing(state: WorkflowGraphState) -> str:
         """Load text content for AI processing from extracted text or file."""
@@ -382,45 +386,122 @@ class AIService(INeedRedisManagerInterface):
         errors = []
 
         # -------------------------------------------------------------------------------
+        # The fake AI processing!
+        # -------------------------------------------------------------------------------
+        # ai_results = {}
+        #
+        # try:
+        #     # Load text content for processing
+        #     text_content = await self._load_text_for_processing(state)
+        #
+        #     if not text_content:
+        #         errors.append("No text content available for AI processing")
+        #     else:
+        #         # Apply length limit
+        #         if len(text_content) > self.MAX_TEXT_LENGTH:
+        #             text_content = text_content[:self.MAX_TEXT_LENGTH]
+        #             ai_results["text_truncated"] = True
+        #             ai_results["original_length"] = len(text_content)
+        #
+        #         # Perform various AI analyses
+        #         summary = await self._generate_document_summary(text_content, state["job_id"])
+        #         sentiment = await self._analyze_sentiment_and_tone(text_content)
+        #         entities = await self._extract_entities_and_topics(text_content)
+        #         insights = await self._generate_ai_insights(summary, sentiment, entities)
+        #
+        #         # Compile all AI results
+        #         ai_results.update({
+        #             "document_summary": summary,
+        #             "sentiment_analysis": sentiment,
+        #             "entity_extraction": entities,
+        #             "ai_insights": insights,
+        #             "processing_timestamp": datetime.now(timezone.utc).isoformat(),
+        #             "model_used": "dummy_ai_v1.0",  # In real scenario, this would be the actual model
+        #         })
+        #
+        #         print(30 * '-')
+        #         print(ai_results)
+        #         print(30 * '-')
+        #
+        # except Exception as e:
+        #     errors.append(f"AI processing failed: {str(e)}")
+
+        # -------------------------------------------------------------------------------
         # The real AI processing!
         # -------------------------------------------------------------------------------
         ai_results = {}
 
+        # query = {
+        #     'query1': "What microcontrollers are mentioned?",
+        #     'query2': "What did I just ask you?",
+        #     'query3': "What is the first microcontroller listed in your first reply to me?",
+        # }
+
+        # Improved queries for better document analysis
+        query = {
+            'summary': "Provide a comprehensive executive summary of this document, highlighting main topics and key information",
+            'key_points': "Extract the most important technical specifications, features, or key findings mentioned in the document",
+            'analysis': "Identify the document's primary purpose, target audience, structure, and any critical recommendations"
+        }
+
+        chat_history = []  # list of (user, bot) tuples
+
         try:
-            # Load text content for processing
-            text_content = await self._load_text_for_processing(state)
+            texts = ConcreteAIManager.split_txt_into_chunks(state)
 
-            if not text_content:
-                errors.append("No text content available for AI processing")
+            if not texts:
+                errors.append("No text chunks available for AI processing")
             else:
-                # Apply length limit
-                if len(text_content) > self.MAX_TEXT_LENGTH:
-                    text_content = text_content[:self.MAX_TEXT_LENGTH]
-                    ai_results["text_truncated"] = True
-                    ai_results["original_length"] = len(text_content)
+                ConcreteAIManager.ingest_txt_into_cloud_vector_store(texts)
+                summary_response = ConcreteAIManager.retrieve_from_txt_in_cloud(query, chat_history)
 
-                # Perform various AI analyses
-                summary = await self._generate_document_summary(text_content, state["job_id"])
-                sentiment = await self._analyze_sentiment_and_tone(text_content)
-                entities = await self._extract_entities_and_topics(text_content)
-                insights = await self._generate_ai_insights(summary, sentiment, entities)
+                all_responses = summary_response["responses"]
+
+                # Create a proper document summary from all responses
+                combined_summary = f"""
+                DOCUMENT OVERVIEW:
+                {all_responses['summary']}
+
+                KEY POINTS:
+                {all_responses['key_points']}
+
+                DOCUMENT ANALYSIS:
+                {all_responses['analysis']}
+                """
+
+                actual_word_count = len(combined_summary.split())
 
                 # Compile all AI results
                 ai_results.update({
-                    "document_summary": summary,
-                    "sentiment_analysis": sentiment,
-                    "entity_extraction": entities,
-                    "ai_insights": insights,
+                    "document_summary": {
+                        "summary": combined_summary,
+                        "executive_summary": all_responses['summary'],
+                        "key_points": all_responses['key_points'],
+                        "document_analysis": all_responses['analysis'],
+                        "word_count": actual_word_count,
+                        "content_type": "comprehensive_analysis",
+                        "readability_score": min(100, max(50, 100 - (actual_word_count // 10)))
+                    },
+                    "sentiment_analysis": {
+                        "sentiment": "neutral",  # You could analyze this from the content
+                        "sentiment_confidence": 75
+                    },
+                    "entity_extraction": {
+                        "topics": ["technical_document"]  # Extract actual topics from content
+                    },
+                    "ai_insights": {
+                        "insights": ["Document analyzed via vector search and multi-perspective queries"],
+                        "overall_complexity": "medium",
+                        "analysis_depth": "comprehensive"
+                    },
                     "processing_timestamp": datetime.now(timezone.utc).isoformat(),
-                    "model_used": "dummy_ai_v1.0",  # In real scenario, this would be the actual model
+                    "model_used": "gpt-4.1-mini",
+                    "analysis_queries_used": 3
                 })
-
-                print(30 * '-')
-                print(ai_results)
-                print(30 * '-')
 
         except Exception as e:
             errors.append(f"AI processing failed: {str(e)}")
+            self.logger.error(f"AI processing error: {str(e)}")
 
         # -------------------------------------------------------------------------------
         if "metadata" not in state or state["metadata"] is None:
@@ -461,6 +542,67 @@ class AIService(INeedRedisManagerInterface):
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "service": "ai_processing"}
+
+
+@app.post("/generate-response")
+async def generate_response(request: dict):
+    try:
+        query = request.get("user_prompt")
+        chat_history = request.get("chat_history", [])
+
+        if not query:
+            return {"error": "user_prompt is required"}
+
+        # 0 - 5
+        chain = ConcreteAIManager.get_retrieval_chain()
+
+        # 6
+        response = chain.invoke(input={"input": query, "chat_history": chat_history})
+
+        result = {
+            "query": query,
+            "result": response['answer'],
+            "source_documents": response.get('context', []),
+            "chat_history": chat_history + [('human', query), ('ai', response['answer'])]
+        }
+
+        return result
+
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.post("/clean")
+async def cleanup_data():
+    """Cleanup Pinecone indexes (POST endpoint)"""
+    try:
+        result = await ConcreteAIManager.cleanup_data()
+
+        if result is None:
+            return JSONResponse(
+                status_code=500,
+                content={"error": "Cleanup operation returned no result"}
+            )
+
+        if "error" in result:
+            return JSONResponse(
+                status_code=400,
+                content=result
+            )
+
+        return result
+
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Cleanup operation failed: {str(e)}"}
+        )
+
+
+@app.post("/run-tests")
+async def run_tests(request: dict = None):
+    """Run tests programmatically (POST endpoint)"""
+    await ConcreteAIManager.run_tests()
 
 
 # ----------------------------------------------------------------------------------------------

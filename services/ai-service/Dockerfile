@@ -17,7 +17,7 @@ COPY services/ai-service /app/services/ai-service
 WORKDIR /app/services/ai-service
 
 RUN pip install --no-cache-dir /app/shared-lib
-RUN pip install --no-cache-dir fastapi uvicorn redis python-dotenv pytest user_agents pillow pypdf2
+RUN pip install --no-cache-dir fastapi uvicorn redis python-dotenv pytest user_agents pillow pypdf2 langchain langchain-community pinecone-client pinecone langchain langchain_openai langchain-pinecone
 
 # Create necessary directories
 RUN mkdir -p /app/shared-storage/raw \

@@ -6,7 +6,7 @@ authors = [
     {name = "Sunzheini",email = "daniel_zorov@abv.bg"}
 ]
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.14"
 dependencies = [
     "pytest (>=8.4.2,<9.0.0)",
     "fastapi[standard] (>=0.119.1,<0.120.0)",
@@ -15,7 +15,16 @@ dependencies = [
     "shared-lib @ file:///app/shared-lib",
 #    "shared-lib @ file:///D:/Study/Projects/Github/AegisAI/shared-lib",
     "redis (>=7.0.0,<8.0.0)",
-    "user-agents (>=2.2.0,<3.0.0)"
+    "user-agents (>=2.2.0,<3.0.0)",
+    "langchain-community (>=0.4.1,<0.5.0)",
+    "pinecone-client (>=6.0.0,<7.0.0)",
+    "pinecone (>=7.3.0,<8.0.0)",
+    "langchain-openai (>=1.0.2,<2.0.0)",
+    "langchain-pinecone (>=0.2.13,<0.3.0)",
+    "langchain-core (>=1.0.4,<2.0.0)",
+    "langchain-huggingface (>=1.0.1,<2.0.0)",
+    "langchainhub (>=0.1.21,<0.2.0)",
+    "langchain (>=1.0.5,<2.0.0)"
 ]
 
 

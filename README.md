@@ -124,4 +124,5 @@ Start each service (by its configuration):
 3. Open terminal in the root of AegisAI and run:
 `make build`    # builds the docker images
 `make up`       # creates docker containers and runs them
+`make down`     # stops and removes all containers
 `make logs`     # shows the logs of all containers (e.g. to see if they started correctly)

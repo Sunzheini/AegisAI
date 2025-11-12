@@ -116,6 +116,8 @@ Start each service (by its configuration):
 
 ## Dockerize
 1. Use the created docker-compose.yml, Makefile and Dockerfiles in each service, api-gateway has docker-entrypoint.sh.
+Note: in the current state docker-compose.yml is removed from git, since it contains secret key. You can use the
+docker-compose-example.yml as a base and create your own docker-compose.yml with your secrets.
 2. The only code change is: in the pyproject.toml of each service:
 `
 "shared-lib @ file:///app/shared-lib"                                      # use this

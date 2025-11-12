@@ -3,7 +3,8 @@ __pycache__/
 *.py[codz]
 *$py.class
 
-.yml
+# Docker compose files with secrets
+docker-compose.yml
 
 # C extensions
 *.so

@@ -17,7 +17,7 @@ COPY services/validation-service /app/services/validation-service
 WORKDIR /app/services/validation-service
 
 RUN pip install --no-cache-dir /app/shared-lib
-RUN pip install --no-cache-dir fastapi uvicorn redis python-dotenv pytest user_agents pillow pypdf2
+RUN pip install --no-cache-dir fastapi uvicorn redis python-dotenv pytest user_agents pillow pypdf2 boto3
 
 # Create necessary directories
 RUN mkdir -p /app/shared-storage/raw \

@@ -17,7 +17,7 @@ COPY services/workflow-orchestrator-service /app/services/workflow-orchestrator-
 WORKDIR /app/services/workflow-orchestrator-service
 
 RUN pip install --no-cache-dir /app/shared-lib
-RUN pip install --no-cache-dir fastapi uvicorn redis python-dotenv pytest user_agents langgraph langgraph-sdk langgraph-checkpoint langgraph-prebuilt
+RUN pip install --no-cache-dir fastapi uvicorn redis python-dotenv pytest user_agents langgraph langgraph-sdk langgraph-checkpoint langgraph-prebuilt boto3
 
 # Create necessary directories
 RUN mkdir -p /app/shared-storage/raw \

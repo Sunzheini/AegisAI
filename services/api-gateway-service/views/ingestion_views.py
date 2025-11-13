@@ -23,6 +23,7 @@ import logging
 from typing import Dict, Any
 from datetime import datetime
 
+import boto3
 import requests
 from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Request
@@ -51,25 +52,33 @@ else:
     from local_storages.in_memory_job_and_asset_storage import InMemoryJobAndAssetStorage
 # ------------------------------------------------------------------------------------------
 
-STORAGE_ROOT = os.getenv(
-    "STORAGE_ROOT", os.path.abspath(os.path.join(os.getcwd(), "storage"))
-)
-RAW_DIR = os.getenv(
-    "RAW_DIR", os.path.join(STORAGE_ROOT, "raw")
-)  # Stores the original uploaded files before any processing
-PROCESSED_DIR = os.getenv(
-    "PROCESSED_DIR", os.path.join(STORAGE_ROOT, "processed")
-)  # Stores files after initial processing (e.g., validation, copying, basic transformation)
-TRANSCODED_DIR = os.getenv(
-    "TRANSCODED_DIR", os.path.join(STORAGE_ROOT, "transcoded")
-)  # Stores files after advanced processing, such as format conversion or transcoding
+USE_AWS = os.getenv("USE_AWS", "false").lower() == "true"
+
+if not USE_AWS:
+    STORAGE_ROOT = os.getenv(
+        "STORAGE_ROOT", os.path.abspath(os.path.join(os.getcwd(), "storage"))
+    )
+    RAW_DIR = os.getenv(
+        "RAW_DIR", os.path.join(STORAGE_ROOT, "raw")
+    )  # Stores the original uploaded files before any processing
+    PROCESSED_DIR = os.getenv(
+        "PROCESSED_DIR", os.path.join(STORAGE_ROOT, "processed")
+    )  # Stores files after initial processing (e.g., validation, copying, basic transformation)
+    TRANSCODED_DIR = os.getenv(
+        "TRANSCODED_DIR", os.path.join(STORAGE_ROOT, "transcoded")
+    )  # Stores files after advanced processing, such as format conversion or transcoding
+else:
+    RAW_DIR = os.getenv("RAW_DIR_AWS", "aegisai-raw-danielzorov")
+    PROCESSED_DIR = os.getenv("PROCESSED_DIR_AWS", "aegisai-processed-danielzorov")
+    TRANSCODED_DIR = os.getenv("TRANSCODED_DIR_AWS", "aegisai-transcoded-danielzorov")
 
 ALLOWED_CONTENT_TYPES = ALLOWED_CONTENT_TYPES_SET
 MAX_UPLOAD_BYTES = MAX_UPLOAD_BYTES_SIZE  # 50 MB
 USE_REDIS_PUBLISH = os.getenv("USE_REDIS_PUBLISH", "false").lower() == "true"
 
 # ToDo: Instantiate abstractions for local usage, change to AWS later
-file_storage = LocalFileStorage(RAW_DIR)
+# file_storage = LocalFileStorage(RAW_DIR)
+file_storage = boto3.client('s3')
 job_asset_store = InMemoryJobAndAssetStorage()
 
 logging.basicConfig(level=logging.INFO)
@@ -229,12 +238,41 @@ class IngestionViewsManager(INeedRedisManagerInterface):
         )
         logger.info("Job %s completed, asset at: %s", job_id, dst_path)
 
-    @staticmethod
-    async def _stream_file_to_disk(file, destination_path):
+    async def _stream_file_to_disk(self, file, destination_path):
         logger.info("Streaming upload to: %s", destination_path)
+
         total_size_in_bytes = 0
         hasher = hashlib.sha256()
-        with open(destination_path, "wb") as out:
+
+        # --------------------------------------------------------------------------------------
+        if not USE_AWS:
+            with open(destination_path, "wb") as out:
+                while True:
+                    chunk = await file.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    total_size_in_bytes += len(chunk)
+                    if total_size_in_bytes > MAX_UPLOAD_BYTES:
+                        logger.error("File too large: %d bytes", total_size_in_bytes)
+                        raise HTTPException(
+                            status_code=413,
+                            detail="Uploaded file is larger than the maximum allowed size",
+                        )
+                    hasher.update(chunk)
+                    await asyncio.to_thread(out.write, chunk)
+
+            await file.close()
+            logger.info(
+                "Finished streaming upload to: %s, size: %d",
+                destination_path,
+                total_size_in_bytes,
+            )
+            return total_size_in_bytes, hasher
+
+        # --------------------------------------------------------------------------------------
+        else:
+            s3_key = f"uploads/{file.filename}"
+
             while True:
                 chunk = await file.read(1024 * 1024)
                 if not chunk:
@@ -247,14 +285,16 @@ class IngestionViewsManager(INeedRedisManagerInterface):
                         detail="Uploaded file is larger than the maximum allowed size",
                     )
                 hasher.update(chunk)
-                await asyncio.to_thread(out.write, chunk)
-        await file.close()
-        logger.info(
-            "Finished streaming upload to: %s, size: %d",
-            destination_path,
-            total_size_in_bytes,
-        )
-        return total_size_in_bytes, hasher
+
+            # Reset file pointer and upload to S3
+            await file.seek(0)
+            self.file_storage.upload_fileobj(file.file, destination_path, s3_key)
+
+            await file.close()
+            logger.info("Uploaded to S3: %s, size: %d", s3_key, total_size_in_bytes)
+            return s3_key, total_size_in_bytes, hasher
+
+        # --------------------------------------------------------------------------------------
 
     def register_views(self) -> None:
         """
@@ -318,11 +358,18 @@ class IngestionViewsManager(INeedRedisManagerInterface):
             job_id = str(uuid.uuid4())
             safe_name = sanitize_filename(file.filename or "upload.bin")
             raw_filename = f"{job_id}_{safe_name}"
-            destination_path = os.path.join(RAW_DIR, raw_filename)
 
-            total_size_in_bytes, hasher = await self._stream_file_to_disk(
-                file, destination_path
-            )
+            if not USE_AWS:
+                destination_path = os.path.join(RAW_DIR, raw_filename)
+                total_size_in_bytes, hasher = await self._stream_file_to_disk(
+                    file, destination_path
+                )
+            else:
+                destination_path = RAW_DIR  # S3 bucket name
+                s3_key, total_size_in_bytes, hasher = await self._stream_file_to_disk(
+                    file, destination_path
+                )
+                destination_path = f"s3://{destination_path}/{s3_key}"
 
             job_record = {
                 "job_id": job_id,

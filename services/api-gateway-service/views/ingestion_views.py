@@ -77,8 +77,12 @@ MAX_UPLOAD_BYTES = MAX_UPLOAD_BYTES_SIZE  # 50 MB
 USE_REDIS_PUBLISH = os.getenv("USE_REDIS_PUBLISH", "false").lower() == "true"
 
 # ToDo: Instantiate abstractions for local usage, change to AWS later
-# file_storage = LocalFileStorage(RAW_DIR)
-file_storage = boto3.client('s3')
+# Initialize storage based on environment
+if not USE_AWS:
+    file_storage = LocalFileStorage(RAW_DIR)
+else:
+    file_storage = boto3.client('s3')
+
 job_asset_store = InMemoryJobAndAssetStorage()
 
 logging.basicConfig(level=logging.INFO)

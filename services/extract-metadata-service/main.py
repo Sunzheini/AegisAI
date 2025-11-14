@@ -113,7 +113,7 @@ class ExtractMetadataService(INeedRedisManagerInterface):
                 "metadata": {"errors": [str(e)]},
                 "updated_at": self._current_timestamp(),
             }
-        
+
     # Todo: changed
     # region AWS methods
     def _parse_s3_path(self, file_path: str) -> tuple:
@@ -140,31 +140,40 @@ class ExtractMetadataService(INeedRedisManagerInterface):
     # endregion
 
     # region Extract Metadata Methods
-    @staticmethod
-    async def _extract_universal_metadata(state: WorkflowGraphState) -> dict:
+    async def _extract_universal_metadata(self, state: WorkflowGraphState) -> dict:
         """Extract metadata common to all file types."""
         metadata = {}
         file_path = state["file_path"]
 
+        # Todo: changed
         try:
-            path = Path(file_path)
-            stat = path.stat()
+            # Download from S3 if needed for universal metadata
+            local_path = await self._download_from_s3_if_needed(file_path)
 
-            metadata.update(
-                {
-                    "file_size": stat.st_size,
-                    "file_extension": path.suffix.lower(),
-                    "created_timestamp": datetime.fromtimestamp(
-                        stat.st_ctime, timezone.utc
-                    ).isoformat(),
-                    "modified_timestamp": datetime.fromtimestamp(
-                        stat.st_mtime, timezone.utc
-                    ).isoformat(),
-                    "magic_number_verified": await ExtractMetadataService._verify_magic_number(
-                        file_path, state["content_type"]
-                    ),
-                }
-            )
+            try:
+                path = Path(local_path)
+                stat = path.stat()
+
+                metadata.update(
+                    {
+                        "file_size": stat.st_size,
+                        "file_extension": path.suffix.lower(),
+                        "created_timestamp": datetime.fromtimestamp(
+                            stat.st_ctime, timezone.utc
+                        ).isoformat(),
+                        "modified_timestamp": datetime.fromtimestamp(
+                            stat.st_mtime, timezone.utc
+                        ).isoformat(),
+                        "magic_number_verified": await self._verify_magic_number(
+                            local_path, state["content_type"]
+                        ),
+                    }
+                )
+
+            finally:
+                # Clean up temp file if it was downloaded from S3
+                if local_path != file_path and os.path.exists(local_path):
+                    os.remove(local_path)
 
         except Exception as e:
             metadata["universal_metadata_error"] = str(e)
@@ -406,32 +415,43 @@ class ExtractMetadataService(INeedRedisManagerInterface):
 
         # 2. Extract type-specific metadata
         try:
-            if content_type.startswith("image/"):
-                image_metadata = await self._extract_image_metadata(file_path)
-                if "image_metadata_error" in image_metadata:
-                    errors.append(
-                        f"Image metadata extraction failed: {image_metadata['image_metadata_error']}"
-                    )
-                else:
-                    state["metadata"].update(image_metadata)
+            # Todo: changed
+            # Download from S3 if needed for content-specific metadata extraction
+            local_path = await self._download_from_s3_if_needed(file_path)
 
-            elif content_type.startswith("video/"):
-                video_metadata = await self._extract_video_metadata(file_path)
-                if "video_metadata_error" in video_metadata:
-                    errors.append(
-                        f"Video metadata extraction failed: {video_metadata['video_metadata_error']}"
-                    )
-                else:
-                    state["metadata"].update(video_metadata)
+            try:
+                if content_type.startswith("image/"):
+                    image_metadata = await self._extract_image_metadata(local_path)
+                    if "image_metadata_error" in image_metadata:
+                        errors.append(
+                            f"Image metadata extraction failed: {image_metadata['image_metadata_error']}"
+                        )
+                    else:
+                        state["metadata"].update(image_metadata)
 
-            elif content_type == "application/pdf":
-                pdf_metadata = await self._extract_pdf_metadata(file_path)
-                if "pdf_metadata_error" in pdf_metadata:
-                    errors.append(
-                        f"PDF metadata extraction failed: {pdf_metadata['pdf_metadata_error']}"
-                    )
-                else:
-                    state["metadata"].update(pdf_metadata)
+                elif content_type.startswith("video/"):
+                    video_metadata = await self._extract_video_metadata(local_path)
+                    if "video_metadata_error" in video_metadata:
+                        errors.append(
+                            f"Video metadata extraction failed: {video_metadata['video_metadata_error']}"
+                        )
+                    else:
+                        state["metadata"].update(video_metadata)
+
+                elif content_type == "application/pdf":
+                    pdf_metadata = await self._extract_pdf_metadata(local_path)
+                    if "pdf_metadata_error" in pdf_metadata:
+                        errors.append(
+                            f"PDF metadata extraction failed: {pdf_metadata['pdf_metadata_error']}"
+                        )
+                    else:
+                        state["metadata"].update(pdf_metadata)
+
+            # ToDo: changed
+            finally:
+                # Clean up temp file if it was downloaded from S3
+                if local_path != file_path and os.path.exists(local_path):
+                    os.remove(local_path)
 
         except Exception as e:
             errors.append(f"Type-specific metadata extraction failed: {str(e)}")
@@ -442,9 +462,7 @@ class ExtractMetadataService(INeedRedisManagerInterface):
             state["step"] = "extract_metadata_from_file_failed"
 
             # state["metadata"] = {"errors": errors}
-            state["metadata"][
-                "errors"
-            ] = errors  # Keep existing metadata but add errors
+            state["metadata"]["errors"] = errors  # Keep existing metadata but add errors
 
         else:
             state["status"] = "success"

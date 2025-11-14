@@ -12,6 +12,10 @@ from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+# ToDO: changed
+import boto3
+import tempfile
+from botocore.exceptions import ClientError
 from dotenv import load_dotenv
 from fastapi import FastAPI
 
@@ -32,9 +36,26 @@ VALIDATION_CALLBACK_QUEUE = os.getenv(
     "VALIDATION_CALLBACK_QUEUE", "validation_callback_queue"
 )
 
-# Upload/raw storage location constant (configurable)
-UPLOAD_DIR = Path(os.getenv("RAW_DIR", "storage/raw")).resolve()
+# ToDO: changed
+# ------------------------------------------------------------------------------------------
+USE_AWS = os.getenv("USE_AWS", "false").lower() == "true"
+if not USE_AWS:
+    # Upload/raw storage location constant (configurable)
+    UPLOAD_DIR = Path(os.getenv("RAW_DIR", "storage/raw")).resolve()
+else:
+    AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "")
+    AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "")
+    AWS_REGION = os.getenv("AWS_REGION_NAME", "")
 
+    UPLOAD_DIR = os.getenv("RAW_DIR_AWS", "aegisai-raw-danielzorov")
+    s3_client = boto3.client(
+        's3',
+        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID", ""),
+        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY", ""),
+        region_name=os.getenv("AWS_REGION_NAME", "us-east-1"),
+    )
+
+# ------------------------------------------------------------------------------------------
 print(UPLOAD_DIR)
 
 # Validation constraints
@@ -98,6 +119,9 @@ class ValidationService(INeedRedisManagerInterface):
     def __init__(self):
         self.logger = logging.getLogger("validation-service")
 
+        # ToDo: changed
+        self.s3_client = s3_client
+
         # Instance-level configuration
         self.MAX_FILE_SIZE = MAX_FILE_SIZE
         self.MAX_IMAGE_DIMENSION = MAX_IMAGE_DIMENSION
@@ -120,28 +144,61 @@ class ValidationService(INeedRedisManagerInterface):
                 "updated_at": self._current_timestamp(),
             }
 
+    # Todo: changed
+    # region AWS methods
+    def _parse_s3_path(self, file_path: str) -> tuple:
+        """Parse S3 URI into bucket and key."""
+        bucket_key = file_path[5:]  # Remove 's3://'
+        bucket_name, key = bucket_key.split('/', 1)
+        return bucket_name, key
+
+    async def _download_from_s3_if_needed(self, file_path: str) -> str:
+        """Download file from S3 if path is an S3 URI, return local temp path."""
+        if not USE_AWS:
+            return file_path
+
+        bucket_name, key = self._parse_s3_path(file_path)
+        temp_dir = tempfile.gettempdir()
+        local_path = os.path.join(temp_dir, os.path.basename(key))
+
+        try:
+            self.s3_client.download_file(bucket_name, key, local_path)
+            return local_path
+        except ClientError as e:
+            raise Exception(f"S3 download failed: {e}")
+
+    # endregion
+
     # region Validation Methods
-    @staticmethod
-    async def _validate_file_access(state: WorkflowGraphState) -> list:
+    async def _validate_file_access(self, state: WorkflowGraphState) -> list:
         """Validate that file exists and is accessible."""
         errors = []
         file_path = state["file_path"]
 
         try:
-            path = Path(file_path)
+            # Todo: changed
+            if not USE_AWS:
+                path = Path(file_path)
 
-            # Check if file exists
-            if not path.exists():
-                errors.append(f"File does not exist: {file_path}")
-                return errors
+                # Check if file exists
+                if not path.exists():
+                    errors.append(f"File does not exist: {file_path}")
+                    return errors
 
-            # Check if it's actually a file
-            if not path.is_file():
-                errors.append(f"Path is not a file: {file_path}")
+                # Check if it's actually a file
+                if not path.is_file():
+                    errors.append(f"Path is not a file: {file_path}")
 
-            # Check read permissions
-            if not os.access(file_path, os.R_OK):
-                errors.append(f"No read permission for file: {file_path}")
+                # Check read permissions
+                if not os.access(file_path, os.R_OK):
+                    errors.append(f"No read permission for file: {file_path}")
+
+            else:
+                bucket_name, key = self._parse_s3_path(file_path)
+                try:
+                    self.s3_client.head_object(Bucket=bucket_name, Key=key)
+                except ClientError as e:
+                    errors.append(f"S3 file does not exist or inaccessible: {file_path} - {e}")
 
         except Exception as e:
             errors.append(f"File access validation failed: {str(e)}")
@@ -175,7 +232,13 @@ class ValidationService(INeedRedisManagerInterface):
         file_path = state["file_path"]
 
         try:
-            file_size = os.path.getsize(file_path)
+            # Todo: changed
+            if not USE_AWS:
+                file_size = os.path.getsize(file_path)
+            else:
+                bucket_name, key = self._parse_s3_path(file_path)
+                response = self.s3_client.head_object(Bucket=bucket_name, Key=key)
+                file_size = response['ContentLength']
 
             if file_size > self.MAX_FILE_SIZE:
                 errors.append(
@@ -226,12 +289,23 @@ class ValidationService(INeedRedisManagerInterface):
         errors = []
 
         try:
-            if content_type.startswith("image/"):
-                errors.extend(await self._validate_image_file(file_path))
-            elif content_type.startswith("video/"):
-                errors.extend(await self._validate_video_file(file_path))
-            elif content_type == "application/pdf":
-                errors.extend(await self._validate_pdf_file(file_path))
+            # ToDo: changed
+            # Download from S3 if needed for content validation
+            local_path = await self._download_from_s3_if_needed(file_path)
+
+            try:
+                if content_type.startswith("image/"):
+                    errors.extend(await self._validate_image_file(local_path))
+                elif content_type.startswith("video/"):
+                    errors.extend(await self._validate_video_file(local_path))
+                elif content_type == "application/pdf":
+                    errors.extend(await self._validate_pdf_file(local_path))
+
+            # ToDo: changed
+            finally:
+                # Clean up temp file if it was downloaded from S3
+                if local_path != file_path and os.path.exists(local_path):
+                    os.remove(local_path)
 
         except Exception as e:
             errors.append(f"Content-specific validation failed: {str(e)}")

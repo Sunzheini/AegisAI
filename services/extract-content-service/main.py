@@ -12,6 +12,10 @@ from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+# ToDO: changed
+import boto3
+import tempfile
+from botocore.exceptions import ClientError
 from dotenv import load_dotenv
 from fastapi import FastAPI
 
@@ -32,11 +36,28 @@ EXTRACT_TEXT_CALLBACK_QUEUE = os.getenv(
     "EXTRACT_TEXT_CALLBACK_QUEUE", "extract_text_callback_queue"
 )
 
-# Upload/raw storage location constant (configurable)
-UPLOAD_DIR = Path(os.getenv("RAW_DIR", "storage/raw")).resolve()
-PROCESSED_DIR = Path(os.getenv("PROCESSED_DIR", "storage/processed")).resolve()
+# ToDO: changed
+# ------------------------------------------------------------------------------------------
+USE_AWS = os.getenv("USE_AWS", "false").lower() == "true"
+if not USE_AWS:
+    UPLOAD_DIR = Path(os.getenv("RAW_DIR", "storage/raw")).resolve()
+    PROCESSED_DIR = Path(os.getenv("PROCESSED_DIR", "storage/processed")).resolve()
+else:
+    UPLOAD_DIR = os.getenv("RAW_DIR_AWS", "aegisai-raw-danielzorov")
+    PROCESSED_DIR = os.getenv("PROCESSED_DIR_AWS", "aegisai-processed-danielzorov")
 
+    AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "")
+    AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "")
+    AWS_REGION = os.getenv("AWS_REGION_NAME", "")
 
+    s3_client = boto3.client(
+        's3',
+        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID", ""),
+        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY", ""),
+        region_name=os.getenv("AWS_REGION_NAME", "us-east-1"),
+    )
+
+# ------------------------------------------------------------------------------------------
 logger = LoggingManager.setup_logging(
     service_name="extract-text-service",
     log_file_path="logs/extract_text_service.log",
@@ -81,6 +102,9 @@ class ExtractTextService(INeedRedisManagerInterface):
     def __init__(self):
         self.logger = logging.getLogger("extract-text-service")
 
+        # ToDo: changed
+        self.s3_client = s3_client
+
     async def process_extract_text_task(self, task_data: dict) -> dict:
         """Process extract text task using shared Redis connection."""
         try:
@@ -96,6 +120,31 @@ class ExtractTextService(INeedRedisManagerInterface):
                 "metadata": {"errors": [str(e)]},
                 "updated_at": self._current_timestamp(),
             }
+
+    # Todo: changed
+    # region AWS methods
+    def _parse_s3_path(self, file_path: str) -> tuple:
+        """Parse S3 URI into bucket and key."""
+        bucket_key = file_path[5:]  # Remove 's3://'
+        bucket_name, key = bucket_key.split('/', 1)
+        return bucket_name, key
+
+    async def _download_from_s3_if_needed(self, file_path: str) -> str:
+        """Download file from S3 if path is an S3 URI, return local temp path."""
+        if not USE_AWS:
+            return file_path
+
+        bucket_name, key = self._parse_s3_path(file_path)
+        temp_dir = tempfile.gettempdir()
+        local_path = os.path.join(temp_dir, os.path.basename(key))
+
+        try:
+            self.s3_client.download_file(bucket_name, key, local_path)
+            return local_path
+        except ClientError as e:
+            raise Exception(f"S3 download failed: {e}")
+
+    # endregion
 
     # region Extract Text Methods
     @staticmethod

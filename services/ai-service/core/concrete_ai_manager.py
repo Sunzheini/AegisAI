@@ -42,11 +42,55 @@ class ConcreteAIManager:
 
             # Get the path to the extracted text file
             path_to_file = state["metadata"]["text_extraction"].get("text_file_path")
-            if path_to_file and os.path.exists(path_to_file):
 
-                # Split the document into chunks
-                texts = split_document('.txt', path_to_file)
-                return texts
+            # if path_to_file and os.path.exists(path_to_file):
+            #     # Split the document into chunks
+            #     texts = split_document('.txt', path_to_file)
+            #     return texts
+
+            # Todo: changed
+            if path_to_file:
+                # Handle S3 paths - download temporarily
+                if path_to_file.startswith('s3://'):
+                    print(f"[AI Service] S3 path detected: {path_to_file}")
+
+                    try:
+                        import boto3
+                        import tempfile
+                        from botocore.exceptions import ClientError
+
+                        # Parse S3 path
+                        bucket_key = path_to_file[5:]  # Remove 's3://'
+                        bucket_name, key = bucket_key.split('/', 1)
+
+                        # Download to temp file
+                        s3_client = boto3.client('s3')
+                        temp_dir = tempfile.gettempdir()
+                        local_path = os.path.join(temp_dir, os.path.basename(key))
+
+                        print(f"[AI Service] Downloading from S3: {bucket_name}/{key}")
+                        s3_client.download_file(bucket_name, key, local_path)
+
+                        # Split the downloaded file
+                        texts = split_document('.txt', local_path)
+
+                        # Clean up temp file
+                        os.remove(local_path)
+                        print(f"[AI Service] Cleaned up temp file: {local_path}")
+
+                        return texts
+
+                    except Exception as e:
+                        print(f"[AI Service] Failed to process S3 file: {e}")
+                        return []
+
+                # Handle local files (existing logic)
+                elif os.path.exists(path_to_file):
+                    print(f"[AI Service] Local file found: {path_to_file}")
+                    texts = split_document('.txt', path_to_file)
+                    return texts
+                else:
+                    print(f"[AI Service] File not found: {path_to_file}")
 
         return []
 

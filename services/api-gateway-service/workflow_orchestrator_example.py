@@ -99,6 +99,10 @@ logger = LoggingManager.setup_logging(
 
 
 # ToDO: AWS, `AWS Toolkit` Pycharm Plugin
+# ToDO: 1. Refactor the code / extract common code, where there are ToDo markers in all services,
+# 2. copy changes to the service inside api-gateway to be the same as the external services i changed,
+# 3. test -> docker
+# 4. Next thing in AWS
 # ToDO: Dont install the dependencies from the Dockerfile!
 """
 S3 (raw/processed/transcoded buckets) — not implemented.

@@ -131,7 +131,7 @@ class ExtractTextService(INeedRedisManagerInterface):
 
     async def _download_from_s3_if_needed(self, file_path: str) -> str:
         """Download file from S3 if path is an S3 URI, return local temp path."""
-        if not USE_AWS:
+        if not USE_AWS or not file_path.startswith('s3://'):
             return file_path
 
         bucket_name, key = self._parse_s3_path(file_path)

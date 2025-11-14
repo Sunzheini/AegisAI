@@ -38,11 +38,14 @@ class RedisManager:
 
         job_request = IngestionJobRequest(
             job_id=job_id,
-            file_path=file.filename,
+            # file_path=file.filename,
+            file_path=job_record["file_path"],
             content_type=job_record.get("content_type", "unknown"),
             checksum_sha256=job_record.get("checksum_sha256", "unknown"),
             submitted_by=getattr(current_user, "name", None),
         )
+
+        print(f"[DEBUG] Publishing job with file_path: {job_request.file_path}")  # Debug
 
         # aioredis client can be used as async context manager
         async with aioredis.from_url(self.redis_url, decode_responses=True) as redis:

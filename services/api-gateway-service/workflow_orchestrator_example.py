@@ -88,6 +88,7 @@ from worker_clients.ai_worker_client import process_file_by_ai_worker_redis
 
 
 USE_REDIS_LISTENER = os.getenv("USE_REDIS_LISTENER", "true").lower() == "true"
+USE_AWS = os.getenv("USE_AWS", "false").lower() == "true"
 
 
 logger = LoggingManager.setup_logging(
@@ -309,8 +310,11 @@ class WorkflowOrchestrator(INeedRedisManagerInterface):
             print(f"[Orchestrator] Job {job.job_id} already exists!")
             raise ValueError("Job already exists")
 
-        # Resolve file path once in orchestrator
-        resolved_path = await resolve_file_path(job.file_path, job.job_id)
+        # Resolve file path once in orchestrator (also depending if using AWS)
+        if USE_AWS:
+            resolved_path = job.file_path  # Keep S3 path
+        else:
+            resolved_path = await resolve_file_path(job.file_path, job.job_id)
 
         state = WorkflowGraphState(
             job_id=job.job_id,

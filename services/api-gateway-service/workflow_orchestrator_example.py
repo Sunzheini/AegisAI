@@ -99,6 +99,7 @@ logger = LoggingManager.setup_logging(
 
 
 # ToDO: AWS, `AWS Toolkit` Pycharm Plugin
+# ToDO: Dont install the dependencies from the Dockerfile!
 """
 S3 (raw/processed/transcoded buckets) — not implemented.
 DynamoDB for job state — replaced by Redis.

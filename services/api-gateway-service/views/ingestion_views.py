@@ -50,38 +50,27 @@ else:
     from support.support_functions import sanitize_filename
     from local_storages.local_file_storage import LocalFileStorage
     from local_storages.in_memory_job_and_asset_storage import InMemoryJobAndAssetStorage
+
 # ------------------------------------------------------------------------------------------
-
+# ToDo: Instantiate abstractions for local usage, change to AWS later
 USE_AWS = os.getenv("USE_AWS", "false").lower() == "true"
-
 if not USE_AWS:
-    STORAGE_ROOT = os.getenv(
-        "STORAGE_ROOT", os.path.abspath(os.path.join(os.getcwd(), "storage"))
-    )
-    RAW_DIR = os.getenv(
-        "RAW_DIR", os.path.join(STORAGE_ROOT, "raw")
-    )  # Stores the original uploaded files before any processing
-    PROCESSED_DIR = os.getenv(
-        "PROCESSED_DIR", os.path.join(STORAGE_ROOT, "processed")
-    )  # Stores files after initial processing (e.g., validation, copying, basic transformation)
-    TRANSCODED_DIR = os.getenv(
-        "TRANSCODED_DIR", os.path.join(STORAGE_ROOT, "transcoded")
-    )  # Stores files after advanced processing, such as format conversion or transcoding
+    STORAGE_ROOT = os.getenv("STORAGE_ROOT", os.path.abspath(os.path.join(os.getcwd(), "storage")))
+    RAW_DIR = os.getenv("RAW_DIR", os.path.join(STORAGE_ROOT, "raw"))
+    PROCESSED_DIR = os.getenv("PROCESSED_DIR", os.path.join(STORAGE_ROOT, "processed"))
+    TRANSCODED_DIR = os.getenv("TRANSCODED_DIR", os.path.join(STORAGE_ROOT, "transcoded"))
+    file_storage = LocalFileStorage(RAW_DIR)
 else:
+    STORAGE_ROOT = "AWS_S3_Buckets"
     RAW_DIR = os.getenv("RAW_DIR_AWS", "aegisai-raw-danielzorov")
     PROCESSED_DIR = os.getenv("PROCESSED_DIR_AWS", "aegisai-processed-danielzorov")
     TRANSCODED_DIR = os.getenv("TRANSCODED_DIR_AWS", "aegisai-transcoded-danielzorov")
+    file_storage = boto3.client('s3')
 
+# ------------------------------------------------------------------------------------------
 ALLOWED_CONTENT_TYPES = ALLOWED_CONTENT_TYPES_SET
 MAX_UPLOAD_BYTES = MAX_UPLOAD_BYTES_SIZE  # 50 MB
 USE_REDIS_PUBLISH = os.getenv("USE_REDIS_PUBLISH", "false").lower() == "true"
-
-# ToDo: Instantiate abstractions for local usage, change to AWS later
-# Initialize storage based on environment
-if not USE_AWS:
-    file_storage = LocalFileStorage(RAW_DIR)
-else:
-    file_storage = boto3.client('s3')
 
 job_asset_store = InMemoryJobAndAssetStorage()
 
@@ -126,20 +115,20 @@ class IngestionViewsManager(INeedRedisManagerInterface):
         self.file_storage = file_storage
         self.job_asset_store = job_asset_store
 
-        self._ensure_dirs()
+        if not USE_AWS:
+            self._ensure_dirs_if_local()
+
         self.register_views()
 
     @staticmethod
-    def _ensure_dirs() -> None:
+    def _ensure_dirs_if_local() -> None:
         """Create storage directories if they do not exist."""
         os.makedirs(RAW_DIR, exist_ok=True)
         os.makedirs(PROCESSED_DIR, exist_ok=True)
         os.makedirs(TRANSCODED_DIR, exist_ok=True)
 
     @staticmethod
-    def _copy_file_sync(
-        src_path: str, dst_path: str, chunk_size: int = 1024 * 1024
-    ) -> None:
+    def _copy_file_sync(src_path: str, dst_path: str, chunk_size: int = 1024 * 1024) -> None:
         """Copy a file using blocking I/O; intended for threadpool use."""
         with open(src_path, "rb") as rf, open(dst_path, "wb") as wf:
             while True:
@@ -242,7 +231,7 @@ class IngestionViewsManager(INeedRedisManagerInterface):
         )
         logger.info("Job %s completed, asset at: %s", job_id, dst_path)
 
-    async def _stream_file_to_disk(self, file, destination_path):
+    async def _stream_file_to_storage(self, file, destination_path):
         logger.info("Streaming upload to: %s", destination_path)
 
         total_size_in_bytes = 0
@@ -298,8 +287,7 @@ class IngestionViewsManager(INeedRedisManagerInterface):
             logger.info("Uploaded to S3: %s, size: %d", s3_key, total_size_in_bytes)
             return s3_key, total_size_in_bytes, hasher
 
-        # --------------------------------------------------------------------------------------
-
+    # --------------------------------------------------------------------------------------
     def register_views(self) -> None:
         """
         Register ingestion endpoints on the router.
@@ -363,18 +351,20 @@ class IngestionViewsManager(INeedRedisManagerInterface):
             safe_name = sanitize_filename(file.filename or "upload.bin")
             raw_filename = f"{job_id}_{safe_name}"
 
+            # -----------------------------------------------------------------------------------
             if not USE_AWS:
                 destination_path = os.path.join(RAW_DIR, raw_filename)
-                total_size_in_bytes, hasher = await self._stream_file_to_disk(
+                total_size_in_bytes, hasher = await self._stream_file_to_storage(
                     file, destination_path
                 )
             else:
                 destination_path = RAW_DIR  # S3 bucket name
-                s3_key, total_size_in_bytes, hasher = await self._stream_file_to_disk(
+                s3_key, total_size_in_bytes, hasher = await self._stream_file_to_storage(
                     file, destination_path
                 )
                 destination_path = f"s3://{destination_path}/{s3_key}"
 
+            # -----------------------------------------------------------------------------------
             job_record = {
                 "job_id": job_id,
                 "filename": file.filename,

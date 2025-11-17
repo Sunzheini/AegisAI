@@ -120,7 +120,8 @@ class ValidationService(INeedRedisManagerInterface):
         self.logger = logging.getLogger("validation-service")
 
         # ToDo: changed
-        self.s3_client = s3_client
+        if USE_AWS:
+            self.s3_client = s3_client
 
         # Instance-level configuration
         self.MAX_FILE_SIZE = MAX_FILE_SIZE

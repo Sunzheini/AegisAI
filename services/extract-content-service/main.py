@@ -103,7 +103,8 @@ class ExtractTextService(INeedRedisManagerInterface):
         self.logger = logging.getLogger("extract-text-service")
 
         # ToDo: changed
-        self.s3_client = s3_client
+        if USE_AWS:
+            self.s3_client = s3_client
 
     async def process_extract_text_task(self, task_data: dict) -> dict:
         """Process extract text task using shared Redis connection."""

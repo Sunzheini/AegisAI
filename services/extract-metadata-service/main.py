@@ -96,7 +96,8 @@ class ExtractMetadataService(INeedRedisManagerInterface):
         self.logger = logging.getLogger("extract-metadata-service")
 
         # ToDo: changed
-        self.s3_client = s3_client
+        if USE_AWS:
+            self.s3_client = s3_client
 
     async def process_extract_metadata_task(self, task_data: dict) -> dict:
         """Process extract metadata task using shared Redis connection."""

@@ -106,7 +106,8 @@ class AIService(INeedRedisManagerInterface):
 
         # Instance-level configuration
         # ToDo: changed
-        self.s3_client = s3_client
+        if USE_AWS:
+            self.s3_client = s3_client
 
     async def process_ai_task(self, task_data: dict) -> dict:
         """Process ai task using shared Redis connection."""

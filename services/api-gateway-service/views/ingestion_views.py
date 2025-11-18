@@ -36,6 +36,7 @@ load_dotenv()
 USE_SHARED_LIB = os.getenv("USE_SHARED_LIB", False)
 if USE_SHARED_LIB:
     from shared_lib.contracts.job_schemas import IngestionJobRequest
+    from shared_lib.needs.INeedCloudManager import INeedCloudManagerInterface
     from shared_lib.needs.INeedRedisManager import INeedRedisManagerInterface
     from shared_lib.support.security import auth_required
     from shared_lib.support.constants import ALLOWED_CONTENT_TYPES_SET, MAX_UPLOAD_BYTES_SIZE

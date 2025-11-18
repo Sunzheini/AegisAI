@@ -23,7 +23,6 @@ from shared_lib.needs.INeedRedisManager import INeedRedisManagerInterface
 from shared_lib.needs.INeedCloudManager import INeedCloudManagerInterface
 from shared_lib.needs.ResolveNeedsManager import ResolveNeedsManager
 from shared_lib.redis_management.redis_manager import RedisManager
-from shared_lib.cloud_management.cloud_manager import CloudManager
 from shared_lib.custom_middleware.error_middleware import ErrorMiddleware
 from shared_lib.custom_middleware.logging_middleware import EnhancedLoggingMiddleware
 from shared_lib.logging_management.logging_manager import LoggingManager

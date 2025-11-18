@@ -12,16 +12,13 @@ from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-# ToDO: changed
-import boto3
-import tempfile
-from botocore.exceptions import ClientError
 from dotenv import load_dotenv
 from fastapi import FastAPI
 
 load_dotenv()
 
 from shared_lib.contracts.job_schemas import WorkflowGraphState
+from shared_lib.needs.INeedCloudManager import INeedCloudManagerInterface
 from shared_lib.needs.INeedRedisManager import INeedRedisManagerInterface
 from shared_lib.needs.ResolveNeedsManager import ResolveNeedsManager
 from shared_lib.redis_management.redis_manager import RedisManager
@@ -36,21 +33,11 @@ EXTRACT_METADATA_CALLBACK_QUEUE = os.getenv(
     "EXTRACT_METADATA_CALLBACK_QUEUE", "extract_metadata_callback_queue"
 )
 
-# ToDO: changed
-# ------------------------------------------------------------------------------------------
 USE_AWS = os.getenv("USE_AWS", "false").lower() == "true"
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "")
 AWS_REGION = os.getenv("AWS_REGION_NAME", "")
 
-s3_client = boto3.client(
-    's3',
-    aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID", ""),
-    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY", ""),
-    region_name=os.getenv("AWS_REGION_NAME", "us-east-1"),
-)
-
-# ------------------------------------------------------------------------------------------
 logger = LoggingManager.setup_logging(
     service_name="extract-metadata-service",
     log_file_path="logs/extract_metadata_service.log",
@@ -66,9 +53,16 @@ async def lifespan(app):
     # Create RedisManager
     redis_manager = RedisManager()
 
-    # Create extract metadata service and inject RedisManager
+    # Create extract metadata service and inject needs
     extract_metadata_service = ExtractMetadataService()
     ResolveNeedsManager.resolve_needs(extract_metadata_service)
+
+    # Initialize the cloud client after injection
+    extract_metadata_service.cloud_manager.create_s3_client(
+        access_key_id=os.getenv("AWS_ACCESS_KEY_ID", ""),
+        secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY", ""),
+        region=os.getenv("AWS_REGION_NAME", "us-east-1"),
+    )
 
     # Store in app.state
     app.state.extract_metadata_service = extract_metadata_service
@@ -89,15 +83,11 @@ app.add_middleware(ErrorMiddleware)
 app.add_middleware(EnhancedLoggingMiddleware, service_name="extract-metadata-service")
 
 
-class ExtractMetadataService(INeedRedisManagerInterface):
+class ExtractMetadataService(INeedRedisManagerInterface, INeedCloudManagerInterface):
     """Handles file metadata extraction tasks using shared RedisManager."""
 
     def __init__(self):
         self.logger = logging.getLogger("extract-metadata-service")
-
-        # ToDo: changed
-        if USE_AWS:
-            self.s3_client = s3_client
 
     async def process_extract_metadata_task(self, task_data: dict) -> dict:
         """Process extract metadata task using shared Redis connection."""
@@ -115,41 +105,15 @@ class ExtractMetadataService(INeedRedisManagerInterface):
                 "updated_at": self._current_timestamp(),
             }
 
-    # Todo: changed
-    # region AWS methods
-    def _parse_s3_path(self, file_path: str) -> tuple:
-        """Parse S3 URI into bucket and key."""
-        bucket_key = file_path[5:]  # Remove 's3://'
-        bucket_name, key = bucket_key.split('/', 1)
-        return bucket_name, key
-
-    async def _download_from_s3_if_needed(self, file_path: str) -> str:
-        """Download file from S3 if path is an S3 URI, return local temp path."""
-        if not USE_AWS or not file_path.startswith('s3://'):
-            return file_path
-
-        bucket_name, key = self._parse_s3_path(file_path)
-        temp_dir = tempfile.gettempdir()
-        local_path = os.path.join(temp_dir, os.path.basename(key))
-
-        try:
-            self.s3_client.download_file(bucket_name, key, local_path)
-            return local_path
-        except ClientError as e:
-            raise Exception(f"S3 download failed: {e}")
-
-    # endregion
-
     # region Extract Metadata Methods
     async def _extract_universal_metadata(self, state: WorkflowGraphState) -> dict:
         """Extract metadata common to all file types."""
         metadata = {}
         file_path = state["file_path"]
 
-        # Todo: changed
         try:
             # Download from S3 if needed for universal metadata
-            local_path = await self._download_from_s3_if_needed(file_path)
+            local_path = await self.cloud_manager.download_from_s3_if_needed(USE_AWS, file_path)
 
             try:
                 path = Path(local_path)
@@ -416,9 +380,8 @@ class ExtractMetadataService(INeedRedisManagerInterface):
 
         # 2. Extract type-specific metadata
         try:
-            # Todo: changed
             # Download from S3 if needed for content-specific metadata extraction
-            local_path = await self._download_from_s3_if_needed(file_path)
+            local_path = await self.cloud_manager.download_from_s3_if_needed(USE_AWS, file_path)
 
             try:
                 if content_type.startswith("image/"):
@@ -448,7 +411,6 @@ class ExtractMetadataService(INeedRedisManagerInterface):
                     else:
                         state["metadata"].update(pdf_metadata)
 
-            # ToDo: changed
             finally:
                 # Clean up temp file if it was downloaded from S3
                 if local_path != file_path and os.path.exists(local_path):

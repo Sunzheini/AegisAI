@@ -35,13 +35,13 @@ VALIDATION_CALLBACK_QUEUE = os.getenv(
 )
 
 USE_AWS = os.getenv("USE_AWS", "false").lower() == "true"
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "")
+AWS_REGION = os.getenv("AWS_REGION_NAME", "")
+    
 if not USE_AWS:
-    # Upload/raw storage location constant (configurable)
     UPLOAD_DIR = Path(os.getenv("RAW_DIR", "storage/raw")).resolve()
 else:
-    AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "")
-    AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "")
-    AWS_REGION = os.getenv("AWS_REGION_NAME", "")
     UPLOAD_DIR = os.getenv("RAW_DIR_AWS", "aegisai-raw-danielzorov")
 
 # Validation constraints

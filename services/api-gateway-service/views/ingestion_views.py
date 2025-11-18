@@ -23,7 +23,6 @@ import logging
 from typing import Dict, Any
 from datetime import datetime
 
-import boto3
 import requests
 from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Request
@@ -60,7 +59,6 @@ if not USE_AWS:
     RAW_DIR = os.getenv("RAW_DIR", os.path.join(STORAGE_ROOT, "raw"))
     PROCESSED_DIR = os.getenv("PROCESSED_DIR", os.path.join(STORAGE_ROOT, "processed"))
     TRANSCODED_DIR = os.getenv("TRANSCODED_DIR", os.path.join(STORAGE_ROOT, "transcoded"))
-    file_storage = LocalFileStorage(RAW_DIR)
 else:
     STORAGE_ROOT = "AWS_S3_Buckets"
     RAW_DIR = os.getenv("RAW_DIR_AWS", "aegisai-raw-danielzorov")
@@ -71,6 +69,7 @@ ALLOWED_CONTENT_TYPES = ALLOWED_CONTENT_TYPES_SET
 MAX_UPLOAD_BYTES = MAX_UPLOAD_BYTES_SIZE  # 50 MB
 USE_REDIS_PUBLISH = os.getenv("USE_REDIS_PUBLISH", "false").lower() == "true"
 
+file_storage = LocalFileStorage(RAW_DIR)
 job_asset_store = InMemoryJobAndAssetStorage()
 
 logging.basicConfig(level=logging.INFO)

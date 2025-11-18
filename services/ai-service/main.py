@@ -23,6 +23,7 @@ from starlette.responses import JSONResponse
 load_dotenv()
 
 from shared_lib.contracts.job_schemas import WorkflowGraphState
+from shared_lib.needs.INeedCloudManager import INeedCloudManagerInterface
 from shared_lib.needs.INeedRedisManager import INeedRedisManagerInterface
 from shared_lib.needs.ResolveNeedsManager import ResolveNeedsManager
 from shared_lib.redis_management.redis_manager import RedisManager
@@ -38,24 +39,16 @@ from core.concrete_ai_manager import ConcreteAIManager
 AI_QUEUE = os.getenv("AI_QUEUE", "ai_queue")
 AI_CALLBACK_QUEUE = os.getenv("AI_CALLBACK_QUEUE", "ai_callback_queue")
 
-# ------------------------------------------------------------------------------------------
 USE_AWS = os.getenv("USE_AWS", "false").lower() == "true"
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "")
+AWS_REGION = os.getenv("AWS_REGION_NAME", "")
+
 if not USE_AWS:
     UPLOAD_DIR = Path(os.getenv("PROCESSED_DIR", "storage/processed")).resolve()
 else:
-    AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "")
-    AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "")
-    AWS_REGION = os.getenv("AWS_REGION_NAME", "")
-
     UPLOAD_DIR = os.getenv("PROCESSED_DIR_AWS", "aegisai-processed-danielzorov")
-    s3_client = boto3.client(
-        's3',
-        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID", ""),
-        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY", ""),
-        region_name=os.getenv("AWS_REGION_NAME", "us-east-1"),
-    )
 
-# ------------------------------------------------------------------------------------------
 # ai processing constraints
 MAX_TEXT_LENGTH = int(os.getenv("MAX_TEXT_LENGTH", 500000))  # 10k characters default
 
@@ -74,9 +67,16 @@ async def lifespan(app):
     # Create RedisManager
     redis_manager = RedisManager()
 
-    # Create ai service and inject RedisManager
+    # Create ai service and inject needs
     ai_service = AIService()
     ResolveNeedsManager.resolve_needs(ai_service)
+
+    # Initialize the cloud client after injection
+    ai_service.cloud_manager.create_s3_client(
+        access_key_id=os.getenv("AWS_ACCESS_KEY_ID", ""),
+        secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY", ""),
+        region=os.getenv("AWS_REGION_NAME", "us-east-1"),
+    )
 
     # Store in app.state
     app.state.extract_text_service = ai_service
@@ -97,7 +97,7 @@ app.add_middleware(ErrorMiddleware)
 app.add_middleware(EnhancedLoggingMiddleware, service_name="ai-service")
 
 
-class AIService(INeedRedisManagerInterface):
+class AIService(INeedRedisManagerInterface, INeedCloudManagerInterface):
     """Handles ai processing tasks using shared RedisManager."""
 
     def __init__(self):
@@ -105,9 +105,6 @@ class AIService(INeedRedisManagerInterface):
         self.MAX_TEXT_LENGTH = MAX_TEXT_LENGTH
 
         # Instance-level configuration
-        # ToDo: changed
-        if USE_AWS:
-            self.s3_client = s3_client
 
     async def process_ai_task(self, task_data: dict) -> dict:
         """Process ai task using shared Redis connection."""
@@ -124,31 +121,6 @@ class AIService(INeedRedisManagerInterface):
                 "metadata": {"errors": [str(e)]},
                 "updated_at": self._current_timestamp(),
             }
-
-    # Todo: changed
-    # region AWS methods
-    def _parse_s3_path(self, file_path: str) -> tuple:
-        """Parse S3 URI into bucket and key."""
-        bucket_key = file_path[5:]  # Remove 's3://'
-        bucket_name, key = bucket_key.split('/', 1)
-        return bucket_name, key
-
-    async def _download_from_s3_if_needed(self, file_path: str) -> str:
-        """Download file from S3 if path is an S3 URI, return local temp path."""
-        if not USE_AWS or not file_path.startswith('s3://'):
-            return file_path
-
-        bucket_name, key = self._parse_s3_path(file_path)
-        temp_dir = tempfile.gettempdir()
-        local_path = os.path.join(temp_dir, os.path.basename(key))
-
-        try:
-            self.s3_client.download_file(bucket_name, key, local_path)
-            return local_path
-        except ClientError as e:
-            raise Exception(f"S3 download failed: {e}")
-
-    # endregion
 
     # region Placeholder AI Processing Methods (only for testing/demo)
     @staticmethod

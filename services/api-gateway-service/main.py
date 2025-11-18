@@ -43,16 +43,13 @@ else:
     from logging_management.logging_manager import LoggingManager
 # ------------------------------------------------------------------------------------------
 
-from views.ingestion_views import IngestionViewsManager
 from routers import auth_router, users_router, v1_router, redis_router
-from routers.users_router import get_current_user
 
 
 USE_AWS = os.getenv("USE_AWS", "false").lower() == "true"
-if USE_AWS:
-    AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "")
-    AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "")
-    AWS_REGION = os.getenv("AWS_REGION_NAME", "")
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "")
+AWS_REGION = os.getenv("AWS_REGION_NAME", "")
 
 
 logger = LoggingManager.setup_logging(
@@ -83,7 +80,8 @@ app.include_router(redis_router.router)
 Register ingestion manager and expose for tests! app.state is a dynamic attribute 
 (using Starlette’s State object)!
 """
-app.state.ingestion_manager = IngestionViewsManager(v1_router.router, get_current_user)
+# app.state.ingestion_manager = IngestionViewsManager(v1_router.router, get_current_user)
+app.state.ingestion_manager = v1_router.views_manager
 
 # If using AWS, create S3 client
 if USE_AWS:

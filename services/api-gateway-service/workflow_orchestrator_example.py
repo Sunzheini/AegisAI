@@ -98,8 +98,6 @@ logger = LoggingManager.setup_logging(
 )
 
 
-# 3. test -> build and run docker
-# 4. Dont install the dependencies from the Dockerfile!
 # 5. Kubernetes training
 # 6. Next thing in AWS
 """

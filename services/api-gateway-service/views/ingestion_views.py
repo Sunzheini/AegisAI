@@ -45,6 +45,7 @@ if USE_SHARED_LIB:
     from shared_lib.local_storages.in_memory_job_and_asset_storage import InMemoryJobAndAssetStorage
 else:
     from contracts.job_schemas import IngestionJobRequest
+    from needs.INeedCloudManager import INeedCloudManagerInterface
     from needs.INeedRedisManager import INeedRedisManagerInterface
     from support.security import auth_required
     from support.constants import ALLOWED_CONTENT_TYPES_SET, MAX_UPLOAD_BYTES_SIZE
@@ -52,8 +53,7 @@ else:
     from local_storages.local_file_storage import LocalFileStorage
     from local_storages.in_memory_job_and_asset_storage import InMemoryJobAndAssetStorage
 
-# ------------------------------------------------------------------------------------------
-# ToDo: Instantiate abstractions for local usage, change to AWS later
+
 USE_AWS = os.getenv("USE_AWS", "false").lower() == "true"
 if not USE_AWS:
     STORAGE_ROOT = os.getenv("STORAGE_ROOT", os.path.abspath(os.path.join(os.getcwd(), "storage")))
@@ -66,13 +66,7 @@ else:
     RAW_DIR = os.getenv("RAW_DIR_AWS", "aegisai-raw-danielzorov")
     PROCESSED_DIR = os.getenv("PROCESSED_DIR_AWS", "aegisai-processed-danielzorov")
     TRANSCODED_DIR = os.getenv("TRANSCODED_DIR_AWS", "aegisai-transcoded-danielzorov")
-    file_storage = boto3.client('s3',
-        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID", ""),
-        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY", ""),
-        region_name=os.getenv("AWS_REGION_NAME", "us-east-1"),
-    )
 
-# ------------------------------------------------------------------------------------------
 ALLOWED_CONTENT_TYPES = ALLOWED_CONTENT_TYPES_SET
 MAX_UPLOAD_BYTES = MAX_UPLOAD_BYTES_SIZE  # 50 MB
 USE_REDIS_PUBLISH = os.getenv("USE_REDIS_PUBLISH", "false").lower() == "true"
@@ -83,7 +77,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ingestion")
 
 
-class IngestionViewsManager(INeedRedisManagerInterface):
+class IngestionViewsManager(INeedRedisManagerInterface, INeedCloudManagerInterface):
     """
     Registers versioned ingestion endpoints under /v1 on the provided router.
 
@@ -242,7 +236,6 @@ class IngestionViewsManager(INeedRedisManagerInterface):
         total_size_in_bytes = 0
         hasher = hashlib.sha256()
 
-        # --------------------------------------------------------------------------------------
         if not USE_AWS:
             with open(destination_path, "wb") as out:
                 while True:
@@ -267,7 +260,6 @@ class IngestionViewsManager(INeedRedisManagerInterface):
             )
             return total_size_in_bytes, hasher
 
-        # --------------------------------------------------------------------------------------
         else:
             s3_key = f"uploads/{file.filename}"
 
@@ -286,7 +278,7 @@ class IngestionViewsManager(INeedRedisManagerInterface):
 
             # Reset file pointer and upload to S3
             await file.seek(0)
-            self.file_storage.upload_fileobj(file.file, destination_path, s3_key)
+            self.cloud_manager.s3_client.upload_fileobj(file.file, destination_path, s3_key)
 
             await file.close()
             logger.info("Uploaded to S3: %s, size: %d", s3_key, total_size_in_bytes)

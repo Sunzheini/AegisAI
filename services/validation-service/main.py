@@ -19,8 +19,8 @@ from fastapi import FastAPI
 load_dotenv()
 
 from shared_lib.contracts.job_schemas import WorkflowGraphState
-from shared_lib.needs.INeedRedisManager import INeedRedisManagerInterface
 from shared_lib.needs.INeedCloudManager import INeedCloudManagerInterface
+from shared_lib.needs.INeedRedisManager import INeedRedisManagerInterface
 from shared_lib.needs.ResolveNeedsManager import ResolveNeedsManager
 from shared_lib.redis_management.redis_manager import RedisManager
 from shared_lib.custom_middleware.error_middleware import ErrorMiddleware

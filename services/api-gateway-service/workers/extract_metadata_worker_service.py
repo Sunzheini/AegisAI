@@ -21,6 +21,7 @@ load_dotenv()
 USE_SHARED_LIB = os.getenv("USE_SHARED_LIB", False)
 if USE_SHARED_LIB:
     from shared_lib.contracts.job_schemas import WorkflowGraphState
+    from shared_lib.needs.INeedCloudManager import INeedCloudManagerInterface
     from shared_lib.needs.INeedRedisManager import INeedRedisManagerInterface
     from shared_lib.needs.ResolveNeedsManager import ResolveNeedsManager
     from shared_lib.redis_management.redis_manager import RedisManager
@@ -29,6 +30,7 @@ if USE_SHARED_LIB:
     from shared_lib.logging_management.logging_manager import LoggingManager
 else:
     from contracts.job_schemas import WorkflowGraphState
+    from needs.INeedCloudManager import INeedCloudManagerInterface
     from needs.INeedRedisManager import INeedRedisManagerInterface
     from needs.ResolveNeedsManager import ResolveNeedsManager
     from redis_management.redis_manager import RedisManager
@@ -44,6 +46,10 @@ EXTRACT_METADATA_CALLBACK_QUEUE = os.getenv(
     "EXTRACT_METADATA_CALLBACK_QUEUE", "extract_metadata_callback_queue"
 )
 
+USE_AWS = os.getenv("USE_AWS", "false").lower() == "true"
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "")
+AWS_REGION = os.getenv("AWS_REGION_NAME", "")
 
 logger = LoggingManager.setup_logging(
     service_name="extract-metadata-service",
@@ -60,9 +66,16 @@ async def lifespan(app):
     # Create RedisManager
     redis_manager = RedisManager()
 
-    # Create extract metadata service and inject RedisManager
+    # Create extract metadata service and inject needs
     extract_metadata_service = ExtractMetadataService()
     ResolveNeedsManager.resolve_needs(extract_metadata_service)
+
+    # Initialize the cloud client after injection
+    extract_metadata_service.cloud_manager.create_s3_client(
+        access_key_id=os.getenv("AWS_ACCESS_KEY_ID", ""),
+        secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY", ""),
+        region=os.getenv("AWS_REGION_NAME", "us-east-1"),
+    )
 
     # Store in app.state
     app.state.extract_metadata_service = extract_metadata_service
@@ -83,7 +96,7 @@ app.add_middleware(ErrorMiddleware)
 app.add_middleware(EnhancedLoggingMiddleware, service_name="extract-metadata-service")
 
 
-class ExtractMetadataService(INeedRedisManagerInterface):
+class ExtractMetadataService(INeedRedisManagerInterface, INeedCloudManagerInterface):
     """Handles file metadata extraction tasks using shared RedisManager."""
 
     def __init__(self):
@@ -106,31 +119,39 @@ class ExtractMetadataService(INeedRedisManagerInterface):
             }
 
     # region Extract Metadata Methods
-    @staticmethod
-    async def _extract_universal_metadata(state: WorkflowGraphState) -> dict:
+    async def _extract_universal_metadata(self, state: WorkflowGraphState) -> dict:
         """Extract metadata common to all file types."""
         metadata = {}
         file_path = state["file_path"]
 
         try:
-            path = Path(file_path)
-            stat = path.stat()
+            # Download from S3 if needed for universal metadata
+            local_path = await self.cloud_manager.download_from_s3_if_needed(USE_AWS, file_path)
 
-            metadata.update(
-                {
-                    "file_size": stat.st_size,
-                    "file_extension": path.suffix.lower(),
-                    "created_timestamp": datetime.fromtimestamp(
-                        stat.st_ctime, timezone.utc
-                    ).isoformat(),
-                    "modified_timestamp": datetime.fromtimestamp(
-                        stat.st_mtime, timezone.utc
-                    ).isoformat(),
-                    "magic_number_verified": await ExtractMetadataService._verify_magic_number(
-                        file_path, state["content_type"]
-                    ),
-                }
-            )
+            try:
+                path = Path(local_path)
+                stat = path.stat()
+
+                metadata.update(
+                    {
+                        "file_size": stat.st_size,
+                        "file_extension": path.suffix.lower(),
+                        "created_timestamp": datetime.fromtimestamp(
+                            stat.st_ctime, timezone.utc
+                        ).isoformat(),
+                        "modified_timestamp": datetime.fromtimestamp(
+                            stat.st_mtime, timezone.utc
+                        ).isoformat(),
+                        "magic_number_verified": await self._verify_magic_number(
+                            local_path, state["content_type"]
+                        ),
+                    }
+                )
+
+            finally:
+                # Clean up temp file if it was downloaded from S3
+                if local_path != file_path and os.path.exists(local_path):
+                    os.remove(local_path)
 
         except Exception as e:
             metadata["universal_metadata_error"] = str(e)
@@ -372,32 +393,41 @@ class ExtractMetadataService(INeedRedisManagerInterface):
 
         # 2. Extract type-specific metadata
         try:
-            if content_type.startswith("image/"):
-                image_metadata = await self._extract_image_metadata(file_path)
-                if "image_metadata_error" in image_metadata:
-                    errors.append(
-                        f"Image metadata extraction failed: {image_metadata['image_metadata_error']}"
-                    )
-                else:
-                    state["metadata"].update(image_metadata)
+            # Download from S3 if needed for content-specific metadata extraction
+            local_path = await self.cloud_manager.download_from_s3_if_needed(USE_AWS, file_path)
 
-            elif content_type.startswith("video/"):
-                video_metadata = await self._extract_video_metadata(file_path)
-                if "video_metadata_error" in video_metadata:
-                    errors.append(
-                        f"Video metadata extraction failed: {video_metadata['video_metadata_error']}"
-                    )
-                else:
-                    state["metadata"].update(video_metadata)
+            try:
+                if content_type.startswith("image/"):
+                    image_metadata = await self._extract_image_metadata(local_path)
+                    if "image_metadata_error" in image_metadata:
+                        errors.append(
+                            f"Image metadata extraction failed: {image_metadata['image_metadata_error']}"
+                        )
+                    else:
+                        state["metadata"].update(image_metadata)
 
-            elif content_type == "application/pdf":
-                pdf_metadata = await self._extract_pdf_metadata(file_path)
-                if "pdf_metadata_error" in pdf_metadata:
-                    errors.append(
-                        f"PDF metadata extraction failed: {pdf_metadata['pdf_metadata_error']}"
-                    )
-                else:
-                    state["metadata"].update(pdf_metadata)
+                elif content_type.startswith("video/"):
+                    video_metadata = await self._extract_video_metadata(local_path)
+                    if "video_metadata_error" in video_metadata:
+                        errors.append(
+                            f"Video metadata extraction failed: {video_metadata['video_metadata_error']}"
+                        )
+                    else:
+                        state["metadata"].update(video_metadata)
+
+                elif content_type == "application/pdf":
+                    pdf_metadata = await self._extract_pdf_metadata(local_path)
+                    if "pdf_metadata_error" in pdf_metadata:
+                        errors.append(
+                            f"PDF metadata extraction failed: {pdf_metadata['pdf_metadata_error']}"
+                        )
+                    else:
+                        state["metadata"].update(pdf_metadata)
+
+            finally:
+                # Clean up temp file if it was downloaded from S3
+                if local_path != file_path and os.path.exists(local_path):
+                    os.remove(local_path)
 
         except Exception as e:
             errors.append(f"Type-specific metadata extraction failed: {str(e)}")
@@ -408,9 +438,7 @@ class ExtractMetadataService(INeedRedisManagerInterface):
             state["step"] = "extract_metadata_from_file_failed"
 
             # state["metadata"] = {"errors": errors}
-            state["metadata"][
-                "errors"
-            ] = errors  # Keep existing metadata but add errors
+            state["metadata"]["errors"] = errors  # Keep existing metadata but add errors
 
         else:
             state["status"] = "success"

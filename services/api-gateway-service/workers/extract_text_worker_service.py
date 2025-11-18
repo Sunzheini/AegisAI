@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import tempfile
 from dotenv import load_dotenv
 from fastapi import FastAPI
 
@@ -21,6 +22,7 @@ load_dotenv()
 USE_SHARED_LIB = os.getenv("USE_SHARED_LIB", False)
 if USE_SHARED_LIB:
     from shared_lib.contracts.job_schemas import WorkflowGraphState
+    from shared_lib.needs.INeedCloudManager import INeedCloudManagerInterface
     from shared_lib.needs.INeedRedisManager import INeedRedisManagerInterface
     from shared_lib.needs.ResolveNeedsManager import ResolveNeedsManager
     from shared_lib.redis_management.redis_manager import RedisManager
@@ -29,6 +31,7 @@ if USE_SHARED_LIB:
     from shared_lib.logging_management.logging_manager import LoggingManager
 else:
     from contracts.job_schemas import WorkflowGraphState
+    from needs.INeedCloudManager import INeedCloudManagerInterface
     from needs.INeedRedisManager import INeedRedisManagerInterface
     from needs.ResolveNeedsManager import ResolveNeedsManager
     from redis_management.redis_manager import RedisManager
@@ -44,10 +47,17 @@ EXTRACT_TEXT_CALLBACK_QUEUE = os.getenv(
     "EXTRACT_TEXT_CALLBACK_QUEUE", "extract_text_callback_queue"
 )
 
-# Upload/raw storage location constant (configurable)
-UPLOAD_DIR = Path(os.getenv("RAW_DIR", "storage/raw")).resolve()
-PROCESSED_DIR = Path(os.getenv("PROCESSED_DIR", "storage/processed")).resolve()
+USE_AWS = os.getenv("USE_AWS", "false").lower() == "true"
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "")
+AWS_REGION = os.getenv("AWS_REGION_NAME", "")
 
+if not USE_AWS:
+    UPLOAD_DIR = Path(os.getenv("RAW_DIR", "storage/raw")).resolve()
+    PROCESSED_DIR = Path(os.getenv("PROCESSED_DIR", "storage/processed")).resolve()
+else:
+    UPLOAD_DIR = os.getenv("RAW_DIR_AWS", "aegisai-raw-danielzorov")
+    PROCESSED_DIR = os.getenv("PROCESSED_DIR_AWS", "aegisai-processed-danielzorov")
 
 logger = LoggingManager.setup_logging(
     service_name="extract-text-service",
@@ -64,9 +74,16 @@ async def lifespan(app):
     # Create RedisManager
     redis_manager = RedisManager()
 
-    # Create extract text service and inject RedisManager
+    # Create extract text service and inject needs
     extract_text_service = ExtractTextService()
     ResolveNeedsManager.resolve_needs(extract_text_service)
+
+    # Initialize the cloud client after injection
+    extract_text_service.cloud_manager.create_s3_client(
+        access_key_id=os.getenv("AWS_ACCESS_KEY_ID", ""),
+        secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY", ""),
+        region=os.getenv("AWS_REGION_NAME", "us-east-1"),
+    )
 
     # Store in app.state
     app.state.extract_text_service = extract_text_service
@@ -87,7 +104,7 @@ app.add_middleware(ErrorMiddleware)
 app.add_middleware(EnhancedLoggingMiddleware, service_name="extract-text-service")
 
 
-class ExtractTextService(INeedRedisManagerInterface):
+class ExtractTextService(INeedRedisManagerInterface, INeedCloudManagerInterface):
     """Handles file text extraction tasks using shared RedisManager."""
 
     def __init__(self):
@@ -165,33 +182,50 @@ class ExtractTextService(INeedRedisManagerInterface):
 
         return result
 
-    @staticmethod
-    async def _save_extracted_text_to_file(
-            job_id: str, extracted_text: str, character_count: int
-    ) -> str:
+    async def _save_extracted_text_to_file(self, job_id: str, extracted_text: str, character_count: int) -> tuple:
         """Save extracted text to a file in processed directory."""
         try:
             # Create text file path
             text_filename = f"{job_id}_extracted_text.txt"
-            text_file_path = PROCESSED_DIR / text_filename
 
-            # Save text to file asynchronously
-            def write_file_sync():
-                with open(text_file_path, "w", encoding="utf-8") as f:
+            if not USE_AWS:
+                text_file_path = PROCESSED_DIR / text_filename
+
+                # Save text to file asynchronously
+                def write_file_sync():
+                    with open(text_file_path, "w", encoding="utf-8") as f:
+                        f.write(extracted_text)
+                    return text_file_path
+
+                text_file_path = str(await asyncio.to_thread(write_file_sync))
+
+            else:
+                # For AWS: Save to temp then upload to S3 processed bucket
+                temp_dir = tempfile.gettempdir()
+                local_text_path = os.path.join(temp_dir, text_filename)
+
+                # Save locally first
+                with open(local_text_path, "w", encoding="utf-8") as f:
                     f.write(extracted_text)
-                return text_file_path
 
-            text_file_path = await asyncio.to_thread(write_file_sync)
+                # Upload to S3 processed bucket
+                s3_key = f"processed/{text_filename}"
+                self.cloud_manager.s3_client.upload_file(local_text_path, PROCESSED_DIR, s3_key)
+
+                # Clean up local temp file
+                os.remove(local_text_path)
+
+                text_file_path = f"s3://{PROCESSED_DIR}/{s3_key}"
 
             # Add file stats
             file_stats = {
                 "saved_at": datetime.now(timezone.utc).isoformat(),
-                "file_size_bytes": os.path.getsize(text_file_path),
+                "file_size_bytes": len(extracted_text.encode('utf-8')),
                 "character_count": character_count,
-                "file_path": str(text_file_path),
+                "file_path": text_file_path,
             }
 
-            return str(text_file_path), file_stats
+            return text_file_path, file_stats
 
         except Exception as e:
             raise Exception(f"Failed to save extracted text: {str(e)}")
@@ -272,66 +306,73 @@ class ExtractTextService(INeedRedisManagerInterface):
         extraction_result = {}
 
         try:
-            # Check if file exists and is PDF
-            file_path = state["file_path"]
-            if not os.path.exists(file_path):
-                errors.append(f"File not found: {file_path}")
-            elif state["content_type"] != "application/pdf":
-                errors.append(
-                    f"Text extraction only supported for PDF files. Got: {state['content_type']}"
-                )
-            else:
-                # Extract text from PDF
-                extraction_result = await self._extract_text_from_pdf(file_path)
+            local_path = await self.cloud_manager.download_from_s3_if_needed(USE_AWS, state["file_path"])
 
-                if extraction_result["extraction_errors"]:
-                    errors.extend(extraction_result["extraction_errors"])
-
-                # Only proceed if we have extracted text
-                if extraction_result["character_count"] > 0:
-
-                    # Save extracted text to file
-                    text_file_path, file_stats = (
-                        await self._save_extracted_text_to_file(
-                            state["job_id"],
-                            extraction_result["extracted_text"],
-                            extraction_result["character_count"],
-                        )
+            try:
+                # Check if file exists and is PDF
+                if not os.path.exists(local_path):
+                    errors.append(f"File not found: {local_path}")
+                elif state["content_type"] != "application/pdf":
+                    errors.append(
+                        f"Text extraction only supported for PDF files. Got: {state['content_type']}"
                     )
-
-                    # Analyze text content
-                    text_analysis = await self._analyze_text_content(
-                        extraction_result["extracted_text"]
-                    )
-
-                    # Update state metadata with extraction results
-                    state["metadata"].update(
-                        {
-                            "text_extraction": {
-                                "success": True,
-                                "extracted_character_count": extraction_result[
-                                    "character_count"
-                                ],
-                                "total_pages": extraction_result["page_count"],
-                                "pages_with_text": extraction_result["pages_with_text"],
-                                "text_file_path": text_file_path,
-                                "file_stats": file_stats,
-                                "content_analysis": text_analysis,
-                                "extraction_time": datetime.now(
-                                    timezone.utc
-                                ).isoformat(),
-                            }
-                        }
-                    )
-
-                    # Add preview of first 500 characters
-                    preview_text = extraction_result["extracted_text"][:500]
-                    if len(extraction_result["extracted_text"]) > 500:
-                        preview_text += "..."
-                    state["metadata"]["text_extraction"]["text_preview"] = preview_text
-
                 else:
-                    errors.append("No text could be extracted from the PDF")
+                    # Extract text from PDF
+                    extraction_result = await self._extract_text_from_pdf(local_path)
+
+                    if extraction_result["extraction_errors"]:
+                        errors.extend(extraction_result["extraction_errors"])
+
+                    # Only proceed if we have extracted text
+                    if extraction_result["character_count"] > 0:
+
+                        # Save extracted text to file
+                        text_file_path, file_stats = (
+                            await self._save_extracted_text_to_file(
+                                state["job_id"],
+                                extraction_result["extracted_text"],
+                                extraction_result["character_count"],
+                            )
+                        )
+
+                        # Analyze text content
+                        text_analysis = await self._analyze_text_content(
+                            extraction_result["extracted_text"]
+                        )
+
+                        # Update state metadata with extraction results
+                        state["metadata"].update(
+                            {
+                                "text_extraction": {
+                                    "success": True,
+                                    "extracted_character_count": extraction_result[
+                                        "character_count"
+                                    ],
+                                    "total_pages": extraction_result["page_count"],
+                                    "pages_with_text": extraction_result["pages_with_text"],
+                                    "text_file_path": text_file_path,
+                                    "file_stats": file_stats,
+                                    "content_analysis": text_analysis,
+                                    "extraction_time": datetime.now(
+                                        timezone.utc
+                                    ).isoformat(),
+                                }
+                            }
+                        )
+
+                        # Add preview of first 500 characters
+                        preview_text = extraction_result["extracted_text"][:500]
+                        if len(extraction_result["extracted_text"]) > 500:
+                            preview_text += "..."
+                        state["metadata"]["text_extraction"]["text_preview"] = preview_text
+
+                    else:
+                        errors.append("No text could be extracted from the PDF")
+
+            finally:
+                # Clean up temp file if it was downloaded from S3
+                if local_path != state["file_path"] and os.path.exists(local_path):
+                    os.remove(local_path)
 
         except Exception as e:
             errors.append(f"Text extraction process failed: {str(e)}")

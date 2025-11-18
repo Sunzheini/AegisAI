@@ -495,4 +495,3 @@ async def redis_listener(extract_metadata_service: ExtractMetadataService):
     finally:
         await pubsub.unsubscribe(EXTRACT_METADATA_QUEUE)
         await pubsub.close()
-

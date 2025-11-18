@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+from botocore.exceptions import ClientError
 from dotenv import load_dotenv
 from fastapi import FastAPI
 
@@ -21,6 +22,7 @@ load_dotenv()
 USE_SHARED_LIB = os.getenv("USE_SHARED_LIB", False)
 if USE_SHARED_LIB:
     from shared_lib.contracts.job_schemas import WorkflowGraphState
+    from shared_lib.needs.INeedCloudManager import INeedCloudManagerInterface
     from shared_lib.needs.INeedRedisManager import INeedRedisManagerInterface
     from shared_lib.needs.ResolveNeedsManager import ResolveNeedsManager
     from shared_lib.redis_management.redis_manager import RedisManager
@@ -29,6 +31,7 @@ if USE_SHARED_LIB:
     from shared_lib.logging_management.logging_manager import LoggingManager
 else:
     from contracts.job_schemas import WorkflowGraphState
+    from needs.INeedCloudManager import INeedCloudManagerInterface
     from needs.INeedRedisManager import INeedRedisManagerInterface
     from needs.ResolveNeedsManager import ResolveNeedsManager
     from redis_management.redis_manager import RedisManager
@@ -44,8 +47,15 @@ VALIDATION_CALLBACK_QUEUE = os.getenv(
     "VALIDATION_CALLBACK_QUEUE", "validation_callback_queue"
 )
 
-# Upload/raw storage location constant (configurable)
-UPLOAD_DIR = Path(os.getenv("RAW_DIR", "storage/raw")).resolve()
+USE_AWS = os.getenv("USE_AWS", "false").lower() == "true"
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "")
+AWS_REGION = os.getenv("AWS_REGION_NAME", "")
+
+if not USE_AWS:
+    UPLOAD_DIR = Path(os.getenv("RAW_DIR", "storage/raw")).resolve()
+else:
+    UPLOAD_DIR = os.getenv("RAW_DIR_AWS", "aegisai-raw-danielzorov")
 
 # Validation constraints
 MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE", 100 * 1024 * 1024))  # 100MB default
@@ -63,7 +73,6 @@ ALLOWED_EXTENSIONS = {
     "video/webm": [".webm"],
 }
 
-
 logger = LoggingManager.setup_logging(
     service_name="validation-service",
     log_file_path="logs/validation_service.log",
@@ -79,9 +88,16 @@ async def lifespan(app):
     # Create RedisManager
     redis_manager = RedisManager()
 
-    # Create validation service and inject RedisManager
+    # Create validation service and inject needs
     validation_service = ValidationService()
     ResolveNeedsManager.resolve_needs(validation_service)
+
+    # Initialize the cloud client after injection
+    validation_service.cloud_manager.create_s3_client(
+        access_key_id=os.getenv("AWS_ACCESS_KEY_ID", ""),
+        secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY", ""),
+        region=os.getenv("AWS_REGION_NAME", "us-east-1"),
+    )
 
     # Store in app.state
     app.state.validation_service = validation_service
@@ -102,7 +118,7 @@ app.add_middleware(ErrorMiddleware)
 app.add_middleware(EnhancedLoggingMiddleware, service_name="validation-service")
 
 
-class ValidationService(INeedRedisManagerInterface):
+class ValidationService(INeedRedisManagerInterface, INeedCloudManagerInterface):
     """Handles file validation tasks using shared RedisManager."""
 
     def __init__(self):
@@ -131,27 +147,35 @@ class ValidationService(INeedRedisManagerInterface):
             }
 
     # region Validation Methods
-    @staticmethod
-    async def _validate_file_access(state: WorkflowGraphState) -> list:
+    async def _validate_file_access(self, state: WorkflowGraphState) -> list:
         """Validate that file exists and is accessible."""
         errors = []
         file_path = state["file_path"]
 
         try:
-            path = Path(file_path)
+            # Todo: changed
+            if not USE_AWS:
+                path = Path(file_path)
 
-            # Check if file exists
-            if not path.exists():
-                errors.append(f"File does not exist: {file_path}")
-                return errors
+                # Check if file exists
+                if not path.exists():
+                    errors.append(f"File does not exist: {file_path}")
+                    return errors
 
-            # Check if it's actually a file
-            if not path.is_file():
-                errors.append(f"Path is not a file: {file_path}")
+                # Check if it's actually a file
+                if not path.is_file():
+                    errors.append(f"Path is not a file: {file_path}")
 
-            # Check read permissions
-            if not os.access(file_path, os.R_OK):
-                errors.append(f"No read permission for file: {file_path}")
+                # Check read permissions
+                if not os.access(file_path, os.R_OK):
+                    errors.append(f"No read permission for file: {file_path}")
+
+            else:
+                bucket_name, key = self.cloud_manager.parse_s3_path(file_path)
+                try:
+                    self.cloud_manager.s3_client.head_object(Bucket=bucket_name, Key=key)
+                except ClientError as e:
+                    errors.append(f"S3 file does not exist or inaccessible: {file_path} - {e}")
 
         except Exception as e:
             errors.append(f"File access validation failed: {str(e)}")
@@ -185,7 +209,13 @@ class ValidationService(INeedRedisManagerInterface):
         file_path = state["file_path"]
 
         try:
-            file_size = os.path.getsize(file_path)
+            # Todo: changed
+            if not USE_AWS:
+                file_size = os.path.getsize(file_path)
+            else:
+                bucket_name, key = self.cloud_manager.parse_s3_path(file_path)
+                response = self.cloud_manager.s3_client.head_object(Bucket=bucket_name, Key=key)
+                file_size = response['ContentLength']
 
             if file_size > self.MAX_FILE_SIZE:
                 errors.append(
@@ -236,12 +266,23 @@ class ValidationService(INeedRedisManagerInterface):
         errors = []
 
         try:
-            if content_type.startswith("image/"):
-                errors.extend(await self._validate_image_file(file_path))
-            elif content_type.startswith("video/"):
-                errors.extend(await self._validate_video_file(file_path))
-            elif content_type == "application/pdf":
-                errors.extend(await self._validate_pdf_file(file_path))
+            # ToDo: changed
+            # Download from S3 if needed for content validation
+            local_path = await self.cloud_manager.download_from_s3_if_needed(USE_AWS, file_path)
+
+            try:
+                if content_type.startswith("image/"):
+                    errors.extend(await self._validate_image_file(local_path))
+                elif content_type.startswith("video/"):
+                    errors.extend(await self._validate_video_file(local_path))
+                elif content_type == "application/pdf":
+                    errors.extend(await self._validate_pdf_file(local_path))
+
+            # ToDo: changed
+            finally:
+                # Clean up temp file if it was downloaded from S3
+                if local_path != file_path and os.path.exists(local_path):
+                    os.remove(local_path)
 
         except Exception as e:
             errors.append(f"Content-specific validation failed: {str(e)}")
@@ -281,7 +322,7 @@ class ValidationService(INeedRedisManagerInterface):
 
             # Check if image dimensions are reasonable
             if (
-                file_size > self.MAX_IMAGE_DIMENSION * self.MAX_IMAGE_DIMENSION * 4
+                    file_size > self.MAX_IMAGE_DIMENSION * self.MAX_IMAGE_DIMENSION * 4
             ):  # Rough estimate: width * height * 4 bytes
                 errors.append(
                     f"Image file size suggests dimensions may exceed maximum allowed {self.MAX_IMAGE_DIMENSION}x{self.MAX_IMAGE_DIMENSION}"
@@ -385,7 +426,7 @@ class ValidationService(INeedRedisManagerInterface):
     # endregion
 
     async def _validate_file_worker(
-        self, state: WorkflowGraphState
+            self, state: WorkflowGraphState
     ) -> WorkflowGraphState:
         """
         Validates the file type, size, and integrity for an ingestion job.

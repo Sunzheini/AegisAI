@@ -6,6 +6,7 @@ import sys
 import subprocess
 from pathlib import Path
 
+import tempfile
 from dotenv import load_dotenv
 from langchain_classic.chains.combine_documents import create_stuff_documents_chain
 from langchain_classic.chains.history_aware_retriever import create_history_aware_retriever
@@ -31,6 +32,7 @@ index2_name = os.getenv('INDEX_NAME')
 class ConcreteAIManager:
     """Concrete AI Manager for handling AI-related operations."""
     base_dir = Path(__file__).resolve().parent.parent
+    s3_client = None
 
     @staticmethod
     def split_txt_into_chunks(state: WorkflowGraphState) -> list:
@@ -43,33 +45,22 @@ class ConcreteAIManager:
             # Get the path to the extracted text file
             path_to_file = state["metadata"]["text_extraction"].get("text_file_path")
 
-            # if path_to_file and os.path.exists(path_to_file):
-            #     # Split the document into chunks
-            #     texts = split_document('.txt', path_to_file)
-            #     return texts
-
-            # Todo: changed
             if path_to_file:
                 # Handle S3 paths - download temporarily
                 if path_to_file.startswith('s3://'):
                     print(f"[AI Service] S3 path detected: {path_to_file}")
 
                     try:
-                        import boto3
-                        import tempfile
-                        from botocore.exceptions import ClientError
-
                         # Parse S3 path
                         bucket_key = path_to_file[5:]  # Remove 's3://'
                         bucket_name, key = bucket_key.split('/', 1)
 
                         # Download to temp file
-                        s3_client = boto3.client('s3')
                         temp_dir = tempfile.gettempdir()
                         local_path = os.path.join(temp_dir, os.path.basename(key))
 
                         print(f"[AI Service] Downloading from S3: {bucket_name}/{key}")
-                        s3_client.download_file(bucket_name, key, local_path)
+                        ConcreteAIManager.s3_client.download_file(bucket_name, key, local_path)
 
                         # Split the downloaded file
                         texts = split_document('.txt', local_path)

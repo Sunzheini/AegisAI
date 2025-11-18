@@ -10,12 +10,7 @@ import asyncio
 import logging
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
-from pathlib import Path
 
-# ToDO: changed
-import boto3
-import tempfile
-from botocore.exceptions import ClientError
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from starlette.responses import JSONResponse
@@ -43,11 +38,6 @@ USE_AWS = os.getenv("USE_AWS", "false").lower() == "true"
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "")
 AWS_REGION = os.getenv("AWS_REGION_NAME", "")
-
-if not USE_AWS:
-    UPLOAD_DIR = Path(os.getenv("PROCESSED_DIR", "storage/processed")).resolve()
-else:
-    UPLOAD_DIR = os.getenv("PROCESSED_DIR_AWS", "aegisai-processed-danielzorov")
 
 # ai processing constraints
 MAX_TEXT_LENGTH = int(os.getenv("MAX_TEXT_LENGTH", 500000))  # 10k characters default
@@ -77,6 +67,7 @@ async def lifespan(app):
         secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY", ""),
         region=os.getenv("AWS_REGION_NAME", "us-east-1"),
     )
+    ConcreteAIManager.s3_client = ai_service.cloud_manager.s3_client
 
     # Store in app.state
     app.state.extract_text_service = ai_service

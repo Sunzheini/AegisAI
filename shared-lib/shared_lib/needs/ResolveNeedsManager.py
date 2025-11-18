@@ -1,6 +1,8 @@
 """
 Contains the manager to resolve needs for needy objects.
 """
+from shared_lib.cloud_management.cloud_manager import CloudManager
+from shared_lib.needs.INeedCloudManager import INeedCloudManagerInterface
 from shared_lib.needs.INeedRedisManager import INeedRedisManagerInterface
 from shared_lib.redis_management.redis_manager import RedisManager
 
@@ -22,6 +24,10 @@ class ResolveNeedsManager:
                 f"Received class: {needy_instance.__name__}"
             )
 
-        # Check if the instance's class implements the Redis interface
+        # Check if the instance's class implements the RedisManager interface
         if INeedRedisManagerInterface in needy_instance.__class__.__mro__:
             needy_instance.redis_manager = RedisManager()
+
+        # CHeck if the instance's class implements the CloudManager interface
+        if INeedCloudManagerInterface in needy_instance.__class__.__mro__:
+            needy_instance.cloud_manager = CloudManager()

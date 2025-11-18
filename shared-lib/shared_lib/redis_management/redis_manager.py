@@ -1,7 +1,6 @@
 """
 Contains the RedisManager class responsible for managing Redis interactions.
 """
-
 import os
 import json
 from typing import Optional

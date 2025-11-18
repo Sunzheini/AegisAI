@@ -100,7 +100,7 @@ logger = LoggingManager.setup_logging(
 
 # ToDO: 1. Refactor the code / extract common code, where there are ToDo markers in all services,
 # 2. copy changes to the service inside api-gateway to be the same as the external services i changed,
-# 3. test -> docker
+# 3. test -> build and run docker
 # 4. Dont install the dependencies from the Dockerfile!
 # 5. Kubernetes training
 # 6. Next thing in AWS

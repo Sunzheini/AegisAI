@@ -12,9 +12,6 @@ from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-# ToDO: changed
-import boto3
-import tempfile
 from botocore.exceptions import ClientError
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -23,8 +20,10 @@ load_dotenv()
 
 from shared_lib.contracts.job_schemas import WorkflowGraphState
 from shared_lib.needs.INeedRedisManager import INeedRedisManagerInterface
+from shared_lib.needs.INeedCloudManager import INeedCloudManagerInterface
 from shared_lib.needs.ResolveNeedsManager import ResolveNeedsManager
 from shared_lib.redis_management.redis_manager import RedisManager
+from shared_lib.cloud_management.cloud_manager import CloudManager
 from shared_lib.custom_middleware.error_middleware import ErrorMiddleware
 from shared_lib.custom_middleware.logging_middleware import EnhancedLoggingMiddleware
 from shared_lib.logging_management.logging_manager import LoggingManager
@@ -36,8 +35,6 @@ VALIDATION_CALLBACK_QUEUE = os.getenv(
     "VALIDATION_CALLBACK_QUEUE", "validation_callback_queue"
 )
 
-# ToDO: changed
-# ------------------------------------------------------------------------------------------
 USE_AWS = os.getenv("USE_AWS", "false").lower() == "true"
 if not USE_AWS:
     # Upload/raw storage location constant (configurable)
@@ -46,17 +43,7 @@ else:
     AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "")
     AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "")
     AWS_REGION = os.getenv("AWS_REGION_NAME", "")
-
     UPLOAD_DIR = os.getenv("RAW_DIR_AWS", "aegisai-raw-danielzorov")
-    s3_client = boto3.client(
-        's3',
-        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID", ""),
-        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY", ""),
-        region_name=os.getenv("AWS_REGION_NAME", "us-east-1"),
-    )
-
-# ------------------------------------------------------------------------------------------
-print(UPLOAD_DIR)
 
 # Validation constraints
 MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE", 100 * 1024 * 1024))  # 100MB default
@@ -90,9 +77,16 @@ async def lifespan(app):
     # Create RedisManager
     redis_manager = RedisManager()
 
-    # Create validation service and inject RedisManager
+    # Create validation service and inject needs
     validation_service = ValidationService()
     ResolveNeedsManager.resolve_needs(validation_service)
+
+    # Initialize the cloud client after injection
+    validation_service.cloud_manager.create_s3_client(
+        access_key_id=os.getenv("AWS_ACCESS_KEY_ID", ""),
+        secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY", ""),
+        region=os.getenv("AWS_REGION_NAME", "us-east-1"),
+    )
 
     # Store in app.state
     app.state.validation_service = validation_service
@@ -113,15 +107,11 @@ app.add_middleware(ErrorMiddleware)
 app.add_middleware(EnhancedLoggingMiddleware, service_name="validation-service")
 
 
-class ValidationService(INeedRedisManagerInterface):
+class ValidationService(INeedRedisManagerInterface, INeedCloudManagerInterface):
     """Handles file validation tasks using shared RedisManager."""
 
     def __init__(self):
         self.logger = logging.getLogger("validation-service")
-
-        # ToDo: changed
-        if USE_AWS:
-            self.s3_client = s3_client
 
         # Instance-level configuration
         self.MAX_FILE_SIZE = MAX_FILE_SIZE
@@ -144,31 +134,6 @@ class ValidationService(INeedRedisManagerInterface):
                 "metadata": {"errors": [str(e)]},
                 "updated_at": self._current_timestamp(),
             }
-
-    # Todo: changed
-    # region AWS methods
-    def _parse_s3_path(self, file_path: str) -> tuple:
-        """Parse S3 URI into bucket and key."""
-        bucket_key = file_path[5:]  # Remove 's3://'
-        bucket_name, key = bucket_key.split('/', 1)
-        return bucket_name, key
-
-    async def _download_from_s3_if_needed(self, file_path: str) -> str:
-        """Download file from S3 if path is an S3 URI, return local temp path."""
-        if not USE_AWS or not file_path.startswith('s3://'):
-            return file_path
-
-        bucket_name, key = self._parse_s3_path(file_path)
-        temp_dir = tempfile.gettempdir()
-        local_path = os.path.join(temp_dir, os.path.basename(key))
-
-        try:
-            self.s3_client.download_file(bucket_name, key, local_path)
-            return local_path
-        except ClientError as e:
-            raise Exception(f"S3 download failed: {e}")
-
-    # endregion
 
     # region Validation Methods
     async def _validate_file_access(self, state: WorkflowGraphState) -> list:
@@ -195,9 +160,9 @@ class ValidationService(INeedRedisManagerInterface):
                     errors.append(f"No read permission for file: {file_path}")
 
             else:
-                bucket_name, key = self._parse_s3_path(file_path)
+                bucket_name, key = self.cloud_manager.parse_s3_path(file_path)
                 try:
-                    self.s3_client.head_object(Bucket=bucket_name, Key=key)
+                    self.cloud_manager.s3_client.head_object(Bucket=bucket_name, Key=key)
                 except ClientError as e:
                     errors.append(f"S3 file does not exist or inaccessible: {file_path} - {e}")
 
@@ -237,8 +202,8 @@ class ValidationService(INeedRedisManagerInterface):
             if not USE_AWS:
                 file_size = os.path.getsize(file_path)
             else:
-                bucket_name, key = self._parse_s3_path(file_path)
-                response = self.s3_client.head_object(Bucket=bucket_name, Key=key)
+                bucket_name, key = self.cloud_manager.parse_s3_path(file_path)
+                response = self.cloud_manager.s3_client.head_object(Bucket=bucket_name, Key=key)
                 file_size = response['ContentLength']
 
             if file_size > self.MAX_FILE_SIZE:
@@ -292,7 +257,7 @@ class ValidationService(INeedRedisManagerInterface):
         try:
             # ToDo: changed
             # Download from S3 if needed for content validation
-            local_path = await self._download_from_s3_if_needed(file_path)
+            local_path = await self.cloud_manager.download_from_s3_if_needed(USE_AWS, file_path)
 
             try:
                 if content_type.startswith("image/"):

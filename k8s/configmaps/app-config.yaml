@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: aegisai
+data:
+  DEBUG: "False"
+  STORAGE_ROOT: "/app/shared-storage"
+  RAW_DIR: "/app/shared-storage/raw"
+  PROCESSED_DIR: "/app/shared-storage/processed"
+  TRANSCODED_DIR: "/app/shared-storage/transcoded"
+  USE_ORCHESTRATOR: "True"
+  USE_REDIS_PUBLISH: "True"
+  USE_SHARED_LIB: "True"
+  DB_NAME: "aegisai_db"
+  DB_USER: "postgres_user"
+  DB_HOST: "postgres"
+  DB_PORT: "5432"

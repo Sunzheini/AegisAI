@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: aegisai
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+    spec:
+      containers:
+      - name: api-gateway
+        image: your-registry/aegisai-api-gateway:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: DOCKER
+          value: "True"
+        - name: DEBUG
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: DEBUG
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: SECRET_KEY
+        - name: ORCHESTRATOR_URL
+          value: "http://workflow-orchestrator:9000/jobs"
+        - name: TEST_REDIS_URL
+          value: "redis://redis:6379/2"
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: DB_PASSWORD
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: AWS_ACCESS_KEY_ID
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: AWS_SECRET_ACCESS_KEY
+        - name: AWS_REGION_NAME
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: AWS_REGION_NAME
+        volumeMounts:
+        - name: shared-storage
+          mountPath: /app/shared-storage
+        - name: shared-lib
+          mountPath: /app/shared-lib
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: shared-storage
+        persistentVolumeClaim:
+          claimName: shared-storage-pvc
+      - name: shared-lib
+        configMap:
+          name: shared-lib-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway
+  namespace: aegisai
+spec:
+  type: LoadBalancer  # Or NodePort for on-prem
+  selector:
+    app: api-gateway
+  ports:
+  - port: 8000
+    targetPort: 8000
+    nodePort: 30000  # Only for NodePort

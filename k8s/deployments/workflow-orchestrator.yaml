@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workflow-orchestrator
+  namespace: aegisai
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: workflow-orchestrator
+  template:
+    metadata:
+      labels:
+        app: workflow-orchestrator
+    spec:
+      containers:
+      - name: workflow-orchestrator
+        image: your-registry/aegisai-workflow-orchestrator:latest
+        ports:
+        - containerPort: 9000
+        env:
+        - name: DOCKER
+          value: "True"
+        - name: DEBUG
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: DEBUG
+        - name: TEST_REDIS_URL
+          value: "redis://redis:6379/2"
+        - name: USE_REDIS_LISTENER
+          value: "true"
+        # Add other environment variables...
+        volumeMounts:
+        - name: shared-storage
+          mountPath: /app/shared-storage
+        - name: shared-lib
+          mountPath: /app/shared-lib
+        livenessProbe:
+          httpGet:
+            path: /docs
+            port: 9000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: workflow-orchestrator
+  namespace: aegisai
+spec:
+  selector:
+    app: workflow-orchestrator
+  ports:
+  - port: 9000
+    targetPort: 9000

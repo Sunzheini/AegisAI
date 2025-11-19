@@ -114,7 +114,7 @@ Start each service (by its configuration):
 7. nicegui_frontend
 
 
-## Dockerize
+## Docker
 1. Use the created docker-compose.yml, Makefile and Dockerfiles in each service, api-gateway has docker-entrypoint.sh.
 Note: in the current state docker-compose.yml is removed from git, since it contains secret key. You can use the
 docker-compose-example.yml as a base and create your own docker-compose.yml with your secrets.
@@ -128,3 +128,19 @@ docker-compose-example.yml as a base and create your own docker-compose.yml with
 `make up`       # creates docker containers and runs them
 `make down`     # stops and removes all containers
 `make logs`     # shows the logs of all containers (e.g. to see if they started correctly)
+
+
+## Kubernetes
+see KUBERNETES_SETUP.md
+
+
+
+
+
+
+
+
+
+
+
+

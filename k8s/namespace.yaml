@@ -4,3 +4,4 @@ metadata:
   name: aegisai
   labels:
     name: aegisai
+    environment: production

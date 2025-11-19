@@ -1,0 +1,38 @@
+# Kustomization file for base configuration
+    newTag: latest
+  - name: your-registry/aegisai-ai-service
+    newTag: latest
+  - name: your-registry/aegisai-extract-content-service
+    newTag: latest
+  - name: your-registry/aegisai-extract-metadata-service
+    newTag: latest
+  - name: your-registry/aegisai-validation-service
+    newTag: latest
+  - name: your-registry/aegisai-workflow-orchestrator
+    newTag: latest
+  - name: your-registry/aegisai-api-gateway
+images:
+
+  app.kubernetes.io/managed-by: kustomize
+  app.kubernetes.io/name: aegisai
+commonLabels:
+
+  - deployments/ai-service.yaml
+  - deployments/extract-content-service.yaml
+  - deployments/extract-metadata-service.yaml
+  - deployments/validation-service.yaml
+  - deployments/workflow-orchestrator.yaml
+  - deployments/api-gateway.yaml
+  - services/redis.yaml
+  - services/postgres.yaml
+  - secrets/app-secrets.yaml
+  - configmaps/app-config.yaml
+  - volumes/persistent-volume.yaml
+  - namespace.yaml
+resources:
+
+namespace: aegisai
+
+kind: Kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+

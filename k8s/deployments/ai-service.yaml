@@ -1,28 +1,28 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: api-gateway
+  name: ai-service
   namespace: aegisai
   labels:
-    app: api-gateway
-    tier: gateway
+    app: ai-service
+    tier: backend
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: api-gateway
+      app: ai-service
   template:
     metadata:
       labels:
-        app: api-gateway
-        tier: gateway
+        app: ai-service
+        tier: backend
     spec:
       containers:
-      - name: api-gateway
-        image: sunzheini1407/aegisai-api-gateway:latest
+      - name: ai-service
+        image: sunzheini1407/aegisai-ai-service:latest
         imagePullPolicy: Always
         ports:
-        - containerPort: 8000
+        - containerPort: 9004
           name: http
         env:
         - name: DOCKER
@@ -35,16 +35,6 @@ spec:
             configMapKeyRef:
               name: app-config
               key: DEBUG
-        - name: SECRET_KEY
-          valueFrom:
-            secretKeyRef:
-              name: app-secrets
-              key: SECRET_KEY
-        - name: AUTH_ENVIRONMENT
-          valueFrom:
-            configMapKeyRef:
-              name: app-config
-              key: AUTH_ENVIRONMENT
         - name: STORAGE_ROOT
           valueFrom:
             configMapKeyRef:
@@ -65,56 +55,16 @@ spec:
             configMapKeyRef:
               name: app-config
               key: TRANSCODED_DIR
-        - name: USE_ORCHESTRATOR
-          valueFrom:
-            configMapKeyRef:
-              name: app-config
-              key: USE_ORCHESTRATOR
-        - name: ORCHESTRATOR_URL
-          valueFrom:
-            configMapKeyRef:
-              name: app-config
-              key: ORCHESTRATOR_URL
         - name: TEST_REDIS_URL
           valueFrom:
             configMapKeyRef:
               name: app-config
               key: TEST_REDIS_URL
-        - name: USE_REDIS_PUBLISH
+        - name: USE_REDIS_LISTENER
           valueFrom:
             configMapKeyRef:
               name: app-config
-              key: USE_REDIS_PUBLISH
-        - name: DB_NAME
-          valueFrom:
-            configMapKeyRef:
-              name: app-config
-              key: DB_NAME
-        - name: DB_USER
-          valueFrom:
-            configMapKeyRef:
-              name: app-config
-              key: DB_USER
-        - name: DB_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: app-secrets
-              key: DB_PASSWORD
-        - name: DB_HOST
-          valueFrom:
-            configMapKeyRef:
-              name: app-config
-              key: DB_HOST
-        - name: DB_PORT
-          valueFrom:
-            configMapKeyRef:
-              name: app-config
-              key: DB_PORT
-        - name: USE_SHARED_LIB
-          valueFrom:
-            configMapKeyRef:
-              name: app-config
-              key: USE_SHARED_LIB
+              key: USE_REDIS_LISTENER
         - name: USE_AWS
           valueFrom:
             configMapKeyRef:
@@ -150,31 +100,81 @@ spec:
             secretKeyRef:
               name: app-secrets
               key: AWS_REGION_NAME
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: OPENAI_API_KEY
+        - name: LANGSMITH_TRACING
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: LANGSMITH_TRACING
+        - name: LANGSMITH_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: LANGSMITH_API_KEY
+        - name: LANGSMITH_PROJECT
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: LANGSMITH_PROJECT
+        - name: LANGSMITH_ENDPOINT
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: LANGSMITH_ENDPOINT
+        - name: TAVILY_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: TAVILY_API_KEY
+        - name: PINECONE_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: PINECONE_API_KEY
+        - name: INDEX_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: INDEX_NAME
+        - name: INDEX2_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: INDEX2_NAME
+        - name: HUGGINGFACEHUB_API_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: HUGGINGFACEHUB_API_TOKEN
         volumeMounts:
         - name: shared-storage
           mountPath: /app/shared-storage
         resources:
           requests:
-            memory: "512Mi"
-            cpu: "250m"
-          limits:
             memory: "1Gi"
             cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
         livenessProbe:
           httpGet:
-            path: /health
-            port: 8000
-          initialDelaySeconds: 30
-          periodSeconds: 10
-          timeoutSeconds: 5
+            path: /docs
+            port: 9004
+          initialDelaySeconds: 60
+          periodSeconds: 15
+          timeoutSeconds: 10
           failureThreshold: 3
         readinessProbe:
           httpGet:
-            path: /health
-            port: 8000
-          initialDelaySeconds: 10
-          periodSeconds: 5
-          timeoutSeconds: 3
+            path: /docs
+            port: 9004
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
           failureThreshold: 3
       volumes:
       - name: shared-storage
@@ -184,17 +184,18 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: api-gateway
+  name: ai-service
   namespace: aegisai
   labels:
-    app: api-gateway
+    app: ai-service
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   selector:
-    app: api-gateway
+    app: ai-service
   ports:
-  - port: 8000
-    targetPort: 8000
+  - port: 9004
+    targetPort: 9004
     protocol: TCP
     name: http
+
 

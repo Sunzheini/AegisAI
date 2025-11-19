@@ -1,16 +1,24 @@
 """
 NiceGUI frontend for AegisAI microservices showcase
 """
+import os
 import asyncio
 import json
 import aiohttp  # async HTTP client instead of requests!
+
+from dotenv import load_dotenv
 from nicegui import ui
 from support.reset_css_for_nicegui import RESET_CSS
+
+load_dotenv()
 
 
 class MainApp:
     """Main NiceGUI application class"""
     def __init__(self):
+        # Service URLs (configurable via environment variables for Kubernetes)
+        self.api_gateway_url = os.getenv("API_GATEWAY_URL", "http://127.0.0.1:8000")
+
         # general
         self._title = "AegisAI Microservices Showcase"
         self._spinner = None
@@ -49,11 +57,13 @@ class MainApp:
     async def _poll_job_status(self, job_id, context) -> None:
         """
         Poll the job status endpoint until job is completed or failed.
-        The orchestrator is expected to be running on localhost:9000.
+        The orchestrator is expected to be running on localhost:9000 or via Kubernetes service.
         :param job_id: the job ID to poll
         :param context: NiceGUI context manager for UI updates
         """
-        url = f"http://127.0.0.1:9000/jobs/{job_id}"
+        # Get orchestrator URL from environment (Kubernetes service name or localhost)
+        orchestrator_url = os.getenv("ORCHESTRATOR_URL", "http://127.0.0.1:9000")
+        url = f"{orchestrator_url}/jobs/{job_id}"
         headers = {"Authorization": f"Bearer {self._access_token}"}
 
         with context:
@@ -410,6 +420,9 @@ class MainApp:
             self.chat_input.set_value("")
 
             # Send request to AI service
+            # Get AI service URL from environment (Kubernetes service name or localhost)
+            ai_service_url = os.getenv("AI_SERVICE_URL", "http://127.0.0.1:9004")
+
             payload = {
                 "user_prompt": message,
                 "chat_history": self.chat_history
@@ -417,7 +430,7 @@ class MainApp:
 
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                        "http://127.0.0.1:9004/generate-response",
+                        f"{ai_service_url}/generate-response",
                         json=payload
                 ) as response:
                     result = await response.json()
@@ -474,8 +487,11 @@ class MainApp:
     async def _cleanup_data(self) -> None:
         """Cleanup Pinecone data"""
         try:
+            # Get AI service URL from environment
+            ai_service_url = os.getenv("AI_SERVICE_URL", "http://127.0.0.1:9004")
+
             async with aiohttp.ClientSession() as session:
-                async with session.post("http://127.0.0.1:9004/clean") as response:
+                async with session.post(f"{ai_service_url}/clean") as response:
                     # First, check if we got a successful response
                     if response.status == 200:
                         result = await response.json()
@@ -515,8 +531,11 @@ class MainApp:
     async def _run_tests(self) -> None:
         """Run tests via AI service"""
         try:
+            # Get AI service URL from environment
+            ai_service_url = os.getenv("AI_SERVICE_URL", "http://127.0.0.1:9004")
+
             async with aiohttp.ClientSession() as session:
-                async with session.post("http://127.0.0.1:9004/run-tests") as response:
+                async with session.post(f"{ai_service_url}/run-tests") as response:
                     result = await response.json()
 
                     if result.get("success"):
@@ -767,7 +786,7 @@ class MainApp:
     # region service1 event handlers --------------------------------------------------------------
     async def _health_check(self) -> None:
         """Health check button handler"""
-        await self._base_request_handler("get", "http://127.0.0.1:8000/health")
+        await self._base_request_handler("get", f"{self.api_gateway_url}/health")
 
     async def _login_and_store_token(self) -> None:
         """Login button handler"""
@@ -782,7 +801,7 @@ class MainApp:
 
         # For OAuth2 login, we send as form data (not JSON)
         await self._base_request_handler(
-            "post", "http://127.0.0.1:8000/auth/login", data=data
+            "post", f"{self.api_gateway_url}/auth/login", data=data
         )
 
     async def _logout_and_delete_token(self) -> None:
@@ -794,7 +813,7 @@ class MainApp:
 
         headers = {"Authorization": f"Bearer {self._access_token}"}
         await self._base_request_handler(
-            "post", "http://127.0.0.1:8000/auth/logout", headers=headers
+            "post", f"{self.api_gateway_url}/auth/logout", headers=headers
         )
 
         self._access_token = None
@@ -809,7 +828,7 @@ class MainApp:
 
         headers = {"Authorization": f"Bearer {self._access_token}"}
         await self._base_request_handler(
-            "get", "http://127.0.0.1:8000/users/list", headers=headers
+            "get", f"{self.api_gateway_url}/users/list", headers=headers
         )
 
     async def _get_user_by_id(self) -> None:
@@ -825,7 +844,7 @@ class MainApp:
 
         headers = {"Authorization": f"Bearer {self._access_token}"}
         await self._base_request_handler(
-            "get", f"http://127.0.0.1:8000/users/id/{user_id.strip()}", headers=headers
+            "get", f"{self.api_gateway_url}/users/id/{user_id.strip()}", headers=headers
         )
 
     def _toggle_form(self) -> None:
@@ -860,7 +879,7 @@ class MainApp:
         }
         headers = {"Authorization": f"Bearer {self._access_token}"}
         await self._base_request_handler(
-            "post", "http://127.0.0.1:8000/users/create", data=data, headers=headers
+            "post", f"{self.api_gateway_url}/users/create", data=data, headers=headers
         )
 
         # Clear form fields after user creation
@@ -900,7 +919,7 @@ class MainApp:
         headers = {"Authorization": f"Bearer {self._access_token}"}
         await self._base_request_handler(
             "put",
-            f"http://127.0.0.1:8000/users/edit/{user_id}",
+            f"{self.api_gateway_url}/users/edit/{user_id}",
             data=data,
             headers=headers,
         )
@@ -918,7 +937,7 @@ class MainApp:
 
         headers = {"Authorization": f"Bearer {self._access_token}"}
         await self._base_request_handler(
-            "delete", f"http://127.0.0.1:8000/users/delete/{user_id}", headers=headers
+            "delete", f"{self.api_gateway_url}/users/delete/{user_id}", headers=headers
         )
 
     async def _on_file_selected(self, file_info) -> None:
@@ -960,7 +979,7 @@ class MainApp:
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                        "http://127.0.0.1:8000/v1/upload", data=data, headers=headers
+                        f"{self.api_gateway_url}/v1/upload", data=data, headers=headers
                 ) as response:
                     resp_json = await response.json()
                     self.service1_textarea1.set_value(

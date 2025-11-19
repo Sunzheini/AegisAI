@@ -3,6 +3,9 @@ kind: Deployment
 metadata:
   name: workflow-orchestrator
   namespace: aegisai
+  labels:
+    app: workflow-orchestrator
+    tier: orchestration
 spec:
   replicas: 2
   selector:
@@ -12,45 +15,136 @@ spec:
     metadata:
       labels:
         app: workflow-orchestrator
+        tier: orchestration
     spec:
       containers:
       - name: workflow-orchestrator
-        image: your-registry/aegisai-workflow-orchestrator:latest
+        image: sunzheini1407/aegisai-workflow-orchestrator:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 9000
+          name: http
         env:
         - name: DOCKER
-          value: "True"
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: DOCKER
         - name: DEBUG
           valueFrom:
             configMapKeyRef:
               name: app-config
               key: DEBUG
+        - name: STORAGE_ROOT
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: STORAGE_ROOT
+        - name: RAW_DIR
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: RAW_DIR
+        - name: PROCESSED_DIR
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: PROCESSED_DIR
+        - name: TRANSCODED_DIR
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: TRANSCODED_DIR
         - name: TEST_REDIS_URL
-          value: "redis://redis:6379/2"
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: TEST_REDIS_URL
         - name: USE_REDIS_LISTENER
-          value: "true"
-        # Add other environment variables...
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: USE_REDIS_LISTENER
+        - name: USE_AWS
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: USE_AWS
+        - name: RAW_DIR_AWS
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: RAW_DIR_AWS
+        - name: PROCESSED_DIR_AWS
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: PROCESSED_DIR_AWS
+        - name: TRANSCODED_DIR_AWS
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: TRANSCODED_DIR_AWS
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: AWS_ACCESS_KEY_ID
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: AWS_SECRET_ACCESS_KEY
+        - name: AWS_REGION_NAME
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: AWS_REGION_NAME
         volumeMounts:
         - name: shared-storage
           mountPath: /app/shared-storage
-        - name: shared-lib
-          mountPath: /app/shared-lib
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
         livenessProbe:
           httpGet:
             path: /docs
             port: 9000
           initialDelaySeconds: 30
           periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /docs
+            port: 9000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: shared-storage
+        persistentVolumeClaim:
+          claimName: shared-storage-pvc
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: workflow-orchestrator
   namespace: aegisai
+  labels:
+    app: workflow-orchestrator
 spec:
+  type: ClusterIP
   selector:
     app: workflow-orchestrator
   ports:
   - port: 9000
     targetPort: 9000
+    protocol: TCP
+    name: http
+

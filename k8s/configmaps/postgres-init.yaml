@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init
+  namespace: aegisai
+data:
+  # Init script for PostgreSQL
+  # This configmap is required by the postgres deployment
+  # Add any initialization SQL scripts here if needed
+  init.sql: |
+    -- PostgreSQL initialization script
+    -- Database and user are created by environment variables
+    -- This file can be used for additional schema or data setup
+    SELECT 'PostgreSQL initialized successfully';
+

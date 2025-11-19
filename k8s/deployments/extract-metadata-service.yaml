@@ -1,28 +1,28 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: api-gateway
+  name: extract-metadata-service
   namespace: aegisai
   labels:
-    app: api-gateway
-    tier: gateway
+    app: extract-metadata-service
+    tier: backend
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: api-gateway
+      app: extract-metadata-service
   template:
     metadata:
       labels:
-        app: api-gateway
-        tier: gateway
+        app: extract-metadata-service
+        tier: backend
     spec:
       containers:
-      - name: api-gateway
-        image: sunzheini1407/aegisai-api-gateway:latest
+      - name: extract-metadata-service
+        image: sunzheini1407/aegisai-extract-metadata-service:latest
         imagePullPolicy: Always
         ports:
-        - containerPort: 8000
+        - containerPort: 9002
           name: http
         env:
         - name: DOCKER
@@ -35,16 +35,6 @@ spec:
             configMapKeyRef:
               name: app-config
               key: DEBUG
-        - name: SECRET_KEY
-          valueFrom:
-            secretKeyRef:
-              name: app-secrets
-              key: SECRET_KEY
-        - name: AUTH_ENVIRONMENT
-          valueFrom:
-            configMapKeyRef:
-              name: app-config
-              key: AUTH_ENVIRONMENT
         - name: STORAGE_ROOT
           valueFrom:
             configMapKeyRef:
@@ -65,56 +55,16 @@ spec:
             configMapKeyRef:
               name: app-config
               key: TRANSCODED_DIR
-        - name: USE_ORCHESTRATOR
-          valueFrom:
-            configMapKeyRef:
-              name: app-config
-              key: USE_ORCHESTRATOR
-        - name: ORCHESTRATOR_URL
-          valueFrom:
-            configMapKeyRef:
-              name: app-config
-              key: ORCHESTRATOR_URL
         - name: TEST_REDIS_URL
           valueFrom:
             configMapKeyRef:
               name: app-config
               key: TEST_REDIS_URL
-        - name: USE_REDIS_PUBLISH
+        - name: USE_REDIS_LISTENER
           valueFrom:
             configMapKeyRef:
               name: app-config
-              key: USE_REDIS_PUBLISH
-        - name: DB_NAME
-          valueFrom:
-            configMapKeyRef:
-              name: app-config
-              key: DB_NAME
-        - name: DB_USER
-          valueFrom:
-            configMapKeyRef:
-              name: app-config
-              key: DB_USER
-        - name: DB_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: app-secrets
-              key: DB_PASSWORD
-        - name: DB_HOST
-          valueFrom:
-            configMapKeyRef:
-              name: app-config
-              key: DB_HOST
-        - name: DB_PORT
-          valueFrom:
-            configMapKeyRef:
-              name: app-config
-              key: DB_PORT
-        - name: USE_SHARED_LIB
-          valueFrom:
-            configMapKeyRef:
-              name: app-config
-              key: USE_SHARED_LIB
+              key: USE_REDIS_LISTENER
         - name: USE_AWS
           valueFrom:
             configMapKeyRef:
@@ -155,23 +105,23 @@ spec:
           mountPath: /app/shared-storage
         resources:
           requests:
-            memory: "512Mi"
-            cpu: "250m"
+            memory: "256Mi"
+            cpu: "200m"
           limits:
-            memory: "1Gi"
+            memory: "512Mi"
             cpu: "500m"
         livenessProbe:
           httpGet:
-            path: /health
-            port: 8000
+            path: /docs
+            port: 9002
           initialDelaySeconds: 30
           periodSeconds: 10
           timeoutSeconds: 5
           failureThreshold: 3
         readinessProbe:
           httpGet:
-            path: /health
-            port: 8000
+            path: /docs
+            port: 9002
           initialDelaySeconds: 10
           periodSeconds: 5
           timeoutSeconds: 3
@@ -184,17 +134,18 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: api-gateway
+  name: extract-metadata-service
   namespace: aegisai
   labels:
-    app: api-gateway
+    app: extract-metadata-service
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   selector:
-    app: api-gateway
+    app: extract-metadata-service
   ports:
-  - port: 8000
-    targetPort: 8000
+  - port: 9002
+    targetPort: 9002
     protocol: TCP
     name: http
+
 

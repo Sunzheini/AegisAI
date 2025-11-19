@@ -1,0 +1,68 @@
+# Pod Disruption Budgets for high availability
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: api-gateway-pdb
+  namespace: aegisai
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: api-gateway
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: workflow-orchestrator-pdb
+  namespace: aegisai
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: workflow-orchestrator
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: validation-service-pdb
+  namespace: aegisai
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: validation-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: extract-metadata-service-pdb
+  namespace: aegisai
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: extract-metadata-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: extract-content-service-pdb
+  namespace: aegisai
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: extract-content-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ai-service-pdb
+  namespace: aegisai
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: ai-service
+

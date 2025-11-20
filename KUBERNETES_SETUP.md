@@ -72,9 +72,10 @@ k8s/
 
 7. Port Forwarding to Access Application
    ```powershell
-   kubectl port-forward -n aegisai service/api-gateway 8000:8000
-   kubectl port-forward -n aegisai svc/workflow-orchestrator 9000:9000
-   kubectl port-forward -n aegisai svc/ai-service 9004:9004
+   cd D:\Study\Projects\Github\AegisAI\k8s
+   
+   kubectl port-forward -n aegisai svc/workflow-orchestrator 9000:9000      # in a separate terminal
+   kubectl port-forward -n aegisai svc/ai-service 9004:9004                 # in a separate terminal
 
    use the frontend
    ```
@@ -109,7 +110,7 @@ k8s/
 
 11. Cleanup
     ```powershell
-    # Delete everything
+    # Delete everything ()
     kubectl delete namespace aegisai
     
     # Also delete PersistentVolumes to start completely fresh

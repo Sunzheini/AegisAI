@@ -1,4 +1,4 @@
-# Build all Docker images for AegisAI services
+﻿# Build all Docker images for AegisAI services
 # Usage: .\build-images.ps1 -Registry "your-registry" [-Tag "v1.0.0"] [-Push]
 
 param(
@@ -74,7 +74,7 @@ foreach ($service in $services) {
         }
 
         $buildTime = (Get-Date) - $startTime
-        Write-Host "  ✓ Built successfully in $($buildTime.TotalSeconds.ToString('F2'))s" -ForegroundColor Green
+        Write-Host "  [SUCCESS] Built successfully in $($buildTime.TotalSeconds.ToString('F2'))s" -ForegroundColor Green
         $buildSuccess += $imageName
 
         # Push if requested
@@ -86,7 +86,7 @@ foreach ($service in $services) {
                 throw "Docker push failed with exit code $LASTEXITCODE"
             }
 
-            Write-Host "  ✓ Pushed successfully" -ForegroundColor Green
+            Write-Host "  [SUCCESS] Pushed successfully" -ForegroundColor Green
         }
 
         # Also tag as latest if not already
@@ -102,7 +102,7 @@ foreach ($service in $services) {
         Write-Host ""
     }
     catch {
-        Write-Host "  ✗ Failed: $_" -ForegroundColor Red
+        Write-Host "  [FAILED] Failed: $_" -ForegroundColor Red
         $buildErrors += @{Service=$imageName; Error=$_}
         Write-Host ""
     }
@@ -112,14 +112,14 @@ foreach ($service in $services) {
 Write-Host "=== Build Summary ===" -ForegroundColor Cyan
 Write-Host "Successful builds: $($buildSuccess.Count)" -ForegroundColor Green
 foreach ($success in $buildSuccess) {
-    Write-Host "  ✓ $success" -ForegroundColor Green
+    Write-Host "  [SUCCESS] $success" -ForegroundColor Green
 }
 
 if ($buildErrors.Count -gt 0) {
     Write-Host ""
     Write-Host "Failed builds: $($buildErrors.Count)" -ForegroundColor Red
     foreach ($error in $buildErrors) {
-        Write-Host "  ✗ $($error.Service): $($error.Error)" -ForegroundColor Red
+        Write-Host "  [FAILED] $($error.Service): $($error.Error)" -ForegroundColor Red
     }
     Write-Host ""
     Write-Host "Build completed with errors!" -ForegroundColor Red

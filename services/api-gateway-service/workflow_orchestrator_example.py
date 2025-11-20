@@ -98,24 +98,6 @@ logger = LoggingManager.setup_logging(
 )
 
 
-# 5. Kubernetes training
-# 6. Next thing in AWS
-"""
-S3 (raw/processed/transcoded buckets) — not implemented.
-DynamoDB for job state — replaced by Redis.
-SQS queues and DLQs — replaced by Redis pub/sub.
-ECS Fargate/EKS and Terraform/CDK infra — not present.
-API Gateway + Cognito JWT authorizer — not present.
-CloudWatch/X-Ray/Prometheus/Grafana instrumentation — not present.
-"""
-# ToDo: integrate multipr / -tr / asyncio from playground
-
-# ToDo: Keep a ref to the files ina  db / list and delete any uploaded files / select a file for conversation
-# ToDo: Celery?
-# ToDo: user stories use jira
-# ToDo: pylint / black -> run on other pc -> review
-
-
 @asynccontextmanager
 async def lifespan(app):
     """Lifespan context manager to start/stop Redis listener if enabled."""

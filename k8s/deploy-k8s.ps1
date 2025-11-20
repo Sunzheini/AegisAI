@@ -50,6 +50,7 @@ kubectl apply -f volumes/persistent-volume.yaml
 # 3. Create ConfigMaps and Secrets
 Write-Host "  [3/8] Creating ConfigMaps and Secrets..." -ForegroundColor Cyan
 kubectl apply -f configmaps/app-config.yaml
+kubectl apply -f configmaps/postgres-init.yaml
 kubectl apply -f secrets/app-secrets.yaml
 
 # 4. Deploy infrastructure

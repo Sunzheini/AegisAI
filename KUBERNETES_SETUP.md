@@ -36,7 +36,7 @@ k8s/
 
 2. Build and Push Images
    ```powershell
-   cd k8s
+   cd D:\Study\Projects\Github\AegisAI\k8s
    .\build-images.ps1 -Registry "sunzheini1407" -Tag "latest" -Push
    ```
 
@@ -54,11 +54,13 @@ k8s/
 
 4. Deploy to Kubernetes
    ```powershell
-   .\deploy-k8s.ps1 -Registry "sunzheini1407"
+   cd D:\Study\Projects\Github\AegisAI\k8s
+   .\deploy-k8s.ps1 -Registry "sunzheini1407" 
    ```
    
 5. Apply autoscaling
     ```powershell
+   # HPA_PDB_EXPLAINED.md has more details on HPA and PDB
    kubectl apply -f hpa.yaml
    kubectl apply -f pdb.yaml
    ```
@@ -70,13 +72,13 @@ k8s/
 
 7. Port Forwarding to Access Application
    ```powershell
-   kubectl port-forward -n aegisai service/api-gateway 8000:8000 
+   kubectl port-forward -n aegisai service/api-gateway 8000:8000
    kubectl port-forward -n aegisai svc/workflow-orchestrator 9000:9000
    kubectl port-forward -n aegisai svc/ai-service 9004:9004
-   
+
    use the frontend
    ```
-   
+
 8. Update: after code changes
    ```powershell
    .\build-images.ps1 -Registry "sunzheini1407" -Push
@@ -87,20 +89,20 @@ k8s/
     ```powershell
     # Check status
     kubectl get pods -n aegisai
-    
+
     # View logs
     kubectl logs -n aegisai -l app=api-gateway --tail=50
-    
+
     # Check autoscaling
     kubectl get hpa -n aegisai
     ```
-   
+
 10. Scale Services
     ```powershell
     # Manual scaling
     kubectl scale deployment/api-gateway -n aegisai --replicas=3
     kubectl scale deployment/workflow-orchestrator -n aegisai --replicas=2
-    
+
     # View autoscaling status (if HPA is enabled)
     kubectl get hpa -n aegisai
     ```
@@ -109,4 +111,7 @@ k8s/
     ```powershell
     # Delete everything
     kubectl delete namespace aegisai
+    
+    # Also delete PersistentVolumes to start completely fresh
+    kubectl delete pv postgres-pv redis-pv shared-storage-pv 2>$null
     ```

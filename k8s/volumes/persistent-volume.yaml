@@ -61,7 +61,7 @@ spec:
     storage: 5Gi
   accessModes:
     - ReadWriteOnce
-  storageClassName: manual
+  storageClassName: hostpath
   hostPath:
     path: /data/aegisai/redis
   persistentVolumeReclaimPolicy: Retain
@@ -74,7 +74,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: manual
+  storageClassName: hostpath
   resources:
     requests:
       storage: 5Gi

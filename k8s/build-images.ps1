@@ -30,12 +30,12 @@ Set-Location $projectRoot
 
 # Services configuration
 $services = @(
-    @{Name="api-gateway"; Port=8000},
-    @{Name="workflow-orchestrator"; Port=9000},
-    @{Name="validation-service"; Port=9001},
-    @{Name="extract-metadata-service"; Port=9002},
-    @{Name="extract-content-service"; Port=9003},
-    @{Name="ai-service"; Port=9004}
+    @{Name="api-gateway"; DirName="api-gateway-service"; Port=8000},
+    @{Name="workflow-orchestrator"; DirName="workflow-orchestrator-service"; Port=9000},
+    @{Name="validation-service"; DirName="validation-service"; Port=9001},
+    @{Name="extract-metadata-service"; DirName="extract-metadata-service"; Port=9002},
+    @{Name="extract-content-service"; DirName="extract-content-service"; Port=9003},
+    @{Name="ai-service"; DirName="ai-service"; Port=9004}
 )
 
 $buildErrors = @()
@@ -43,9 +43,10 @@ $buildSuccess = @()
 
 foreach ($service in $services) {
     $serviceName = $service.Name
+    $dirName = $service.DirName
     $imageName = "aegisai-$serviceName"
     $fullImageName = "${Registry}/${imageName}:${Tag}"
-    $dockerfilePath = "services/$serviceName-service/Dockerfile"
+    $dockerfilePath = "services/$dirName/Dockerfile"
 
     Write-Host "Building $imageName..." -ForegroundColor Green
     Write-Host "  Dockerfile: $dockerfilePath" -ForegroundColor Gray

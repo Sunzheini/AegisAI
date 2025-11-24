@@ -134,6 +134,10 @@ docker-compose-example.yml as a base and create your own docker-compose.yml with
 see KUBERNETES_SETUP.md
 
 
+### CI/CD
+Create `\AegisAI\.git\workflows\`
+
+
 
 
 

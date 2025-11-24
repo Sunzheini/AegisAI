@@ -40,7 +40,7 @@ k8s/
    .\build-images.ps1 -Registry "sunzheini1407" -Tag "latest" -Push
    ```
 
-3. Update Secrets
+3. Update Secrets (Optional)
     ```powershell
     # 1. Edit secrets file
     # Edit: D:\Study\Projects\Github\AegisAI\k8s\secrets\app-secrets.yaml with the latest base64-encoded secrets
@@ -55,17 +55,17 @@ k8s/
 4. Deploy to Kubernetes
    ```powershell
    cd D:\Study\Projects\Github\AegisAI\k8s
-   .\deploy-k8s.ps1 -Registry "sunzheini1407" 
+   .\deploy-k8s.ps1 -Registry "sunzheini1407"
    ```
    
-5. Apply autoscaling
+5. Apply autoscaling (Optional)
     ```powershell
    # HPA_PDB_EXPLAINED.md has more details on HPA and PDB
    kubectl apply -f hpa.yaml
    kubectl apply -f pdb.yaml
    ```
 
-6. Verify Deployment
+6. Verify Deployment (Optional)
    ```powershell
    kubectl get pods -n aegisai
    ```
@@ -80,13 +80,13 @@ k8s/
    use the frontend
    ```
 
-8. Update: after code changes
+8. Update: after code changes (Optional)
    ```powershell
    .\build-images.ps1 -Registry "sunzheini1407" -Push
    kubectl rollout restart deployment -n aegisai
    ```
 
-9. Monitor and Access
+9. Monitor and Access (Optional)
     ```powershell
     # Check status
     kubectl get pods -n aegisai
@@ -98,7 +98,7 @@ k8s/
     kubectl get hpa -n aegisai
     ```
 
-10. Scale Services
+10. Scale Services (Optional)
     ```powershell
     # Manual scaling
     kubectl scale deployment/api-gateway -n aegisai --replicas=3

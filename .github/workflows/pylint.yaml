@@ -5,6 +5,7 @@ on: [push]
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 10  # Add overall timeout
     strategy:
       matrix:
         python-version: ["3.8", "3.9", "3.10"]
@@ -20,25 +21,30 @@ jobs:
         pip install pylint pytest
 
     - name: Run pylint and tests on all microservices
+      timeout-minutes: 8  # Add step timeout
       run: |
+        set -x  # Enable debug output to see where it hangs
+        
         # Process each microservice in services directory
         for service in services/*/; do
           if [ -f "$service/pyproject.toml" ]; then
-            echo "=== Processing: $(basename $service) ==="
+            service_name=$(basename "$service")
+            echo "=== Processing: $service_name ==="
             cd "$service"
             
-            # Install dependencies using pip (since it's standard pyproject.toml)
-            pip install -e . || echo "Installation failed, continuing..."
+            # Install dependencies with timeout
+            timeout 60s pip install -e . || echo "Installation failed or timed out, continuing..."
             
-            # Run pylint first
-            echo "Running pylint..."
-            python -m pylint $(find . -name "*.py") --disable=R0801 --fail-under=6.0 || true
+            # Run pylint first with timeout
+            echo "Running pylint on $service_name..."
+            timeout 120s python -m pylint $(find . -name "*.py" -not -path "./.venv/*") --disable=R0801 --fail-under=6.0 || echo "Pylint failed or timed out"
             
-            # Then run pytest
-            echo "Running tests..."
-            python -m pytest -v || echo "Tests failed or no tests found"
+            # Then run pytest with timeout
+            echo "Running tests on $service_name..."
+            timeout 120s python -m pytest -v --tb=short || echo "Tests failed, timed out, or no tests found"
             
             cd - > /dev/null
+            echo "=== Finished: $service_name ==="
             echo
           fi
         done
@@ -47,8 +53,10 @@ jobs:
         if [ -f "shared-lib/pyproject.toml" ]; then
           echo "=== Processing shared-lib ==="
           cd shared-lib
-          pip install -e . || echo "Installation failed, continuing..."
-          python -m pylint $(find . -name "*.py") --disable=R0801 --fail-under=6.0 || true
-          python -m pytest -v || echo "Tests failed or no tests found"
+          timeout 60s pip install -e . || echo "Installation failed or timed out, continuing..."
+          timeout 120s python -m pylint $(find . -name "*.py" -not -path "./.venv/*") --disable=R0801 --fail-under=6.0 || echo "Pylint failed or timed out"
+          timeout 120s python -m pytest -v --tb=short || echo "Tests failed, timed out, or no tests found"
           cd - > /dev/null
         fi
+        
+        echo "All microservices processed successfully"

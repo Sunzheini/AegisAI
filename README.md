@@ -135,7 +135,8 @@ see KUBERNETES_SETUP.md
 
 
 ### CI/CD
-Create `\AegisAI\.git\workflows\`
+Create `\AegisAI\.github\workflows\pylint.yaml` with the code suggested from GitHub actions
+`git add .github/workflows/pylint.yaml`
 
 
 

@@ -136,7 +136,8 @@ see KUBERNETES_SETUP.md
 
 ### CI/CD
 Create `\AegisAI\.github\workflows\pylint.yaml` with the code suggested from GitHub actions
-`git add .github/workflows/pylint.yaml`
+`git add .github/workflows/pylint.yaml`, since it is ignored in .gitignore
+commit and push
 
 
 

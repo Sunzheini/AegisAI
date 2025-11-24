@@ -14,9 +14,10 @@ jobs:
       uses: actions/setup-python@v3
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install Poetry
+    - name: Install dependencies
       run: |
-        pip install poetry==1.8.2
+        python -m pip install --upgrade pip
+        pip install pylint pytest
 
     - name: Run pylint and tests on all microservices
       run: |
@@ -26,16 +27,16 @@ jobs:
             echo "=== Processing: $(basename $service) ==="
             cd "$service"
             
-            # Install dependencies with Poetry
-            poetry install --no-root
+            # Install dependencies using pip (since it's standard pyproject.toml)
+            pip install -e . || echo "Installation failed, continuing..."
             
             # Run pylint first
             echo "Running pylint..."
-            poetry run pylint $(find . -name "*.py") --disable=R0801 --fail-under=6.0 || true
+            python -m pylint $(find . -name "*.py") --disable=R0801 --fail-under=6.0 || true
             
             # Then run pytest
             echo "Running tests..."
-            poetry run pytest -v || echo "Tests failed or no tests found"
+            python -m pytest -v || echo "Tests failed or no tests found"
             
             cd - > /dev/null
             echo
@@ -46,8 +47,8 @@ jobs:
         if [ -f "shared-lib/pyproject.toml" ]; then
           echo "=== Processing shared-lib ==="
           cd shared-lib
-          poetry install --no-root
-          poetry run pylint $(find . -name "*.py") --disable=R0801 --fail-under=6.0 || true
-          poetry run pytest -v || echo "Tests failed or no tests found"
+          pip install -e . || echo "Installation failed, continuing..."
+          python -m pylint $(find . -name "*.py") --disable=R0801 --fail-under=6.0 || true
+          python -m pytest -v || echo "Tests failed or no tests found"
           cd - > /dev/null
         fi

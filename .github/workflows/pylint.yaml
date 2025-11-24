@@ -16,8 +16,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install Poetry
       run: |
-        curl -sSL https://install.python-poetry.org | python3 -
-        echo "$HOME/.local/bin" >> $GITHUB_PATH
+        pip install poetry==1.8.2
 
     - name: Run pylint and tests on all microservices
       run: |

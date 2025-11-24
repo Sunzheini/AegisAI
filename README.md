@@ -135,9 +135,38 @@ see KUBERNETES_SETUP.md
 
 
 ### CI/CD
-Create `\AegisAI\.github\workflows\pylint.yaml` with the code suggested from GitHub actions
-`git add .github/workflows/pylint.yaml`, since it is ignored in .gitignore
-commit and push
+1. Create `\AegisAI\.github\workflows\pylint.yaml` with the code suggested from GitHub actions
+2. `git add .github/workflows/pylint.yaml`, since it is ignored in .gitignore
+3. Commit and push, the workflow will run
+example file:
+
+`
+name: Pylint
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10"]
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v3
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pylint
+        pip install pylint pytest
+    - name: Analysing the code with pylint
+      run: |
+        pylint $(git ls-files '*.py') --disable=R0801 --fail-under=6.0
+`
+
 
 
 

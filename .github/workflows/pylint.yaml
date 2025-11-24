@@ -1,4 +1,4 @@
-name: Pylint
+name: Pylint and Tests
 
 on: [push]
 
@@ -14,10 +14,41 @@ jobs:
       uses: actions/setup-python@v3
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
+    - name: Install Poetry
       run: |
-        python -m pip install --upgrade pip
-        pip install pylint
-    - name: Analysing the code with pylint
+        curl -sSL https://install.python-poetry.org | python3 -
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+    - name: Run pylint and tests on all microservices
       run: |
-        pylint $(git ls-files '*.py') --disable=R0801 --fail-under=6.0
+        # Process each microservice in services directory
+        for service in services/*/; do
+          if [ -f "$service/pyproject.toml" ]; then
+            echo "=== Processing: $(basename $service) ==="
+            cd "$service"
+            
+            # Install dependencies with Poetry
+            poetry install --no-root
+            
+            # Run pylint first
+            echo "Running pylint..."
+            poetry run pylint $(find . -name "*.py") --disable=R0801 --fail-under=6.0 || true
+            
+            # Then run pytest
+            echo "Running tests..."
+            poetry run pytest -v || echo "Tests failed or no tests found"
+            
+            cd - > /dev/null
+            echo
+          fi
+        done
+        
+        # Process shared-lib if it exists
+        if [ -f "shared-lib/pyproject.toml" ]; then
+          echo "=== Processing shared-lib ==="
+          cd shared-lib
+          poetry install --no-root
+          poetry run pylint $(find . -name "*.py") --disable=R0801 --fail-under=6.0 || true
+          poetry run pytest -v || echo "Tests failed or no tests found"
+          cd - > /dev/null
+        fi

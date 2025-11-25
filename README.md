@@ -168,6 +168,13 @@ jobs:
 `
 
 
+## AWS SQS
+1. Run create-sqs-queues.ps1 to create the SQS queues       # ok
+2. Verify queues are created in AWS SQS console:            # ok
+`aws sqs list-queues --region eu-central-1`                 # ok
+3. continue
+
+
 ## AWS EKS
 AWS EKS Deployment Guide (ongoing)
 Afterward run `kubectl config use-context docker-desktop` to return to be able to use k8s locally again

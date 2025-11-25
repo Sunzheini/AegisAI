@@ -48,25 +48,3 @@ Ingress YAML (for API gateway routing)
 3. Create .github/workflows/ with YAML files:
     ci.yml: Runs on every push/PR
     cd.yml: Runs on merge to main or tags
-AWS Deployment Path
-1. Set up AWS EKS cluster
-2. Configure kubectl to connect to EKS
-3. Set up AWS ECR for Docker image registry
-4. Configure CI/CD to push images to ECR and deploy to EKS
-5. Set up monitoring (CloudWatch, Prometheus/Grafana)
- 
-Структурата ще ти излгежда подобно на:
-
-    AegisAI/
-    ├── .github/
-    │   └── workflows/
-    │       ├── ci.yml
-    │       └── cd.yml
-    ├── k8s/
-    │   ├── api-gateway/
-    │   │   ├── deployment.yaml
-    │   │   └── service.yaml
-    │   ├── workflow-orchestrator/
-    │   ├── validation-service/
-    │   └── ingress.yaml
-    └── services/ (existing)

@@ -168,14 +168,6 @@ jobs:
 `
 
 
-
-
-
-
-
-
-
-
-
-
-
+## AWS EKS
+AWS EKS Deployment Guide (ongoing)
+Afterward run `kubectl config use-context docker-desktop` to return to be able to use k8s locally again

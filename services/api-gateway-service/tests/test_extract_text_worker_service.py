@@ -263,16 +263,29 @@ async def test_save_extracted_text_to_file(extract_text_service):
     assert "character_count" in file_stats
     assert "saved_at" in file_stats
 
-    # Verify file was actually created
-    assert os.path.exists(file_path)
+    # Check if we're using AWS or local storage
+    use_aws = os.getenv("USE_AWS", "false").lower() == "true"
 
-    # Verify content
-    with open(file_path, "r", encoding="utf-8") as f:
-        saved_content = f.read()
-    assert saved_content == extracted_text
+    if use_aws:
+        # For AWS: verify S3 path format
+        assert file_path.startswith("s3://")
+        assert "processed" in file_path
 
-    # Cleanup
-    os.unlink(file_path)
+        # Verify file stats are correct
+        assert file_stats["file_size_bytes"] == len(extracted_text.encode('utf-8'))
+        assert file_stats["character_count"] == character_count
+
+    else:
+        # For local storage: verify file was actually created
+        assert os.path.exists(file_path)
+
+        # Verify content
+        with open(file_path, "r", encoding="utf-8") as f:
+            saved_content = f.read()
+        assert saved_content == extracted_text
+
+        # Cleanup
+        os.unlink(file_path)
 
 
 @pytest.mark.asyncio

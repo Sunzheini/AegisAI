@@ -1,9 +1,8 @@
 # Status and ToDo
 
 ## Status
-Working with USE_AWS=TRUE, without docker, with docker and with k8s.
-Not working with USE_AWS=FALSE.
-TESTS failing in both cases.
+Working with USE_AWS=TRUE, without docker, with docker and with k8s. Not working with USE_AWS=FALSE.
+TESTS working with USE_AWS=TRUE.
 
 ## ToDo:
 - CI/CD

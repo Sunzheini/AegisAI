@@ -5,6 +5,9 @@ import pytest
 import tempfile
 import os
 
+from cloud_management.cloud_manager import CloudManager
+from needs.ResolveNeedsManager import ResolveNeedsManager
+from redis_management.redis_manager import RedisManager
 from workers.validation_worker_service import (
     ValidationService,
     VALIDATION_QUEUE,
@@ -24,7 +27,18 @@ class DummyRedisManager:
 @pytest.fixture
 def validation_service():
     """Create a ValidationService instance for testing."""
+    # Create validation service and inject needs
     service = ValidationService()
+    service.redis_manager = RedisManager()
+    service.cloud_manager = CloudManager()
+
+    # Initialize the cloud client after injection
+    service.cloud_manager.create_s3_client(
+        access_key_id=os.getenv("AWS_ACCESS_KEY_ID", ""),
+        secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY", ""),
+        region=os.getenv("AWS_REGION_NAME", "us-east-1"),
+    )
+
     return service
 
 

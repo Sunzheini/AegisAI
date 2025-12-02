@@ -5,6 +5,8 @@ import pytest
 import tempfile
 import os
 
+from cloud_management.cloud_manager import CloudManager
+from redis_management.redis_manager import RedisManager
 from workers.extract_text_worker_service import (
     ExtractTextService,
     redis_listener,
@@ -25,6 +27,16 @@ class DummyRedisManager:
 def extract_text_service():
     """Create an ExtractTextService instance for testing."""
     service = ExtractTextService()
+    service.redis_manager = RedisManager()
+    service.cloud_manager = CloudManager()
+
+    # Initialize the cloud client after injection
+    service.cloud_manager.create_s3_client(
+        access_key_id=os.getenv("AWS_ACCESS_KEY_ID", ""),
+        secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY", ""),
+        region=os.getenv("AWS_REGION_NAME", "us-east-1"),
+    )
+
     return service
 
 

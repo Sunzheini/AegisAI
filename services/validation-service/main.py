@@ -38,7 +38,7 @@ USE_AWS = os.getenv("USE_AWS", "false").lower() == "true"
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "")
 AWS_REGION = os.getenv("AWS_REGION_NAME", "")
-    
+
 if not USE_AWS:
     UPLOAD_DIR = Path(os.getenv("RAW_DIR", "storage/raw")).resolve()
 else:
@@ -59,7 +59,6 @@ ALLOWED_EXTENSIONS = {
     "video/mov": [".mov"],
     "video/webm": [".webm"],
 }
-
 
 logger = LoggingManager.setup_logging(
     service_name="validation-service",
@@ -141,8 +140,16 @@ class ValidationService(INeedRedisManagerInterface, INeedCloudManagerInterface):
         file_path = state["file_path"]
 
         try:
-            # Todo: changed
-            if not USE_AWS:
+            # Check if it's an S3 path or local path
+            if USE_AWS and file_path.startswith('s3://'):
+                # S3 file validation
+                bucket_name, key = self.cloud_manager.parse_s3_path(file_path)
+                try:
+                    self.cloud_manager.s3_client.head_object(Bucket=bucket_name, Key=key)
+                except ClientError as e:
+                    errors.append(f"S3 file does not exist or inaccessible: {file_path} - {e}")
+            else:
+                # Local file validation
                 path = Path(file_path)
 
                 # Check if file exists
@@ -158,12 +165,6 @@ class ValidationService(INeedRedisManagerInterface, INeedCloudManagerInterface):
                 if not os.access(file_path, os.R_OK):
                     errors.append(f"No read permission for file: {file_path}")
 
-            else:
-                bucket_name, key = self.cloud_manager.parse_s3_path(file_path)
-                try:
-                    self.cloud_manager.s3_client.head_object(Bucket=bucket_name, Key=key)
-                except ClientError as e:
-                    errors.append(f"S3 file does not exist or inaccessible: {file_path} - {e}")
 
         except Exception as e:
             errors.append(f"File access validation failed: {str(e)}")
@@ -197,13 +198,15 @@ class ValidationService(INeedRedisManagerInterface, INeedCloudManagerInterface):
         file_path = state["file_path"]
 
         try:
-            # Todo: changed
-            if not USE_AWS:
-                file_size = os.path.getsize(file_path)
-            else:
+            # Check if it's an S3 path or local path
+            if USE_AWS and file_path.startswith('s3://'):
+                # Get file size from S3
                 bucket_name, key = self.cloud_manager.parse_s3_path(file_path)
                 response = self.cloud_manager.s3_client.head_object(Bucket=bucket_name, Key=key)
                 file_size = response['ContentLength']
+            else:
+                # Get file size from local filesystem
+                file_size = os.path.getsize(file_path)
 
             if file_size > self.MAX_FILE_SIZE:
                 errors.append(
@@ -310,7 +313,7 @@ class ValidationService(INeedRedisManagerInterface, INeedCloudManagerInterface):
 
             # Check if image dimensions are reasonable
             if (
-                file_size > self.MAX_IMAGE_DIMENSION * self.MAX_IMAGE_DIMENSION * 4
+                    file_size > self.MAX_IMAGE_DIMENSION * self.MAX_IMAGE_DIMENSION * 4
             ):  # Rough estimate: width * height * 4 bytes
                 errors.append(
                     f"Image file size suggests dimensions may exceed maximum allowed {self.MAX_IMAGE_DIMENSION}x{self.MAX_IMAGE_DIMENSION}"
@@ -414,7 +417,7 @@ class ValidationService(INeedRedisManagerInterface, INeedCloudManagerInterface):
     # endregion
 
     async def _validate_file_worker(
-        self, state: WorkflowGraphState
+            self, state: WorkflowGraphState
     ) -> WorkflowGraphState:
         """
         Validates the file type, size, and integrity for an ingestion job.

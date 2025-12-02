@@ -46,7 +46,6 @@ else:
 from routers import auth_router, users_router, v1_router, redis_router
 
 
-USE_AWS = os.getenv("USE_AWS", "false").lower() == "true"
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "")
 AWS_REGION = os.getenv("AWS_REGION_NAME", "")
@@ -83,13 +82,12 @@ Register ingestion manager and expose for tests! app.state is a dynamic attribut
 # app.state.ingestion_manager = IngestionViewsManager(v1_router.router, get_current_user)
 app.state.ingestion_manager = v1_router.views_manager
 
-# If using AWS, create S3 client
-if USE_AWS:
-    app.state.ingestion_manager.cloud_manager.create_s3_client(
-            access_key_id=AWS_ACCESS_KEY_ID,
-            secret_access_key=AWS_SECRET_ACCESS_KEY,
-            region=AWS_REGION,
-        )
+# create S3 client
+app.state.ingestion_manager.cloud_manager.create_s3_client(
+        access_key_id=AWS_ACCESS_KEY_ID,
+        secret_access_key=AWS_SECRET_ACCESS_KEY,
+        region=AWS_REGION,
+    )
 
 # Health check endpoint
 @app.get("/health")

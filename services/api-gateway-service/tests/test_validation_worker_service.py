@@ -227,6 +227,14 @@ async def test_redis_listener_integration(
     # Create service instance
     svc = ValidationService()
     svc.redis_manager = DummyRedisManager(redis_client)
+    svc.cloud_manager = CloudManager()
+
+    # Initialize the cloud client
+    svc.cloud_manager.create_s3_client(
+        access_key_id=os.getenv("AWS_ACCESS_KEY_ID", ""),
+        secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY", ""),
+        region=os.getenv("AWS_REGION_NAME", "us-east-1"),
+    )
 
     # Update state with real file path
     job_state = sample_pdf_state.copy()

@@ -4,6 +4,7 @@ AI Service
 Standalone service that executes tasks using LLM calls.
 Uses RedisManager for consistent connection management.
 """
+
 import os
 import json
 import asyncio
@@ -125,18 +126,26 @@ class AIService(INeedRedisManagerInterface, INeedCloudManagerInterface):
             text_file_path = state["metadata"]["text_extraction"].get("text_file_path")
             if text_file_path and os.path.exists(text_file_path):
                 try:
-                    with open(text_file_path, 'r', encoding='utf-8') as f:
+                    with open(text_file_path, "r", encoding="utf-8") as f:
                         text_content = f.read()
-                        print(f"[AI Service] Loaded full text from file: {len(text_content)} characters")
+                        print(
+                            f"[AI Service] Loaded full text from file: {len(text_content)} characters"
+                        )
                 except Exception as e:
                     print(f"[AI Service] Failed to read text file: {str(e)}")
                     # Fall back to extracted text in metadata
-                    text_content = state["metadata"]["text_extraction"].get("extracted_text", "")
+                    text_content = state["metadata"]["text_extraction"].get(
+                        "extracted_text", ""
+                    )
 
             # If still no content, use preview
-            if not text_content and state["metadata"]["text_extraction"].get("text_preview"):
+            if not text_content and state["metadata"]["text_extraction"].get(
+                "text_preview"
+            ):
                 text_content = state["metadata"]["text_extraction"]["text_preview"]
-                print(f"[AI Service] Using text preview: {len(text_content)} characters")
+                print(
+                    f"[AI Service] Using text preview: {len(text_content)} characters"
+                )
 
         return text_content
 
@@ -148,12 +157,14 @@ class AIService(INeedRedisManagerInterface, INeedCloudManagerInterface):
 
         # Dummy AI analysis - in real scenario, this would call an LLM API
         word_count = len(text.split())
-        sentence_count = len([s for s in text.split('.') if s.strip()])
+        sentence_count = len([s for s in text.split(".") if s.strip()])
 
         # Simple keyword extraction (dummy implementation)
         words = text.lower().split()
-        common_words = ['the', 'and', 'is', 'in', 'to', 'of', 'a', 'for']
-        keywords = [word for word in words if word not in common_words and len(word) > 4]
+        common_words = ["the", "and", "is", "in", "to", "of", "a", "for"]
+        keywords = [
+            word for word in words if word not in common_words and len(word) > 4
+        ]
         top_keywords = list(set(keywords))[:10]  # Get top 10 unique keywords
 
         # Generate summary based on content
@@ -178,7 +189,9 @@ class AIService(INeedRedisManagerInterface, INeedCloudManagerInterface):
             "estimated_reading_time_minutes": max(1, word_count // 200),  # 200 wpm
             "key_topics": top_keywords[:5],
             "content_type": summary_type,
-            "readability_score": min(100, max(30, 80 - (word_count // 100))),  # Dummy score
+            "readability_score": min(
+                100, max(30, 80 - (word_count // 100))
+            ),  # Dummy score
         }
 
     @staticmethod
@@ -187,8 +200,24 @@ class AIService(INeedRedisManagerInterface, INeedCloudManagerInterface):
         await asyncio.sleep(0.2)
 
         # Dummy sentiment analysis
-        positive_words = ['good', 'great', 'excellent', 'amazing', 'wonderful', 'positive', 'success']
-        negative_words = ['bad', 'terrible', 'awful', 'horrible', 'negative', 'failure', 'problem']
+        positive_words = [
+            "good",
+            "great",
+            "excellent",
+            "amazing",
+            "wonderful",
+            "positive",
+            "success",
+        ]
+        negative_words = [
+            "bad",
+            "terrible",
+            "awful",
+            "horrible",
+            "negative",
+            "failure",
+            "problem",
+        ]
 
         text_lower = text.lower()
         positive_count = sum(1 for word in positive_words if word in text_lower)
@@ -205,8 +234,8 @@ class AIService(INeedRedisManagerInterface, INeedCloudManagerInterface):
             confidence = 50
 
         # Dummy tone analysis
-        formal_indicators = ['however', 'therefore', 'furthermore', 'additionally']
-        casual_indicators = ['hey', 'hello', 'thanks', 'please', '!']
+        formal_indicators = ["however", "therefore", "furthermore", "additionally"]
+        casual_indicators = ["hey", "hello", "thanks", "please", "!"]
 
         formal_score = sum(1 for word in formal_indicators if word in text_lower)
         casual_score = sum(1 for word in casual_indicators if word in text_lower)
@@ -237,7 +266,7 @@ class AIService(INeedRedisManagerInterface, INeedCloudManagerInterface):
             "organizations": [],
             "locations": [],
             "dates": [],
-            "topics": []
+            "topics": [],
         }
 
         # Simple pattern matching for dummy entities
@@ -245,11 +274,11 @@ class AIService(INeedRedisManagerInterface, INeedCloudManagerInterface):
         for i, word in enumerate(words):
             if word.istitle() and len(word) > 2:
                 # Simple heuristic for proper nouns
-                if i > 0 and words[i - 1] in ['Mr.', 'Ms.', 'Dr.']:
+                if i > 0 and words[i - 1] in ["Mr.", "Ms.", "Dr."]:
                     entities["people"].append(word)
-                elif word.endswith(('Inc.', 'Ltd.', 'Corp.')):
+                elif word.endswith(("Inc.", "Ltd.", "Corp.")):
                     entities["organizations"].append(word)
-                elif word in ['Paris', 'London', 'New York', 'Berlin']:
+                elif word in ["Paris", "London", "New York", "Berlin"]:
                     entities["locations"].append(word)
 
         # Remove duplicates
@@ -257,8 +286,22 @@ class AIService(INeedRedisManagerInterface, INeedCloudManagerInterface):
             entities[key] = list(set(entities[key]))
 
         # Dummy topic modeling
-        technical_terms = ['algorithm', 'system', 'data', 'process', 'technology', 'development']
-        business_terms = ['business', 'market', 'strategy', 'growth', 'revenue', 'customer']
+        technical_terms = [
+            "algorithm",
+            "system",
+            "data",
+            "process",
+            "technology",
+            "development",
+        ]
+        business_terms = [
+            "business",
+            "market",
+            "strategy",
+            "growth",
+            "revenue",
+            "customer",
+        ]
 
         tech_count = sum(1 for term in technical_terms if term in text.lower())
         business_count = sum(1 for term in business_terms if term in text.lower())
@@ -273,7 +316,9 @@ class AIService(INeedRedisManagerInterface, INeedCloudManagerInterface):
         return entities
 
     @staticmethod
-    async def _generate_ai_insights(summary: dict, sentiment: dict, entities: dict) -> dict:
+    async def _generate_ai_insights(
+        summary: dict, sentiment: dict, entities: dict
+    ) -> dict:
         """Generate comprehensive AI insights from all analyses."""
         insights = []
 
@@ -281,10 +326,14 @@ class AIService(INeedRedisManagerInterface, INeedCloudManagerInterface):
         if sentiment["sentiment"] == "positive":
             insights.append("The document has a generally positive tone")
         elif sentiment["sentiment"] == "negative":
-            insights.append("The document contains negative sentiment that may require attention")
+            insights.append(
+                "The document contains negative sentiment that may require attention"
+            )
 
         if summary["word_count"] > 1000:
-            insights.append("This is a comprehensive document requiring detailed review")
+            insights.append(
+                "This is a comprehensive document requiring detailed review"
+            )
         elif summary["word_count"] < 200:
             insights.append("This is a brief document suitable for quick reading")
 
@@ -296,11 +345,18 @@ class AIService(INeedRedisManagerInterface, INeedCloudManagerInterface):
 
         return {
             "insights": insights,
-            "overall_complexity": "high" if summary["word_count"] > 800 else "medium" if summary[
-                                                                                             "word_count"] > 300 else "low",
-            "recommended_actions": ["Review key topics", "Consider sentiment in response"] if insights else [
-                "Standard processing complete"],
+            "overall_complexity": (
+                "high"
+                if summary["word_count"] > 800
+                else "medium" if summary["word_count"] > 300 else "low"
+            ),
+            "recommended_actions": (
+                ["Review key topics", "Consider sentiment in response"]
+                if insights
+                else ["Standard processing complete"]
+            ),
         }
+
     # endregion
 
     async def _process_ai_worker(self, state: WorkflowGraphState) -> WorkflowGraphState:
@@ -449,9 +505,9 @@ class AIService(INeedRedisManagerInterface, INeedCloudManagerInterface):
 
         # Improved queries for better document analysis
         query = {
-            'summary': "Provide a comprehensive executive summary of this document, highlighting main topics and key information",
-            'key_points': "Extract the most important technical specifications, features, or key findings mentioned in the document",
-            'analysis': "Identify the document's primary purpose, target audience, structure, and any critical recommendations"
+            "summary": "Provide a comprehensive executive summary of this document, highlighting main topics and key information",
+            "key_points": "Extract the most important technical specifications, features, or key findings mentioned in the document",
+            "analysis": "Identify the document's primary purpose, target audience, structure, and any critical recommendations",
         }
 
         chat_history = []  # list of (user, bot) tuples
@@ -463,7 +519,9 @@ class AIService(INeedRedisManagerInterface, INeedCloudManagerInterface):
                 errors.append("No text chunks available for AI processing")
             else:
                 ConcreteAIManager.ingest_txt_into_cloud_vector_store(texts)
-                summary_response = ConcreteAIManager.retrieve_from_txt_in_cloud(query, chat_history)
+                summary_response = ConcreteAIManager.retrieve_from_txt_in_cloud(
+                    query, chat_history
+                )
 
                 all_responses = summary_response["responses"]
 
@@ -482,32 +540,40 @@ class AIService(INeedRedisManagerInterface, INeedCloudManagerInterface):
                 actual_word_count = len(combined_summary.split())
 
                 # Compile all AI results
-                ai_results.update({
-                    "document_summary": {
-                        "summary": combined_summary,
-                        "executive_summary": all_responses['summary'],
-                        "key_points": all_responses['key_points'],
-                        "document_analysis": all_responses['analysis'],
-                        "word_count": actual_word_count,
-                        "content_type": "comprehensive_analysis",
-                        "readability_score": min(100, max(50, 100 - (actual_word_count // 10)))
-                    },
-                    "sentiment_analysis": {
-                        "sentiment": "neutral",  # You could analyze this from the content
-                        "sentiment_confidence": 75
-                    },
-                    "entity_extraction": {
-                        "topics": ["technical_document"]  # Extract actual topics from content
-                    },
-                    "ai_insights": {
-                        "insights": ["Document analyzed via vector search and multi-perspective queries"],
-                        "overall_complexity": "medium",
-                        "analysis_depth": "comprehensive"
-                    },
-                    "processing_timestamp": datetime.now(timezone.utc).isoformat(),
-                    "model_used": "gpt-4.1-mini",
-                    "analysis_queries_used": 3
-                })
+                ai_results.update(
+                    {
+                        "document_summary": {
+                            "summary": combined_summary,
+                            "executive_summary": all_responses["summary"],
+                            "key_points": all_responses["key_points"],
+                            "document_analysis": all_responses["analysis"],
+                            "word_count": actual_word_count,
+                            "content_type": "comprehensive_analysis",
+                            "readability_score": min(
+                                100, max(50, 100 - (actual_word_count // 10))
+                            ),
+                        },
+                        "sentiment_analysis": {
+                            "sentiment": "neutral",  # You could analyze this from the content
+                            "sentiment_confidence": 75,
+                        },
+                        "entity_extraction": {
+                            "topics": [
+                                "technical_document"
+                            ]  # Extract actual topics from content
+                        },
+                        "ai_insights": {
+                            "insights": [
+                                "Document analyzed via vector search and multi-perspective queries"
+                            ],
+                            "overall_complexity": "medium",
+                            "analysis_depth": "comprehensive",
+                        },
+                        "processing_timestamp": datetime.now(timezone.utc).isoformat(),
+                        "model_used": "gpt-4.1-mini",
+                        "analysis_queries_used": 3,
+                    }
+                )
 
         except Exception as e:
             errors.append(f"AI processing failed: {str(e)}")
@@ -527,13 +593,15 @@ class AIService(INeedRedisManagerInterface, INeedCloudManagerInterface):
                 state["metadata"]["ai_processing"] = {
                     "success": False,
                     "errors": errors,
-                    "partial_results": ai_results
+                    "partial_results": ai_results,
                 }
 
         else:
             state["status"] = "success"
             state["step"] = "ai_processing_done"
-            state["metadata"]["ai_processing"] = ai_results  # Add AI results to existing metadata
+            state["metadata"][
+                "ai_processing"
+            ] = ai_results  # Add AI results to existing metadata
             state["metadata"]["ai_processing_status"] = "completed"  # Add success flag
 
         state["updated_at"] = datetime.now(timezone.utc).isoformat()
@@ -571,9 +639,10 @@ async def generate_response(request: dict):
 
         result = {
             "query": query,
-            "result": response['answer'],
-            "source_documents": response.get('context', []),
-            "chat_history": chat_history + [('human', query), ('ai', response['answer'])]
+            "result": response["answer"],
+            "source_documents": response.get("context", []),
+            "chat_history": chat_history
+            + [("human", query), ("ai", response["answer"])],
         }
 
         return result
@@ -591,21 +660,17 @@ async def cleanup_data():
         if result is None:
             return JSONResponse(
                 status_code=500,
-                content={"error": "Cleanup operation returned no result"}
+                content={"error": "Cleanup operation returned no result"},
             )
 
         if "error" in result:
-            return JSONResponse(
-                status_code=400,
-                content=result
-            )
+            return JSONResponse(status_code=400, content=result)
 
         return result
 
     except Exception as e:
         return JSONResponse(
-            status_code=500,
-            content={"error": f"Cleanup operation failed: {str(e)}"}
+            status_code=500, content={"error": f"Cleanup operation failed: {str(e)}"}
         )
 
 

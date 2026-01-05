@@ -1,6 +1,7 @@
 """
 Concrete AI implementation
 """
+
 import os
 import sys
 import subprocess
@@ -9,7 +10,9 @@ from pathlib import Path
 import tempfile
 from dotenv import load_dotenv
 from langchain_classic.chains.combine_documents import create_stuff_documents_chain
-from langchain_classic.chains.history_aware_retriever import create_history_aware_retriever
+from langchain_classic.chains.history_aware_retriever import (
+    create_history_aware_retriever,
+)
 from langchain_classic.chains.retrieval import create_retrieval_chain
 from pinecone import Pinecone
 from langsmith import Client
@@ -23,14 +26,15 @@ from support.useful_functions import split_document
 
 load_dotenv()
 
-pinecone_api_key = os.getenv('PINECONE_API_KEY')
-LANGSMITH_API_KEY = os.getenv('LANGSMITH_API_KEY')
-index_name = os.getenv('INDEX_NAME')
-index2_name = os.getenv('INDEX_NAME')
+pinecone_api_key = os.getenv("PINECONE_API_KEY")
+LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
+index_name = os.getenv("INDEX_NAME")
+index2_name = os.getenv("INDEX_NAME")
 
 
 class ConcreteAIManager:
     """Concrete AI Manager for handling AI-related operations."""
+
     base_dir = Path(__file__).resolve().parent.parent
     s3_client = None
 
@@ -47,23 +51,25 @@ class ConcreteAIManager:
 
             if path_to_file:
                 # Handle S3 paths - download temporarily
-                if path_to_file.startswith('s3://'):
+                if path_to_file.startswith("s3://"):
                     print(f"[AI Service] S3 path detected: {path_to_file}")
 
                     try:
                         # Parse S3 path
                         bucket_key = path_to_file[5:]  # Remove 's3://'
-                        bucket_name, key = bucket_key.split('/', 1)
+                        bucket_name, key = bucket_key.split("/", 1)
 
                         # Download to temp file
                         temp_dir = tempfile.gettempdir()
                         local_path = os.path.join(temp_dir, os.path.basename(key))
 
                         print(f"[AI Service] Downloading from S3: {bucket_name}/{key}")
-                        ConcreteAIManager.s3_client.download_file(bucket_name, key, local_path)
+                        ConcreteAIManager.s3_client.download_file(
+                            bucket_name, key, local_path
+                        )
 
                         # Split the downloaded file
-                        texts = split_document('.txt', local_path)
+                        texts = split_document(".txt", local_path)
 
                         # Clean up temp file
                         os.remove(local_path)
@@ -78,7 +84,7 @@ class ConcreteAIManager:
                 # Handle local files (existing logic)
                 elif os.path.exists(path_to_file):
                     print(f"[AI Service] Local file found: {path_to_file}")
-                    texts = split_document('.txt', path_to_file)
+                    texts = split_document(".txt", path_to_file)
                     return texts
                 else:
                     print(f"[AI Service] File not found: {path_to_file}")
@@ -96,7 +102,12 @@ class ConcreteAIManager:
 
         # 2
         pinecone_index_name = index_name
-        vectorstore = PineconeVectorStore.from_documents(texts, embeddings, index_name=pinecone_index_name, pinecone_api_key=pinecone_api_key)
+        vectorstore = PineconeVectorStore.from_documents(
+            texts,
+            embeddings,
+            index_name=pinecone_index_name,
+            pinecone_api_key=pinecone_api_key,
+        )
 
     @staticmethod
     def get_retrieval_chain():
@@ -106,31 +117,39 @@ class ConcreteAIManager:
 
         # 2
         pinecone_index_name = index_name
-        vectorstore = PineconeVectorStore(index_name=pinecone_index_name, embedding=embeddings, pinecone_api_key=pinecone_api_key)
+        vectorstore = PineconeVectorStore(
+            index_name=pinecone_index_name,
+            embedding=embeddings,
+            pinecone_api_key=pinecone_api_key,
+        )
 
         # 3
         client = Client(api_key=LANGSMITH_API_KEY)
-        retrieval_qa_chat_prompt = client.pull_prompt("langchain-ai/retrieval-qa-chat", include_model=True)
-        rephrase_prompt = client.pull_prompt("langchain-ai/chat-langchain-rephrase", include_model=True)
+        retrieval_qa_chat_prompt = client.pull_prompt(
+            "langchain-ai/retrieval-qa-chat", include_model=True
+        )
+        rephrase_prompt = client.pull_prompt(
+            "langchain-ai/chat-langchain-rephrase", include_model=True
+        )
 
         # 4
-        llm = ChatOpenAI(model_name="gpt-4.1-mini", temperature=0, callbacks=[CustomCallbackHandler()])
+        llm = ChatOpenAI(
+            model_name="gpt-4.1-mini",
+            temperature=0,
+            callbacks=[CustomCallbackHandler()],
+        )
 
         # 5
         history_aware_retriever = create_history_aware_retriever(
-            llm=llm,
-            retriever=vectorstore.as_retriever(),
-            prompt=rephrase_prompt
+            llm=llm, retriever=vectorstore.as_retriever(), prompt=rephrase_prompt
         )
 
         combine_docs_chain = create_stuff_documents_chain(
-            llm=llm,
-            prompt=retrieval_qa_chat_prompt
+            llm=llm, prompt=retrieval_qa_chat_prompt
         )
 
         chain = create_retrieval_chain(
-            retriever=history_aware_retriever,
-            combine_docs_chain=combine_docs_chain
+            retriever=history_aware_retriever, combine_docs_chain=combine_docs_chain
         )
 
         return chain
@@ -138,7 +157,8 @@ class ConcreteAIManager:
     @staticmethod
     def retrieve_from_txt_in_cloud(query, chat_history=None):
         """Retrieve information from ingested txt content in vector store."""
-        if chat_history is None: chat_history = []
+        if chat_history is None:
+            chat_history = []
 
         # 0 - 5
         chain = ConcreteAIManager.get_retrieval_chain()
@@ -147,23 +167,22 @@ class ConcreteAIManager:
         responses = {}
         for key, prompt in query.items():
             query = prompt
-            print(f'before request {key}: {query}')
-            response = chain.invoke(input={"input": query, "chat_history": chat_history})
+            print(f"before request {key}: {query}")
+            response = chain.invoke(
+                input={"input": query, "chat_history": chat_history}
+            )
 
             # Store response for later assertions
-            responses[key] = response['answer']
+            responses[key] = response["answer"]
 
             # ------------------------------------------------------------------------------
-            chat_history.append(('human', query))
-            chat_history.append(('ai', response['answer']))
+            chat_history.append(("human", query))
+            chat_history.append(("ai", response["answer"]))
 
             print(f'Response for {key}: {response["answer"][:100]}...')
-            print('-' * 10)
+            print("-" * 10)
 
-        return {
-            "responses": responses,
-            "chat_history": chat_history
-        }
+        return {"responses": responses, "chat_history": chat_history}
 
     @staticmethod
     async def cleanup_data():
@@ -191,12 +210,14 @@ class ConcreteAIManager:
                     try:
                         index = pc.Index(idx)
                         stats = index.describe_index_stats()
-                        total_vectors = stats.get('total_vector_count', 0)
+                        total_vectors = stats.get("total_vector_count", 0)
 
                         if total_vectors > 0:
                             index.delete(delete_all=True)
                             cleanup_results[idx] = f"Cleaned up {total_vectors} vectors"
-                            print(f"[Cleanup] Cleaned up {total_vectors} vectors from {idx}")
+                            print(
+                                f"[Cleanup] Cleaned up {total_vectors} vectors from {idx}"
+                            )
                         else:
                             cleanup_results[idx] = "No vectors to clean up"
                             print(f"[Cleanup] No vectors to clean up in {idx}")
@@ -209,7 +230,7 @@ class ConcreteAIManager:
             return {
                 "success": True,
                 "results": cleanup_results,
-                "message": "Cleanup operation completed"
+                "message": "Cleanup operation completed",
             }
 
         except Exception as e:
@@ -234,12 +255,7 @@ class ConcreteAIManager:
                 "success": result.returncode == 0,
                 "stdout": result.stdout,
                 "stderr": result.stderr,
-                "returncode": result.returncode
+                "returncode": result.returncode,
             }
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e),
-                "stdout": "",
-                "stderr": ""
-            }
+            return {"success": False, "error": str(e), "stdout": "", "stderr": ""}

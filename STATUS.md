@@ -4,14 +4,29 @@
 Working with USE_AWS=TRUE, without docker, with docker and with k8s. Not working with USE_AWS=FALSE.
 TESTS working with USE_AWS=TRUE.
 
-## ToDo:
-- CI/CD
-- Next thing in AWS
-- integrate multipr / -tr / asyncio from playground
-- Keep a ref to the files ina  db / list and delete any uploaded files / select a file for conversation
-- Celery?
-- user stories use jira
+## ToDo Coding (CW1-CW4):
 - pylint / black -> run on other pc -> review
+- transfer all projects, k8s, docker, ci/cd to new pc
+- 6 Async / 7 Conc app
+- 5 S3
+
+- 4 SQS
+
+- 2 VPC
+
+- 3 Manages API in a cloud
+
+## ToDo Training (CW1-CW4):
+- Schedule exam
+- Cloud practitioner trainings all
+- All trainings in cornerstone
+
+## AWS Exam CW5
+
+## Backup CW6
+
+## Evaluation CW7
+
 
 
 ## High-level plan к8:

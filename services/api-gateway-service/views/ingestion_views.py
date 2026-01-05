@@ -110,8 +110,6 @@ class IngestionViewsManager(INeedRedisManagerInterface, INeedCloudManagerInterfa
     like /v1/jobs/{job_id} and /v1/assets/{asset_id}. The orchestrator only needs the 
     job metadata sent via the event (Redis), not the full local store.
     """
-    # ToDo: If I later migrate to a cloud database or shared storage, refactor these to
-    #  use a persistent backend (e.g., PostgreSQL, DynamoDB).
     jobs_store: Dict[str, Dict[str, Any]] = (
         {}
     )  # job_id -> job_record, stores the ingestion jobs

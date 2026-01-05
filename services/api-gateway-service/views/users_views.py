@@ -36,6 +36,10 @@ class UsersViewsManager:
         self.register_views()
 
     def register_views(self):
+        """
+        Register user-related views (endpoints) with the FastAPI router.
+        :return: None
+        """
         # GET list @ http://127.0.0.1:8000/users/list
         @self.router.get(
             "/list", status_code=H.HTTP_200_OK

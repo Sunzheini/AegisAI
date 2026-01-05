@@ -9,6 +9,7 @@ import os
 import json
 import asyncio
 import logging
+import subprocess
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -209,9 +210,6 @@ class ExtractMetadataService(INeedRedisManagerInterface, INeedCloudManagerInterf
         metadata = {}
 
         try:
-            import subprocess
-            import json
-
             cmd = [
                 "ffprobe",
                 "-v",
@@ -223,7 +221,7 @@ class ExtractMetadataService(INeedRedisManagerInterface, INeedCloudManagerInterf
                 file_path,
             ]
 
-            result = subprocess.run(cmd, capture_output=True, text=True)
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
             if result.returncode != 0:
                 metadata["video_metadata_error"] = "ffprobe failed to analyze file"
                 return metadata
@@ -308,7 +306,7 @@ class ExtractMetadataService(INeedRedisManagerInterface, INeedCloudManagerInterf
                                 doc_info[clean_key] = value.decode(
                                     "utf-8", errors="ignore"
                                 )
-                            except:
+                            except Exception:
                                 doc_info[clean_key] = str(value)
                         else:
                             doc_info[clean_key] = str(value) if value else ""
@@ -391,7 +389,8 @@ class ExtractMetadataService(INeedRedisManagerInterface, INeedCloudManagerInterf
         universal_metadata = await self._extract_universal_metadata(state)
         if "universal_metadata_error" in universal_metadata:
             errors.append(
-                f"Universal metadata extraction failed: {universal_metadata['universal_metadata_error']}"
+                f"Universal metadata extraction failed: "
+                f"{universal_metadata['universal_metadata_error']}"
             )
         else:
             state["metadata"].update(universal_metadata)
@@ -408,7 +407,8 @@ class ExtractMetadataService(INeedRedisManagerInterface, INeedCloudManagerInterf
                     image_metadata = await self._extract_image_metadata(local_path)
                     if "image_metadata_error" in image_metadata:
                         errors.append(
-                            f"Image metadata extraction failed: {image_metadata['image_metadata_error']}"
+                            f"Image metadata extraction failed: "
+                            f"{image_metadata['image_metadata_error']}"
                         )
                     else:
                         state["metadata"].update(image_metadata)
@@ -417,7 +417,8 @@ class ExtractMetadataService(INeedRedisManagerInterface, INeedCloudManagerInterf
                     video_metadata = await self._extract_video_metadata(local_path)
                     if "video_metadata_error" in video_metadata:
                         errors.append(
-                            f"Video metadata extraction failed: {video_metadata['video_metadata_error']}"
+                            f"Video metadata extraction failed: "
+                            f"{video_metadata['video_metadata_error']}"
                         )
                     else:
                         state["metadata"].update(video_metadata)
@@ -460,20 +461,27 @@ class ExtractMetadataService(INeedRedisManagerInterface, INeedCloudManagerInterf
 
         state["updated_at"] = datetime.now(timezone.utc).isoformat()
         print(
-            f"[Worker:extract_metadata_from_file] Job {state['job_id']} extracting metadata done. State: {state}"
+            f"[Worker:extract_metadata_from_file] Job {state['job_id']} extracting metadata done. "
+            f"State: {state}"
         )
 
         return state
 
     @staticmethod
     def _current_timestamp():
-        from datetime import datetime, timezone
-
+        """
+        Get the current UTC timestamp in ISO format.
+        :return: Current timestamp as ISO formatted string.
+        """
         return datetime.now(timezone.utc).isoformat()
 
 
 @app.get("/health")
 async def health_check():
+    """
+    Health check endpoint for the Extract Metadata Service.
+    :return: A JSON indicating the service is healthy.
+    """
     return {"status": "healthy", "service": "extracting_metadata"}
 
 

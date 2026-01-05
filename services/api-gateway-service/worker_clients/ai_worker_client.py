@@ -1,8 +1,8 @@
 """
 AI Worker Client for Orchestrator
 ----------------------------------
-Lightweight client that publishes ai-related (e.g. summarize text) tasks to Redis and waits for results.
-Used by the workflow orchestrator.
+Lightweight client that publishes ai-related (e.g. summarize text)
+tasks to Redis and waits for results. Used by the workflow orchestrator.
 """
 
 import os

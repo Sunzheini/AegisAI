@@ -67,7 +67,8 @@ class BaseWorkerClient(INeedRedisManagerInterface):
                             data = json.loads(message["data"])
                             if data.get("job_id") == job_id:
                                 print(
-                                    f"[{self.worker_name}Client] Received {self.task_name} result for job_id: {job_id}"
+                                    f"[{self.worker_name}Client] Received {self.task_name} "
+                                    f"result for job_id: {job_id}"
                                 )
                                 return data["result"]
                         except (json.JSONDecodeError, KeyError) as e:

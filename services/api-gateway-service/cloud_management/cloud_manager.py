@@ -17,6 +17,10 @@ class CloudManager:
 
     @property
     def s3_client(self):
+        """
+        Get the S3 client.
+        :return: Boto3 S3 client instance
+        """
         return self._s3_client
 
     def create_s3_client(self, access_key_id, secret_access_key, region) -> None:

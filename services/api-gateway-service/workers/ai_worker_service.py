@@ -94,7 +94,7 @@ class AIService(INeedRedisManagerInterface):
 
     def __init__(self):
         self.logger = logging.getLogger("ai-service")
-        self.MAX_TEXT_LENGTH = MAX_TEXT_LENGTH
+        self.max_text_length = MAX_TEXT_LENGTH
 
         # Instance-level configuration
 
@@ -129,7 +129,8 @@ class AIService(INeedRedisManagerInterface):
                     with open(text_file_path, "r", encoding="utf-8") as f:
                         text_content = f.read()
                         print(
-                            f"[AI Service] Loaded full text from file: {len(text_content)} characters"
+                            f"[AI Service] Loaded full text from file: "
+                            f"{len(text_content)} characters"
                         )
                 except Exception as e:
                     print(f"[AI Service] Failed to read text file: {str(e)}")
@@ -150,7 +151,7 @@ class AIService(INeedRedisManagerInterface):
         return text_content
 
     @staticmethod
-    async def _generate_document_summary(text: str, job_id: str) -> dict:
+    async def _generate_document_summary(text: str) -> dict:
         """Generate a document summary using dummy AI logic."""
         # Simulate AI processing delay
         await asyncio.sleep(0.3)
@@ -395,7 +396,9 @@ class AIService(INeedRedisManagerInterface):
                 'Title': 'DATASHEET SEARCH SITE | WWW.ALLDATASHEET.COM',
                 'Creator': 'Acrobat Capture 1.0',
                 'Author': 'Provided By ALLDATASHEET.COM(FREE DATASHEET DOWNLOAD SITE)',
-                'Keywords': 'PDF, DATASHEET, PDF DATASHEET, IC, CHIP, SEMICONDUCTOR, TRANSISTOR, ELECTRONIC COMPONENT, ISO COMPONENT, ALLDATASHEET, DATABOOK, CATALOG, ARCHIVE',
+                'Keywords': 'PDF, DATASHEET, PDF DATASHEET, IC, CHIP, SEMICONDUCTOR, TRANSISTOR,
+                            ELECTRONIC COMPONENT, ISO COMPONENT, ALLDATASHEET, DATABOOK, CATALOG,
+                            ARCHIVE',
                 'Subject': 'DATASHEET SEARCH, DATABOOK, COMPONENT, FREE DOWNLOAD SITE',
                 'Producer': 'Acrobat PDFWriter 2.01 for Windows'},
             'extracting_metadata': 'passed',
@@ -421,11 +424,13 @@ class AIService(INeedRedisManagerInterface):
                 'extract_text': 'passed',
                 'ai_processing': {
                     'document_summary': {
-                        'summary': 'This is a long detailed_document containing approximately 4334 words. Key topics include: 30pf+10, cycle, abyteofthe.',
+                        'summary': 'This is a long detailed_document containing approximately
+                                    4334 words. Key topics include: 30pf+10, cycle, abyteofthe.',
                         'word_count': 4334,
                         'sentence_count': 430,
                         'estimated_reading_time_minutes': 21,
-                        'key_topics': ['30pf+10', 'cycle', 'abyteofthe', 'frominternalmemory,eais', 'units'],
+                        'key_topics': ['30pf+10', 'cycle', 'abyteofthe',
+                                        'frominternalmemory,eais', 'units'],
                         'content_type': 'detailed_document', 'readability_score': 37},
                     'sentiment_analysis': {
                         'sentiment': 'positive',
@@ -440,9 +445,12 @@ class AIService(INeedRedisManagerInterface):
                         'dates': [],
                         'topics': ['technology', 'software', 'systems']},
                     'ai_insights': {
-                        'insights': ['The document has a generally positive tone', 'This is a comprehensive document requiring detailed review', 'Content focuses on technical subjects'],
+                        'insights': ['The document has a generally positive tone',
+                                    'This is a comprehensive document requiring detailed review',
+                                    'Content focuses on technical subjects'],
                         'overall_complexity': 'high',
-                        'recommended_actions': ['Review key topics', 'Consider sentiment in response']},
+                        'recommended_actions': ['Review key topics',
+                                                'Consider sentiment in response']},
                     'processing_timestamp': '2025-10-28T09:40:29.095009+00:00',
                     'model_used': 'dummy_ai_v1.0'},
                 'ai_processing_status': 'completed'}}
@@ -487,7 +495,7 @@ class AIService(INeedRedisManagerInterface):
                         "entity_extraction": entities,
                         "ai_insights": insights,
                         "processing_timestamp": datetime.now(timezone.utc).isoformat(),
-                        "model_used": "dummy_ai_v1.0",  # In real scenario, this would be the actual model
+                        "model_used": "dummy_ai_v1.0",  # In real scenario, this is the actual model
                     }
                 )
 
@@ -531,13 +539,19 @@ class AIService(INeedRedisManagerInterface):
 
     @staticmethod
     def _current_timestamp():
-        from datetime import datetime, timezone
-
+        """
+        Get the current UTC timestamp in ISO format.
+        :return: Current timestamp string.
+        """
         return datetime.now(timezone.utc).isoformat()
 
 
 @app.get("/health")
 async def health_check():
+    """
+    Health check endpoint for AI Service.
+    :return: Health status dictionary.
+    """
     return {"status": "healthy", "service": "ai_processing"}
 
 

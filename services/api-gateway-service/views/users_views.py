@@ -1,6 +1,7 @@
 """
 Defines user-related views (endpoints) for the FastAPI application.
 """
+
 import os
 from pathlib import Path
 

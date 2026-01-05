@@ -4,6 +4,7 @@ AI Service
 Standalone service that executes tasks using LLM calls.
 Uses RedisManager for consistent connection management.
 """
+
 import os
 import json
 import asyncio
@@ -25,7 +26,9 @@ if USE_SHARED_LIB:
     from shared_lib.needs.ResolveNeedsManager import ResolveNeedsManager
     from shared_lib.redis_management.redis_manager import RedisManager
     from shared_lib.custom_middleware.error_middleware import ErrorMiddleware
-    from shared_lib.custom_middleware.logging_middleware import EnhancedLoggingMiddleware
+    from shared_lib.custom_middleware.logging_middleware import (
+        EnhancedLoggingMiddleware,
+    )
     from shared_lib.logging_management.logging_manager import LoggingManager
 else:
     from contracts.job_schemas import WorkflowGraphState
@@ -123,18 +126,26 @@ class AIService(INeedRedisManagerInterface):
             text_file_path = state["metadata"]["text_extraction"].get("text_file_path")
             if text_file_path and os.path.exists(text_file_path):
                 try:
-                    with open(text_file_path, 'r', encoding='utf-8') as f:
+                    with open(text_file_path, "r", encoding="utf-8") as f:
                         text_content = f.read()
-                        print(f"[AI Service] Loaded full text from file: {len(text_content)} characters")
+                        print(
+                            f"[AI Service] Loaded full text from file: {len(text_content)} characters"
+                        )
                 except Exception as e:
                     print(f"[AI Service] Failed to read text file: {str(e)}")
                     # Fall back to extracted text in metadata
-                    text_content = state["metadata"]["text_extraction"].get("extracted_text", "")
+                    text_content = state["metadata"]["text_extraction"].get(
+                        "extracted_text", ""
+                    )
 
             # If still no content, use preview
-            if not text_content and state["metadata"]["text_extraction"].get("text_preview"):
+            if not text_content and state["metadata"]["text_extraction"].get(
+                "text_preview"
+            ):
                 text_content = state["metadata"]["text_extraction"]["text_preview"]
-                print(f"[AI Service] Using text preview: {len(text_content)} characters")
+                print(
+                    f"[AI Service] Using text preview: {len(text_content)} characters"
+                )
 
         return text_content
 
@@ -146,12 +157,14 @@ class AIService(INeedRedisManagerInterface):
 
         # Dummy AI analysis - in real scenario, this would call an LLM API
         word_count = len(text.split())
-        sentence_count = len([s for s in text.split('.') if s.strip()])
+        sentence_count = len([s for s in text.split(".") if s.strip()])
 
         # Simple keyword extraction (dummy implementation)
         words = text.lower().split()
-        common_words = ['the', 'and', 'is', 'in', 'to', 'of', 'a', 'for']
-        keywords = [word for word in words if word not in common_words and len(word) > 4]
+        common_words = ["the", "and", "is", "in", "to", "of", "a", "for"]
+        keywords = [
+            word for word in words if word not in common_words and len(word) > 4
+        ]
         top_keywords = list(set(keywords))[:10]  # Get top 10 unique keywords
 
         # Generate summary based on content
@@ -176,7 +189,9 @@ class AIService(INeedRedisManagerInterface):
             "estimated_reading_time_minutes": max(1, word_count // 200),  # 200 wpm
             "key_topics": top_keywords[:5],
             "content_type": summary_type,
-            "readability_score": min(100, max(30, 80 - (word_count // 100))),  # Dummy score
+            "readability_score": min(
+                100, max(30, 80 - (word_count // 100))
+            ),  # Dummy score
         }
 
     @staticmethod
@@ -185,8 +200,24 @@ class AIService(INeedRedisManagerInterface):
         await asyncio.sleep(0.2)
 
         # Dummy sentiment analysis
-        positive_words = ['good', 'great', 'excellent', 'amazing', 'wonderful', 'positive', 'success']
-        negative_words = ['bad', 'terrible', 'awful', 'horrible', 'negative', 'failure', 'problem']
+        positive_words = [
+            "good",
+            "great",
+            "excellent",
+            "amazing",
+            "wonderful",
+            "positive",
+            "success",
+        ]
+        negative_words = [
+            "bad",
+            "terrible",
+            "awful",
+            "horrible",
+            "negative",
+            "failure",
+            "problem",
+        ]
 
         text_lower = text.lower()
         positive_count = sum(1 for word in positive_words if word in text_lower)
@@ -203,8 +234,8 @@ class AIService(INeedRedisManagerInterface):
             confidence = 50
 
         # Dummy tone analysis
-        formal_indicators = ['however', 'therefore', 'furthermore', 'additionally']
-        casual_indicators = ['hey', 'hello', 'thanks', 'please', '!']
+        formal_indicators = ["however", "therefore", "furthermore", "additionally"]
+        casual_indicators = ["hey", "hello", "thanks", "please", "!"]
 
         formal_score = sum(1 for word in formal_indicators if word in text_lower)
         casual_score = sum(1 for word in casual_indicators if word in text_lower)
@@ -235,7 +266,7 @@ class AIService(INeedRedisManagerInterface):
             "organizations": [],
             "locations": [],
             "dates": [],
-            "topics": []
+            "topics": [],
         }
 
         # Simple pattern matching for dummy entities
@@ -243,11 +274,11 @@ class AIService(INeedRedisManagerInterface):
         for i, word in enumerate(words):
             if word.istitle() and len(word) > 2:
                 # Simple heuristic for proper nouns
-                if i > 0 and words[i - 1] in ['Mr.', 'Ms.', 'Dr.']:
+                if i > 0 and words[i - 1] in ["Mr.", "Ms.", "Dr."]:
                     entities["people"].append(word)
-                elif word.endswith(('Inc.', 'Ltd.', 'Corp.')):
+                elif word.endswith(("Inc.", "Ltd.", "Corp.")):
                     entities["organizations"].append(word)
-                elif word in ['Paris', 'London', 'New York', 'Berlin']:
+                elif word in ["Paris", "London", "New York", "Berlin"]:
                     entities["locations"].append(word)
 
         # Remove duplicates
@@ -255,8 +286,22 @@ class AIService(INeedRedisManagerInterface):
             entities[key] = list(set(entities[key]))
 
         # Dummy topic modeling
-        technical_terms = ['algorithm', 'system', 'data', 'process', 'technology', 'development']
-        business_terms = ['business', 'market', 'strategy', 'growth', 'revenue', 'customer']
+        technical_terms = [
+            "algorithm",
+            "system",
+            "data",
+            "process",
+            "technology",
+            "development",
+        ]
+        business_terms = [
+            "business",
+            "market",
+            "strategy",
+            "growth",
+            "revenue",
+            "customer",
+        ]
 
         tech_count = sum(1 for term in technical_terms if term in text.lower())
         business_count = sum(1 for term in business_terms if term in text.lower())
@@ -271,7 +316,9 @@ class AIService(INeedRedisManagerInterface):
         return entities
 
     @staticmethod
-    async def _generate_ai_insights(summary: dict, sentiment: dict, entities: dict) -> dict:
+    async def _generate_ai_insights(
+        summary: dict, sentiment: dict, entities: dict
+    ) -> dict:
         """Generate comprehensive AI insights from all analyses."""
         insights = []
 
@@ -279,10 +326,14 @@ class AIService(INeedRedisManagerInterface):
         if sentiment["sentiment"] == "positive":
             insights.append("The document has a generally positive tone")
         elif sentiment["sentiment"] == "negative":
-            insights.append("The document contains negative sentiment that may require attention")
+            insights.append(
+                "The document contains negative sentiment that may require attention"
+            )
 
         if summary["word_count"] > 1000:
-            insights.append("This is a comprehensive document requiring detailed review")
+            insights.append(
+                "This is a comprehensive document requiring detailed review"
+            )
         elif summary["word_count"] < 200:
             insights.append("This is a brief document suitable for quick reading")
 
@@ -294,11 +345,18 @@ class AIService(INeedRedisManagerInterface):
 
         return {
             "insights": insights,
-            "overall_complexity": "high" if summary["word_count"] > 800 else "medium" if summary[
-                                                                                             "word_count"] > 300 else "low",
-            "recommended_actions": ["Review key topics", "Consider sentiment in response"] if insights else [
-                "Standard processing complete"],
+            "overall_complexity": (
+                "high"
+                if summary["word_count"] > 800
+                else "medium" if summary["word_count"] > 300 else "low"
+            ),
+            "recommended_actions": (
+                ["Review key topics", "Consider sentiment in response"]
+                if insights
+                else ["Standard processing complete"]
+            ),
         }
+
     # endregion
 
     async def _process_ai_worker(self, state: WorkflowGraphState) -> WorkflowGraphState:
@@ -407,29 +465,35 @@ class AIService(INeedRedisManagerInterface):
             else:
                 # Apply length limit
                 if len(text_content) > self.MAX_TEXT_LENGTH:
-                    text_content = text_content[:self.MAX_TEXT_LENGTH]
+                    text_content = text_content[: self.MAX_TEXT_LENGTH]
                     ai_results["text_truncated"] = True
                     ai_results["original_length"] = len(text_content)
 
                 # Perform various AI analyses
-                summary = await self._generate_document_summary(text_content, state["job_id"])
+                summary = await self._generate_document_summary(
+                    text_content, state["job_id"]
+                )
                 sentiment = await self._analyze_sentiment_and_tone(text_content)
                 entities = await self._extract_entities_and_topics(text_content)
-                insights = await self._generate_ai_insights(summary, sentiment, entities)
+                insights = await self._generate_ai_insights(
+                    summary, sentiment, entities
+                )
 
                 # Compile all AI results
-                ai_results.update({
-                    "document_summary": summary,
-                    "sentiment_analysis": sentiment,
-                    "entity_extraction": entities,
-                    "ai_insights": insights,
-                    "processing_timestamp": datetime.now(timezone.utc).isoformat(),
-                    "model_used": "dummy_ai_v1.0",  # In real scenario, this would be the actual model
-                })
+                ai_results.update(
+                    {
+                        "document_summary": summary,
+                        "sentiment_analysis": sentiment,
+                        "entity_extraction": entities,
+                        "ai_insights": insights,
+                        "processing_timestamp": datetime.now(timezone.utc).isoformat(),
+                        "model_used": "dummy_ai_v1.0",  # In real scenario, this would be the actual model
+                    }
+                )
 
-                print(30 * '-')
+                print(30 * "-")
                 print(ai_results)
-                print(30 * '-')
+                print(30 * "-")
 
         except Exception as e:
             errors.append(f"AI processing failed: {str(e)}")
@@ -448,13 +512,15 @@ class AIService(INeedRedisManagerInterface):
                 state["metadata"]["ai_processing"] = {
                     "success": False,
                     "errors": errors,
-                    "partial_results": ai_results
+                    "partial_results": ai_results,
                 }
 
         else:
             state["status"] = "success"
             state["step"] = "ai_processing_done"
-            state["metadata"]["ai_processing"] = ai_results  # Add AI results to existing metadata
+            state["metadata"][
+                "ai_processing"
+            ] = ai_results  # Add AI results to existing metadata
             state["metadata"]["ai_processing_status"] = "completed"  # Add success flag
 
         state["updated_at"] = datetime.now(timezone.utc).isoformat()

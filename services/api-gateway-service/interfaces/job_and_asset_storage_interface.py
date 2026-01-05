@@ -11,6 +11,7 @@ Usage:
 Classes:
 - JobAssetStore (ABC): Interface for job/asset metadata operations.
 """
+
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
 

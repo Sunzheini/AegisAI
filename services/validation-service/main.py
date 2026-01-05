@@ -4,6 +4,7 @@ Validation Service
 Standalone service that processes validation tasks.
 Uses RedisManager for consistent connection management.
 """
+
 import os
 import json
 import asyncio
@@ -141,13 +142,17 @@ class ValidationService(INeedRedisManagerInterface, INeedCloudManagerInterface):
 
         try:
             # Check if it's an S3 path or local path
-            if USE_AWS and file_path.startswith('s3://'):
+            if USE_AWS and file_path.startswith("s3://"):
                 # S3 file validation
                 bucket_name, key = self.cloud_manager.parse_s3_path(file_path)
                 try:
-                    self.cloud_manager.s3_client.head_object(Bucket=bucket_name, Key=key)
+                    self.cloud_manager.s3_client.head_object(
+                        Bucket=bucket_name, Key=key
+                    )
                 except ClientError as e:
-                    errors.append(f"S3 file does not exist or inaccessible: {file_path} - {e}")
+                    errors.append(
+                        f"S3 file does not exist or inaccessible: {file_path} - {e}"
+                    )
             else:
                 # Local file validation
                 path = Path(file_path)
@@ -164,7 +169,6 @@ class ValidationService(INeedRedisManagerInterface, INeedCloudManagerInterface):
                 # Check read permissions
                 if not os.access(file_path, os.R_OK):
                     errors.append(f"No read permission for file: {file_path}")
-
 
         except Exception as e:
             errors.append(f"File access validation failed: {str(e)}")
@@ -199,11 +203,13 @@ class ValidationService(INeedRedisManagerInterface, INeedCloudManagerInterface):
 
         try:
             # Check if it's an S3 path or local path
-            if USE_AWS and file_path.startswith('s3://'):
+            if USE_AWS and file_path.startswith("s3://"):
                 # Get file size from S3
                 bucket_name, key = self.cloud_manager.parse_s3_path(file_path)
-                response = self.cloud_manager.s3_client.head_object(Bucket=bucket_name, Key=key)
-                file_size = response['ContentLength']
+                response = self.cloud_manager.s3_client.head_object(
+                    Bucket=bucket_name, Key=key
+                )
+                file_size = response["ContentLength"]
             else:
                 # Get file size from local filesystem
                 file_size = os.path.getsize(file_path)
@@ -259,7 +265,9 @@ class ValidationService(INeedRedisManagerInterface, INeedCloudManagerInterface):
         try:
             # ToDo: changed
             # Download from S3 if needed for content validation
-            local_path = await self.cloud_manager.download_from_s3_if_needed(USE_AWS, file_path)
+            local_path = await self.cloud_manager.download_from_s3_if_needed(
+                USE_AWS, file_path
+            )
 
             try:
                 if content_type.startswith("image/"):
@@ -313,7 +321,7 @@ class ValidationService(INeedRedisManagerInterface, INeedCloudManagerInterface):
 
             # Check if image dimensions are reasonable
             if (
-                    file_size > self.MAX_IMAGE_DIMENSION * self.MAX_IMAGE_DIMENSION * 4
+                file_size > self.MAX_IMAGE_DIMENSION * self.MAX_IMAGE_DIMENSION * 4
             ):  # Rough estimate: width * height * 4 bytes
                 errors.append(
                     f"Image file size suggests dimensions may exceed maximum allowed {self.MAX_IMAGE_DIMENSION}x{self.MAX_IMAGE_DIMENSION}"
@@ -417,7 +425,7 @@ class ValidationService(INeedRedisManagerInterface, INeedCloudManagerInterface):
     # endregion
 
     async def _validate_file_worker(
-            self, state: WorkflowGraphState
+        self, state: WorkflowGraphState
     ) -> WorkflowGraphState:
         """
         Validates the file type, size, and integrity for an ingestion job.

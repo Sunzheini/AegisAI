@@ -45,7 +45,9 @@ class RedisManager:
             submitted_by=getattr(current_user, "name", None),
         )
 
-        print(f"[DEBUG] Publishing job with file_path: {job_request.file_path}")  # Debug
+        print(
+            f"[DEBUG] Publishing job with file_path: {job_request.file_path}"
+        )  # Debug
 
         # aioredis client can be used as async context manager
         async with aioredis.from_url(self.redis_url, decode_responses=True) as redis:

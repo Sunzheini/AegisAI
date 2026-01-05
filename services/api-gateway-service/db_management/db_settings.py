@@ -7,6 +7,7 @@ http://localhost:5050/
 user: admin@admin.com, pass: admin
 -> fastapi_db -> Schema -> public -> Tables -> Users -> Right click -> View/Edit Data
 """
+
 import os
 
 from dotenv import load_dotenv

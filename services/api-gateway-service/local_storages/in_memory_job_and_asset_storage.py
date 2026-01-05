@@ -16,6 +16,7 @@ Example:
     # Get job
     job = job_store.get_job("123")
 """
+
 from typing import Dict, Any, Optional
 
 from interfaces.job_and_asset_storage_interface import JobAndAssetStorage

@@ -4,6 +4,7 @@ Extract Text Service
 Standalone service that executes extract text (from a pdf) tasks.
 Uses RedisManager for consistent connection management.
 """
+
 import os
 import json
 import asyncio
@@ -27,7 +28,9 @@ if USE_SHARED_LIB:
     from shared_lib.needs.ResolveNeedsManager import ResolveNeedsManager
     from shared_lib.redis_management.redis_manager import RedisManager
     from shared_lib.custom_middleware.error_middleware import ErrorMiddleware
-    from shared_lib.custom_middleware.logging_middleware import EnhancedLoggingMiddleware
+    from shared_lib.custom_middleware.logging_middleware import (
+        EnhancedLoggingMiddleware,
+    )
     from shared_lib.logging_management.logging_manager import LoggingManager
 else:
     from contracts.job_schemas import WorkflowGraphState
@@ -160,13 +163,17 @@ class ExtractTextService(INeedRedisManagerInterface, INeedCloudManagerInterface)
                                 page_text = page.extract_text() or ""
                                 if page_text.strip():
                                     pdf_result["pages_with_text"] += 1
-                                    pdf_result["extracted_text"] += f"--- Page {page_num + 1} ---\n{page_text}\n\n"
+                                    pdf_result[
+                                        "extracted_text"
+                                    ] += f"--- Page {page_num + 1} ---\n{page_text}\n\n"
                                     pdf_result["character_count"] += len(page_text)
                             except Exception as page_error:
                                 error_msg = f"Page {page_num + 1}: {str(page_error)}"
                                 pdf_result["extraction_errors"].append(error_msg)
                 except Exception as e:
-                    pdf_result["extraction_errors"].append(f"PDF extraction failed: {str(e)}")
+                    pdf_result["extraction_errors"].append(
+                        f"PDF extraction failed: {str(e)}"
+                    )
 
                 return pdf_result
 
@@ -182,7 +189,9 @@ class ExtractTextService(INeedRedisManagerInterface, INeedCloudManagerInterface)
 
         return result
 
-    async def _save_extracted_text_to_file(self, job_id: str, extracted_text: str, character_count: int) -> tuple:
+    async def _save_extracted_text_to_file(
+        self, job_id: str, extracted_text: str, character_count: int
+    ) -> tuple:
         """Save extracted text to a file in processed directory."""
         try:
             # Create text file path
@@ -210,7 +219,9 @@ class ExtractTextService(INeedRedisManagerInterface, INeedCloudManagerInterface)
 
                 # Upload to S3 processed bucket
                 s3_key = f"processed/{text_filename}"
-                self.cloud_manager.s3_client.upload_file(local_text_path, PROCESSED_DIR, s3_key)
+                self.cloud_manager.s3_client.upload_file(
+                    local_text_path, PROCESSED_DIR, s3_key
+                )
 
                 # Clean up local temp file
                 os.remove(local_text_path)
@@ -220,7 +231,7 @@ class ExtractTextService(INeedRedisManagerInterface, INeedCloudManagerInterface)
             # Add file stats
             file_stats = {
                 "saved_at": datetime.now(timezone.utc).isoformat(),
-                "file_size_bytes": len(extracted_text.encode('utf-8')),
+                "file_size_bytes": len(extracted_text.encode("utf-8")),
                 "character_count": character_count,
                 "file_path": text_file_path,
             }
@@ -306,7 +317,9 @@ class ExtractTextService(INeedRedisManagerInterface, INeedCloudManagerInterface)
         extraction_result = {}
 
         try:
-            local_path = await self.cloud_manager.download_from_s3_if_needed(USE_AWS, state["file_path"])
+            local_path = await self.cloud_manager.download_from_s3_if_needed(
+                USE_AWS, state["file_path"]
+            )
 
             try:
                 # Check if file exists and is PDF
@@ -349,7 +362,9 @@ class ExtractTextService(INeedRedisManagerInterface, INeedCloudManagerInterface)
                                         "character_count"
                                     ],
                                     "total_pages": extraction_result["page_count"],
-                                    "pages_with_text": extraction_result["pages_with_text"],
+                                    "pages_with_text": extraction_result[
+                                        "pages_with_text"
+                                    ],
                                     "text_file_path": text_file_path,
                                     "file_stats": file_stats,
                                     "content_analysis": text_analysis,
@@ -364,7 +379,9 @@ class ExtractTextService(INeedRedisManagerInterface, INeedCloudManagerInterface)
                         preview_text = extraction_result["extracted_text"][:500]
                         if len(extraction_result["extracted_text"]) > 500:
                             preview_text += "..."
-                        state["metadata"]["text_extraction"]["text_preview"] = preview_text
+                        state["metadata"]["text_extraction"][
+                            "text_preview"
+                        ] = preview_text
 
                     else:
                         errors.append("No text could be extracted from the PDF")

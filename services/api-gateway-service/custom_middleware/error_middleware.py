@@ -2,6 +2,7 @@
 Custom error handling middleware for FastAPI apps.
 Catches unhandled exceptions, logs them, and returns a consistent JSON error response.
 """
+
 import logging
 import traceback
 from fastapi import Request, Response
@@ -28,7 +29,7 @@ class ErrorMiddleware(BaseHTTPMiddleware):
             # Return JSON error response
             return Response(
                 content='{"error": "Internal server error", "detail": '
-                        '"Something went wrong on our end"}',
+                '"Something went wrong on our end"}',
                 status_code=500,
                 media_type="application/json",
             )

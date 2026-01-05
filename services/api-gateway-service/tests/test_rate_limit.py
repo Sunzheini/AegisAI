@@ -11,7 +11,9 @@ load_dotenv()
 # Conditional import for shared library usage ----------------------------------------------
 USE_SHARED_LIB = os.getenv("USE_SHARED_LIB", False)
 if USE_SHARED_LIB:
-    from shared_lib.custom_middleware.rate_limiting_middleware import InMemoryRateLimiter
+    from shared_lib.custom_middleware.rate_limiting_middleware import (
+        InMemoryRateLimiter,
+    )
 else:
     from custom_middleware.rate_limiting_middleware import InMemoryRateLimiter
 # ------------------------------------------------------------------------------------------

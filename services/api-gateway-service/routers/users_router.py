@@ -1,6 +1,7 @@
 """
 Router for user-related endpoints.
 """
+
 import os
 
 from dotenv import load_dotenv

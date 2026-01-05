@@ -18,6 +18,7 @@ App State:
 Health Endpoint:
     - GET /health: Returns service status
 """
+
 import os
 import logging
 
@@ -31,9 +32,13 @@ USE_SHARED_LIB = os.getenv("USE_SHARED_LIB", False)
 
 if USE_SHARED_LIB:
     from shared_lib.support.constants import LOG_FILE_PATH, APP_NAME
-    from shared_lib.custom_middleware.rate_limiting_middleware import InMemoryRateLimiter
+    from shared_lib.custom_middleware.rate_limiting_middleware import (
+        InMemoryRateLimiter,
+    )
     from shared_lib.custom_middleware.error_middleware import ErrorMiddleware
-    from shared_lib.custom_middleware.logging_middleware import EnhancedLoggingMiddleware
+    from shared_lib.custom_middleware.logging_middleware import (
+        EnhancedLoggingMiddleware,
+    )
     from shared_lib.logging_management.logging_manager import LoggingManager
 else:
     from support.constants import LOG_FILE_PATH, APP_NAME
@@ -84,10 +89,11 @@ app.state.ingestion_manager = v1_router.views_manager
 
 # create S3 client
 app.state.ingestion_manager.cloud_manager.create_s3_client(
-        access_key_id=AWS_ACCESS_KEY_ID,
-        secret_access_key=AWS_SECRET_ACCESS_KEY,
-        region=AWS_REGION,
-    )
+    access_key_id=AWS_ACCESS_KEY_ID,
+    secret_access_key=AWS_SECRET_ACCESS_KEY,
+    region=AWS_REGION,
+)
+
 
 # Health check endpoint
 @app.get("/health")

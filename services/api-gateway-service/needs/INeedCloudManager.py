@@ -1,6 +1,7 @@
 """
 Interface indicating that a class requires a Cloud Manager.
 """
+
 import abc
 from typing import Any
 

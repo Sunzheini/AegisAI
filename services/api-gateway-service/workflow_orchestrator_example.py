@@ -24,6 +24,7 @@ Migration Notes:
     - Replace in-memory stores with S3/DynamoDB for production
     - Replace simulated workers with Lambda/Step Functions for cloud
 """
+
 import os
 import json
 from typing import Dict, Any, Optional
@@ -50,7 +51,9 @@ if USE_SHARED_LIB:
     from shared_lib.needs.ResolveNeedsManager import ResolveNeedsManager
     from shared_lib.support.support_functions import resolve_file_path
     from shared_lib.logging_management.logging_manager import LoggingManager
-    from shared_lib.custom_middleware.logging_middleware import EnhancedLoggingMiddleware
+    from shared_lib.custom_middleware.logging_middleware import (
+        EnhancedLoggingMiddleware,
+    )
     from shared_lib.custom_middleware.error_middleware import ErrorMiddleware
 else:
     from contracts.job_schemas import (

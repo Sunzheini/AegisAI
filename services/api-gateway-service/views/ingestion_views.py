@@ -15,6 +15,7 @@ Endpoints:
     - GET /v1/jobs/{job_id}: Get job status
     - GET /v1/assets/{asset_id}: Get asset metadata
 """
+
 import os
 import uuid
 import asyncio
@@ -38,10 +39,15 @@ if USE_SHARED_LIB:
     from shared_lib.needs.INeedCloudManager import INeedCloudManagerInterface
     from shared_lib.needs.INeedRedisManager import INeedRedisManagerInterface
     from shared_lib.support.security import auth_required
-    from shared_lib.support.constants import ALLOWED_CONTENT_TYPES_SET, MAX_UPLOAD_BYTES_SIZE
+    from shared_lib.support.constants import (
+        ALLOWED_CONTENT_TYPES_SET,
+        MAX_UPLOAD_BYTES_SIZE,
+    )
     from shared_lib.support.support_functions import sanitize_filename
     from shared_lib.local_storages.local_file_storage import LocalFileStorage
-    from shared_lib.local_storages.in_memory_job_and_asset_storage import InMemoryJobAndAssetStorage
+    from shared_lib.local_storages.in_memory_job_and_asset_storage import (
+        InMemoryJobAndAssetStorage,
+    )
 else:
     from contracts.job_schemas import IngestionJobRequest
     from needs.INeedCloudManager import INeedCloudManagerInterface
@@ -50,15 +56,21 @@ else:
     from support.constants import ALLOWED_CONTENT_TYPES_SET, MAX_UPLOAD_BYTES_SIZE
     from support.support_functions import sanitize_filename
     from local_storages.local_file_storage import LocalFileStorage
-    from local_storages.in_memory_job_and_asset_storage import InMemoryJobAndAssetStorage
+    from local_storages.in_memory_job_and_asset_storage import (
+        InMemoryJobAndAssetStorage,
+    )
 
 
 USE_AWS = os.getenv("USE_AWS", "false").lower() == "true"
 if not USE_AWS:
-    STORAGE_ROOT = os.getenv("STORAGE_ROOT", os.path.abspath(os.path.join(os.getcwd(), "storage")))
+    STORAGE_ROOT = os.getenv(
+        "STORAGE_ROOT", os.path.abspath(os.path.join(os.getcwd(), "storage"))
+    )
     RAW_DIR = os.getenv("RAW_DIR", os.path.join(STORAGE_ROOT, "raw"))
     PROCESSED_DIR = os.getenv("PROCESSED_DIR", os.path.join(STORAGE_ROOT, "processed"))
-    TRANSCODED_DIR = os.getenv("TRANSCODED_DIR", os.path.join(STORAGE_ROOT, "transcoded"))
+    TRANSCODED_DIR = os.getenv(
+        "TRANSCODED_DIR", os.path.join(STORAGE_ROOT, "transcoded")
+    )
 else:
     STORAGE_ROOT = "AWS_S3_Buckets"
     RAW_DIR = os.getenv("RAW_DIR_AWS", "aegisai-raw-danielzorov")
@@ -126,7 +138,9 @@ class IngestionViewsManager(INeedRedisManagerInterface, INeedCloudManagerInterfa
         os.makedirs(TRANSCODED_DIR, exist_ok=True)
 
     @staticmethod
-    def _copy_file_sync(src_path: str, dst_path: str, chunk_size: int = 1024 * 1024) -> None:
+    def _copy_file_sync(
+        src_path: str, dst_path: str, chunk_size: int = 1024 * 1024
+    ) -> None:
         """Copy a file using blocking I/O; intended for threadpool use."""
         with open(src_path, "rb") as rf, open(dst_path, "wb") as wf:
             while True:
@@ -277,7 +291,9 @@ class IngestionViewsManager(INeedRedisManagerInterface, INeedCloudManagerInterfa
 
             # Reset file pointer and upload to S3
             await file.seek(0)
-            self.cloud_manager.s3_client.upload_fileobj(file.file, destination_path, s3_key)
+            self.cloud_manager.s3_client.upload_fileobj(
+                file.file, destination_path, s3_key
+            )
 
             await file.close()
             logger.info("Uploaded to S3: %s, size: %d", s3_key, total_size_in_bytes)
@@ -355,8 +371,8 @@ class IngestionViewsManager(INeedRedisManagerInterface, INeedCloudManagerInterfa
                 )
             else:
                 destination_path = RAW_DIR  # S3 bucket name
-                s3_key, total_size_in_bytes, hasher = await self._stream_file_to_storage(
-                    file, destination_path
+                s3_key, total_size_in_bytes, hasher = (
+                    await self._stream_file_to_storage(file, destination_path)
                 )
                 destination_path = f"s3://{destination_path}/{s3_key}"
 

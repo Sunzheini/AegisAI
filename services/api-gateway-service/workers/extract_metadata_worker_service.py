@@ -4,6 +4,7 @@ Extract Metadata Service
 Standalone service that executes extract metadata tasks.
 Uses RedisManager for consistent connection management.
 """
+
 import os
 import json
 import asyncio
@@ -26,7 +27,9 @@ if USE_SHARED_LIB:
     from shared_lib.needs.ResolveNeedsManager import ResolveNeedsManager
     from shared_lib.redis_management.redis_manager import RedisManager
     from shared_lib.custom_middleware.error_middleware import ErrorMiddleware
-    from shared_lib.custom_middleware.logging_middleware import EnhancedLoggingMiddleware
+    from shared_lib.custom_middleware.logging_middleware import (
+        EnhancedLoggingMiddleware,
+    )
     from shared_lib.logging_management.logging_manager import LoggingManager
 else:
     from contracts.job_schemas import WorkflowGraphState
@@ -126,7 +129,9 @@ class ExtractMetadataService(INeedRedisManagerInterface, INeedCloudManagerInterf
 
         try:
             # Download from S3 if needed for universal metadata
-            local_path = await self.cloud_manager.download_from_s3_if_needed(USE_AWS, file_path)
+            local_path = await self.cloud_manager.download_from_s3_if_needed(
+                USE_AWS, file_path
+            )
 
             try:
                 path = Path(local_path)
@@ -394,7 +399,9 @@ class ExtractMetadataService(INeedRedisManagerInterface, INeedCloudManagerInterf
         # 2. Extract type-specific metadata
         try:
             # Download from S3 if needed for content-specific metadata extraction
-            local_path = await self.cloud_manager.download_from_s3_if_needed(USE_AWS, file_path)
+            local_path = await self.cloud_manager.download_from_s3_if_needed(
+                USE_AWS, file_path
+            )
 
             try:
                 if content_type.startswith("image/"):
@@ -438,7 +445,9 @@ class ExtractMetadataService(INeedRedisManagerInterface, INeedCloudManagerInterf
             state["step"] = "extract_metadata_from_file_failed"
 
             # state["metadata"] = {"errors": errors}
-            state["metadata"]["errors"] = errors  # Keep existing metadata but add errors
+            state["metadata"][
+                "errors"
+            ] = errors  # Keep existing metadata but add errors
 
         else:
             state["status"] = "success"

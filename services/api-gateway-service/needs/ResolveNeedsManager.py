@@ -1,6 +1,7 @@
 """
 Contains the manager to resolve needs for needy objects.
 """
+
 from needs.INeedCloudManager import INeedCloudManagerInterface
 from needs.INeedRedisManager import INeedRedisManagerInterface
 from cloud_management.cloud_manager import CloudManager

@@ -1,6 +1,7 @@
 """
 Database manager for user data using PostgreSQL and SQLAlchemy.
 """
+
 import os
 
 from dotenv import load_dotenv

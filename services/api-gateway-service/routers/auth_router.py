@@ -1,6 +1,7 @@
 """
 Authentication and Authorization using JWT tokens with FastAPI
 """
+
 import os
 from datetime import timedelta, datetime, timezone
 from typing import Dict, Any, Optional

@@ -4,6 +4,7 @@ Extract Text (e.g. from a .pdf) Worker Client for Orchestrator
 Lightweight client that publishes extract text tasks to Redis and waits for results.
 Used by the workflow orchestrator.
 """
+
 import os
 
 from dotenv import load_dotenv

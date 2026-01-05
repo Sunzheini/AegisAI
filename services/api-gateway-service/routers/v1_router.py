@@ -1,6 +1,7 @@
 """
 This module defines the API router for version 1 (v1) of the API.
 """
+
 import os
 
 from dotenv import load_dotenv

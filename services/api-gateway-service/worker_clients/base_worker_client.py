@@ -1,6 +1,7 @@
 """
 Base for all worker clients
 """
+
 import json
 import asyncio
 from abc import abstractmethod

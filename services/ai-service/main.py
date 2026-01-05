@@ -94,7 +94,7 @@ class AIService(INeedRedisManagerInterface, INeedCloudManagerInterface):
 
     def __init__(self):
         self.logger = logging.getLogger("ai-service")
-        self.MAX_TEXT_LENGTH = MAX_TEXT_LENGTH
+        self.max_text_length = MAX_TEXT_LENGTH
 
         # Instance-level configuration
 
@@ -129,7 +129,7 @@ class AIService(INeedRedisManagerInterface, INeedCloudManagerInterface):
                     with open(text_file_path, "r", encoding="utf-8") as f:
                         text_content = f.read()
                         print(
-                            f"[AI Service] Loaded full text from file: {len(text_content)} characters"
+                            f"[AI Service] Loaded full text from file: {len(text_content)} chars"
                         )
                 except Exception as e:
                     print(f"[AI Service] Failed to read text file: {str(e)}")
@@ -150,7 +150,7 @@ class AIService(INeedRedisManagerInterface, INeedCloudManagerInterface):
         return text_content
 
     @staticmethod
-    async def _generate_document_summary(text: str, job_id: str) -> dict:
+    async def _generate_document_summary(text: str) -> dict:
         """Generate a document summary using dummy AI logic."""
         # Simulate AI processing delay
         await asyncio.sleep(0.3)
@@ -179,7 +179,8 @@ class AIService(INeedRedisManagerInterface, INeedCloudManagerInterface):
             summary_length = "short"
 
         # Create dummy summary
-        summary = f"This is a {summary_length} {summary_type} containing approximately {word_count} words. "
+        summary = (f"This is a {summary_length} {summary_type} containing approximately "
+                   f"{word_count} words. ")
         summary += f"Key topics include: {', '.join(top_keywords[:3]) if top_keywords else 'general content'}."
 
         return {
@@ -395,7 +396,8 @@ class AIService(INeedRedisManagerInterface, INeedCloudManagerInterface):
                 'Title': 'DATASHEET SEARCH SITE | WWW.ALLDATASHEET.COM',
                 'Creator': 'Acrobat Capture 1.0',
                 'Author': 'Provided By ALLDATASHEET.COM(FREE DATASHEET DOWNLOAD SITE)',
-                'Keywords': 'PDF, DATASHEET, PDF DATASHEET, IC, CHIP, SEMICONDUCTOR, TRANSISTOR, ELECTRONIC COMPONENT, ISO COMPONENT, ALLDATASHEET, DATABOOK, CATALOG, ARCHIVE',
+                'Keywords': 'PDF, DATASHEET, PDF DATASHEET, IC, CHIP, SEMICONDUCTOR, TRANSISTOR,
+                    ELECTRONIC COMPONENT, ISO COMPONENT, ALLDATASHEET, DATABOOK, CATALOG, ARCHIVE',
                 'Subject': 'DATASHEET SEARCH, DATABOOK, COMPONENT, FREE DOWNLOAD SITE',
                 'Producer': 'Acrobat PDFWriter 2.01 for Windows'},
             'extracting_metadata': 'passed',
@@ -421,11 +423,13 @@ class AIService(INeedRedisManagerInterface, INeedCloudManagerInterface):
                 'extract_text': 'passed',
                 'ai_processing': {
                     'document_summary': {
-                        'summary': 'This is a long detailed_document containing approximately 4334 words. Key topics include: 30pf+10, cycle, abyteofthe.',
+                        'summary': 'This is a long detailed_document containing approximately
+                                    4334 words. Key topics include: 30pf+10, cycle, abyteofthe.',
                         'word_count': 4334,
                         'sentence_count': 430,
                         'estimated_reading_time_minutes': 21,
-                        'key_topics': ['30pf+10', 'cycle', 'abyteofthe', 'frominternalmemory,eais', 'units'],
+                        'key_topics': ['30pf+10', 'cycle', 'abyteofthe', 'frominternalmemory,eais',
+                        'units'],
                         'content_type': 'detailed_document', 'readability_score': 37},
                     'sentiment_analysis': {
                         'sentiment': 'positive',
@@ -440,9 +444,12 @@ class AIService(INeedRedisManagerInterface, INeedCloudManagerInterface):
                         'dates': [],
                         'topics': ['technology', 'software', 'systems']},
                     'ai_insights': {
-                        'insights': ['The document has a generally positive tone', 'This is a comprehensive document requiring detailed review', 'Content focuses on technical subjects'],
+                        'insights': ['The document has a generally positive tone', 'This is a
+                                    comprehensive document requiring detailed review',
+                                    'Content focuses on technical subjects'],
                         'overall_complexity': 'high',
-                        'recommended_actions': ['Review key topics', 'Consider sentiment in response']},
+                        'recommended_actions': ['Review key topics',
+                                                'Consider sentiment in response']},
                     'processing_timestamp': '2025-10-28T09:40:29.095009+00:00',
                     'model_used': 'dummy_ai_v1.0'},
                 'ai_processing_status': 'completed'}}
@@ -464,8 +471,8 @@ class AIService(INeedRedisManagerInterface, INeedCloudManagerInterface):
         #         errors.append("No text content available for AI processing")
         #     else:
         #         # Apply length limit
-        #         if len(text_content) > self.MAX_TEXT_LENGTH:
-        #             text_content = text_content[:self.MAX_TEXT_LENGTH]
+        #         if len(text_content) > self.max_text_length:
+        #             text_content = text_content[:self.max_text_length]
         #             ai_results["text_truncated"] = True
         #             ai_results["original_length"] = len(text_content)
         #
@@ -505,9 +512,12 @@ class AIService(INeedRedisManagerInterface, INeedCloudManagerInterface):
 
         # Improved queries for better document analysis
         query = {
-            "summary": "Provide a comprehensive executive summary of this document, highlighting main topics and key information",
-            "key_points": "Extract the most important technical specifications, features, or key findings mentioned in the document",
-            "analysis": "Identify the document's primary purpose, target audience, structure, and any critical recommendations",
+            "summary": "Provide a comprehensive executive summary of this document, highlighting "
+                       "main topics and key information",
+            "key_points": "Extract the most important technical specifications, features, or key "
+                          "findings mentioned in the document",
+            "analysis": "Identify the document's primary purpose, target audience, structure, and "
+                        "any critical recommendations",
         }
 
         chat_history = []  # list of (user, bot) tuples
@@ -612,18 +622,29 @@ class AIService(INeedRedisManagerInterface, INeedCloudManagerInterface):
 
     @staticmethod
     def _current_timestamp():
-        from datetime import datetime, timezone
-
+        """
+        Get the current UTC timestamp in ISO format.
+        :return: ISO formatted timestamp string
+        """
         return datetime.now(timezone.utc).isoformat()
 
 
 @app.get("/health")
 async def health_check():
+    """
+    Health check endpoint to verify service is running.
+    :return: Dictionary with service status
+    """
     return {"status": "healthy", "service": "ai_processing"}
 
 
 @app.post("/generate-response")
 async def generate_response(request: dict):
+    """
+    Generate AI response based on user prompt and chat history.
+    :param request: Dictionary with 'user_prompt' and optional 'chat_history'
+    :return: Dictionary with 'query', 'result', 'source_documents', and updated 'chat_history'
+    """
     try:
         query = request.get("user_prompt")
         chat_history = request.get("chat_history", [])
@@ -675,7 +696,7 @@ async def cleanup_data():
 
 
 @app.post("/run-tests")
-async def run_tests(request: dict = None):
+async def run_tests():
     """Run tests programmatically (POST endpoint)"""
     await ConcreteAIManager.run_tests()
 

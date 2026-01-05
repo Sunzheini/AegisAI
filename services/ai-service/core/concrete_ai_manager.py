@@ -102,7 +102,7 @@ class ConcreteAIManager:
 
         # 2
         pinecone_index_name = index_name
-        vectorstore = PineconeVectorStore.from_documents(
+        PineconeVectorStore.from_documents(
             texts,
             embeddings,
             index_name=pinecone_index_name,
@@ -249,13 +249,29 @@ class ConcreteAIManager:
             else:
                 cmd.append("tests/")
 
-            result = subprocess.run(cmd, capture_output=True, text=True, cwd=".")
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                cwd=".",
+                check=True  # Will raise CalledProcessError for non-zero exit codes
+            )
 
             return {
                 "success": result.returncode == 0,
                 "stdout": result.stdout,
                 "stderr": result.stderr,
                 "returncode": result.returncode,
+            }
+
+        except subprocess.CalledProcessError as e:
+            # Handle when pytest fails (non-zero exit code)
+            return {
+                "success": False,
+                "error": f"Tests failed with exit code {e.returncode}",
+                "stdout": e.stdout if hasattr(e, 'stdout') else "",
+                "stderr": e.stderr if hasattr(e, 'stderr') else "",
+                "returncode": e.returncode,
             }
         except Exception as e:
             return {"success": False, "error": str(e), "stdout": "", "stderr": ""}

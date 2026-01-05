@@ -1,3 +1,6 @@
+"""
+Custom callback handler for language model events.
+"""
 from langchain_core.callbacks.base import BaseCallbackHandler
 
 
@@ -19,8 +22,8 @@ class CustomCallbackHandler(BaseCallbackHandler):
     def on_tool_start(self, serialized, input_str, **kwargs) -> None:
         print("Tool started with input:", input_str)
 
-    def on_tool_end(self, output_str, **kwargs) -> None:
-        print("Tool finished with output:", output_str)
+    def on_tool_end(self, output, **kwargs) -> None:
+        print("Tool finished with output:", output)
 
     def on_text(self, text: str, **kwargs) -> None:
         print("Text event:", text)

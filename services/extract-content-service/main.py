@@ -312,7 +312,8 @@ class ExtractTextService(INeedRedisManagerInterface, INeedCloudManagerInterface)
                     errors.append(f"File not found: {local_path}")
                 elif state["content_type"] != "application/pdf":
                     errors.append(
-                        f"Text extraction only supported for PDF files. Got: {state['content_type']}"
+                        f"Text extraction only supported for PDF files. "
+                        f"Got: {state['content_type']}"
                     )
                 else:
                     # Extract text from PDF
@@ -411,13 +412,19 @@ class ExtractTextService(INeedRedisManagerInterface, INeedCloudManagerInterface)
 
     @staticmethod
     def _current_timestamp():
-        from datetime import datetime, timezone
-
+        """
+        Get the current UTC timestamp in ISO format.
+        :return: Current timestamp string.
+        """
         return datetime.now(timezone.utc).isoformat()
 
 
 @app.get("/health")
 async def health_check():
+    """
+    Health check endpoint.
+    :return: A JSON indicating the service is healthy.
+    """
     return {"status": "healthy", "service": "extracting_text"}
 
 

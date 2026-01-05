@@ -113,10 +113,10 @@ class ValidationService(INeedRedisManagerInterface, INeedCloudManagerInterface):
         self.logger = logging.getLogger("validation-service")
 
         # Instance-level configuration
-        self.MAX_FILE_SIZE = MAX_FILE_SIZE
-        self.MAX_IMAGE_DIMENSION = MAX_IMAGE_DIMENSION
-        self.MAX_VIDEO_DURATION = MAX_VIDEO_DURATION
-        self.ALLOWED_EXTENSIONS = ALLOWED_EXTENSIONS
+        self.max_file_size = MAX_FILE_SIZE
+        self.max_image_dimension = MAX_IMAGE_DIMENSION
+        self.max_video_duration = MAX_VIDEO_DURATION
+        self.allowed_extensions = ALLOWED_EXTENSIONS
 
     async def process_validation_task(self, task_data: dict) -> dict:
         """Process validation task using shared Redis connection."""
@@ -179,10 +179,11 @@ class ValidationService(INeedRedisManagerInterface, INeedCloudManagerInterface):
         """Validate basic metadata like content type and checksum."""
         errors = []
 
-        allowed_types = list(self.ALLOWED_EXTENSIONS.keys())
+        allowed_types = list(self.allowed_extensions.keys())
         if state["content_type"] not in allowed_types:
             errors.append(
-                f"Unsupported file type: {state['content_type']}. Allowed types: {', '.join(allowed_types)}"
+                f"Unsupported file type: {state['content_type']}. "
+                f"Allowed types: {', '.join(allowed_types)}"
             )
 
         # Checksum validation
@@ -214,9 +215,9 @@ class ValidationService(INeedRedisManagerInterface, INeedCloudManagerInterface):
                 # Get file size from local filesystem
                 file_size = os.path.getsize(file_path)
 
-            if file_size > self.MAX_FILE_SIZE:
+            if file_size > self.max_file_size:
                 errors.append(
-                    f"File size {file_size} exceeds maximum allowed size {self.MAX_FILE_SIZE}"
+                    f"File size {file_size} exceeds maximum allowed size {self.max_file_size}"
                 )
 
             # Check minimum file size (avoid empty files)
@@ -244,7 +245,7 @@ class ValidationService(INeedRedisManagerInterface, INeedCloudManagerInterface):
             path = Path(file_path)
             file_extension = path.suffix.lower()
 
-            allowed_extensions = self.ALLOWED_EXTENSIONS.get(content_type, [])
+            allowed_extensions = self.allowed_extensions.get(content_type, [])
             if allowed_extensions and file_extension not in allowed_extensions:
                 errors.append(
                     f"File extension {file_extension} does not match content type {content_type}. "
@@ -263,7 +264,6 @@ class ValidationService(INeedRedisManagerInterface, INeedCloudManagerInterface):
         errors = []
 
         try:
-            # ToDo: changed
             # Download from S3 if needed for content validation
             local_path = await self.cloud_manager.download_from_s3_if_needed(
                 USE_AWS, file_path
@@ -277,7 +277,6 @@ class ValidationService(INeedRedisManagerInterface, INeedCloudManagerInterface):
                 elif content_type == "application/pdf":
                     errors.extend(await self._validate_pdf_file(local_path))
 
-            # ToDo: changed
             finally:
                 # Clean up temp file if it was downloaded from S3
                 if local_path != file_path and os.path.exists(local_path):
@@ -321,10 +320,11 @@ class ValidationService(INeedRedisManagerInterface, INeedCloudManagerInterface):
 
             # Check if image dimensions are reasonable
             if (
-                file_size > self.MAX_IMAGE_DIMENSION * self.MAX_IMAGE_DIMENSION * 4
+                file_size > self.max_image_dimension * self.max_image_dimension * 4
             ):  # Rough estimate: width * height * 4 bytes
                 errors.append(
-                    f"Image file size suggests dimensions may exceed maximum allowed {self.MAX_IMAGE_DIMENSION}x{self.MAX_IMAGE_DIMENSION}"
+                    f"Image file size suggests dimensions may exceed maximum "
+                    f"allowed {self.max_image_dimension}x{self.max_image_dimension}"
                 )
 
         except Exception as e:
@@ -362,9 +362,10 @@ class ValidationService(INeedRedisManagerInterface, INeedCloudManagerInterface):
             # Estimate video duration from file size (very rough estimate)
             # Assuming average bitrate of 1-2 Mbps for compressed video
             estimated_duration = file_size * 8 / (1.5 * 1024 * 1024)  # seconds
-            if estimated_duration > self.MAX_VIDEO_DURATION:
+            if estimated_duration > self.max_video_duration:
                 errors.append(
-                    f"Estimated video duration ({estimated_duration:.1f}s) may exceed maximum allowed {self.MAX_VIDEO_DURATION}s"
+                    f"Estimated video duration ({estimated_duration:.1f}s) may exceed maximum "
+                    f"allowed {self.max_video_duration}s"
                 )
 
         except Exception as e:
@@ -480,13 +481,19 @@ class ValidationService(INeedRedisManagerInterface, INeedCloudManagerInterface):
 
     @staticmethod
     def _current_timestamp():
-        from datetime import datetime, timezone
-
+        """
+        Get the current UTC timestamp in ISO format.
+        :return: str: Current timestamp.
+        """
         return datetime.now(timezone.utc).isoformat()
 
 
 @app.get("/health")
 async def health_check():
+    """
+    Health check endpoint.
+    :return: dict: Health status of the service.
+    """
     return {"status": "healthy", "service": "validation"}
 
 

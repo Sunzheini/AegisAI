@@ -5,7 +5,6 @@ Working with USE_AWS=TRUE, without docker, with docker and with k8s. Not working
 TESTS working with USE_AWS=TRUE.
 
 ## ToDo Coding (CW1-CW4):
-- pylint / black -> run on other pc -> review
 - transfer all projects, k8s, docker, ci/cd to new pc
 - 6 Async / 7 Conc app
 - 5 S3

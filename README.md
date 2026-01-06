@@ -123,7 +123,9 @@ docker-compose-example.yml as a base and create your own docker-compose.yml with
 "shared-lib @ file:///app/shared-lib"                                      # use this
 # "shared-lib @ file:///D:/Study/Projects/Github/AegisAI/shared-lib"       # comment this
 `
-3. Open terminal in the root of AegisAI and run:
+3. Have chocolatey installed and use it to install make: `choco install make`
+
+4. Open terminal in the root of AegisAI and run:
 `make build`    # builds the docker images
 `make up`       # creates docker containers and runs them
 `make down`     # stops and removes all containers
